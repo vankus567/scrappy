@@ -1,11 +1,5 @@
-import { EmptyState } from "@/components/app/EmptyState";
+import { RanksBoard } from "@/components/app/RanksBoard";
 
 export default function Ranks() {
-  return (
-    <EmptyState
-      mood="focused"
-      title="No ranks yet"
-      body="Leaderboards start with the first paid job: richest pet, most hired, longest alive, your city and your college."
-    />
-  );
+  return <RanksBoard />;
 }

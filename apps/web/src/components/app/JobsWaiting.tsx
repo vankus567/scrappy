@@ -35,6 +35,9 @@ export function JobsWaiting() {
         setAnswer("");
         setConfidence(80);
         if ("vibrate" in navigator) navigator.vibrate?.(120);
+        if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+          new Notification(`${pet?.name ?? "Your pet"} found a job`, { body: `${next.task} · pays ${next.pays_usdc.toFixed(2)}`, tag: "scrappy-job" });
+        }
       }
     } catch {
       setOffline(true);

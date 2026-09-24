@@ -24,7 +24,8 @@ export function WalletPanel() {
     setBusy(true);
     setError("");
     try {
-      const w = await registerWorker(address.trim(), pet.languages);
+      const w = await registerWorker(address.trim(), pet.languages, { pet_name: pet.name, species: pet.species, city: pet.city || undefined });
+      if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
       update({ workerId: w.worker_id, payoutAddress: address.trim(), jobsDone: w.jobs_done, earnedUsdc: w.owed_usdc });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reach Scrappy. Try again.");

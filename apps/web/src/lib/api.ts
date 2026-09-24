@@ -20,12 +20,12 @@ async function j<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function registerWorker(wallet: string, languages: string[]) {
+export async function registerWorker(wallet: string, languages: string[], profile: { pet_name?: string; species?: string; city?: string } = {}) {
   return j<{ worker_id: string; jobs_done: number; owed_usdc: number }>(
     await fetch(`${API_URL}/v1/workers`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ wallet, languages }),
+      body: JSON.stringify({ wallet, languages, ...profile }),
     }),
   );
 }
