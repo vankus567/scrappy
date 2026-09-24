@@ -132,6 +132,8 @@ export const EVOLUTION: Record<import("@/components/Pet").Species, [string, stri
   pengu: ["Fluffchick", "Pengu", "Captain", "Emperor"],
   drako: ["Hatchling", "Drako", "Wyvern", "Sky Drake"],
   goo: ["Drop", "Goo", "Jelly", "Royal Goo"],
+  ember: ["Cinder", "Ember", "Blaze", "Inferno"],
+  boo: ["Glim", "Boo", "Phantom", "Spectre King"],
 };
 
 export function stageName(species: import("@/components/Pet").Species | undefined, stage: PetStage) {

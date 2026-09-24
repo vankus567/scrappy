@@ -195,3 +195,12 @@ body {
 @keyframes hero-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
 .hero-pet { animation: hero-float 6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .hero-pet { animation: none; } }
+
+/* Ember flame flicker, Boo ghost float, spirit orbs */
+@keyframes flame-flicker { 0%, 100% { transform: scale(1, 1) rotate(0deg); } 30% { transform: scale(0.92, 1.08) rotate(-4deg); } 60% { transform: scale(1.06, 0.95) rotate(3deg); } }
+.pet-flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flame-flicker 0.7s ease-in-out infinite; }
+@keyframes ghost-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+.pet-ghost { animation: breathe 3.2s ease-in-out infinite, ghost-float 2.6s ease-in-out infinite; }
+@keyframes orbit-bob { 0%, 100% { translate: 0 0; opacity: 0.8; } 50% { translate: 0 -6px; opacity: 0.45; } }
+.pet-orbit { animation: orbit-bob 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pet-flame, .pet-ghost, .pet-orbit { animation: none; } }

@@ -41,6 +41,7 @@ Legend: [S] sales/supply · [B] build · [P] pitch/submission
 - [ ] [B] Job card screen (verify / compare / record) with confidence slider; answer submit; real payout shown
 - [ ] [B] Reward moment (coin into bowl, pet squish, +$0.11) driven by the real settlement tx
 - [ ] [B] Web push when a job is routed to you; wallet: Google embedded + Seeker MWA
+- [ ] [B] **Revive a dead pet for a tiny fee** (`revive_pet`: ~$0.05 USDC to the reward pool, keeps name/species/form/earnings, 24h cooldown) + revive button on the death certificate. Only after wallet + program exist (no fake payments)
 - [ ] [B] **Pet levels that unlock work**: Lv5 higher-paying tasks, Lv10 expert tasks (router respects level); hunger turns on when jobs are live
 - [ ] [B] Mainnet deploy (program + API); first real paid jobs from a pilot agent
 - [ ] [S] **Checkpoint Oct 3:** 3 agents paying? If 0, change buyer segment same day

@@ -8,7 +8,7 @@ export type PetMood =
 export type PetDance = "none" | "bounce" | "wiggle" | "hop" | "wave" | "march";
 /** Evolution forms, unlocked by real work (see stageFor in pet-store). */
 export type PetStage = "sprout" | "mochi" | "bloom" | "blossom";
-export type Species = "mochi" | "neko" | "bun" | "kumo" | "pip" | "zap" | "kitsu" | "pengu" | "drako" | "goo";
+export type Species = "mochi" | "neko" | "bun" | "kumo" | "pip" | "zap" | "kitsu" | "pengu" | "drako" | "goo" | "ember" | "boo";
 
 type SpeciesDef = {
   name: string;
@@ -34,6 +34,8 @@ export const SPECIES: Record<Species, SpeciesDef> = {
   kitsu: { name: "Kitsu", blurb: "Spirit fox", light: "#ffffff", mid: "#f2f2f7", dark: "#c7c7cc", belly: ["#ffffff", "#ffffff"], detail: "#007aff" },
   pengu: { name: "Pengu", blurb: "Little penguin", light: "#48484a", mid: "#2c2c2e", dark: "#1d1d1f", belly: ["#ffffff", "#e5e5ea"], detail: "#ffb14a", mouth: "beak" },
   drako: { name: "Drako", blurb: "Baby dragon", light: "#e5e5ea", mid: "#aeaeb2", dark: "#8e8e93", belly: ["#ffffff", "#e5e5ea"], detail: "#007aff" },
+  ember: { name: "Ember", blurb: "Fire salamander", light: "#ffb49a", mid: "#ff7a59", dark: "#e0553a", belly: ["#fff4ea", "#ffd9c2"], detail: "#ffc83d" },
+  boo: { name: "Boo", blurb: "Little ghost", light: "#ffffff", mid: "#eef1fb", dark: "#c3c9e0", belly: ["#ffffff", "#ffffff"], detail: "#7cc0ff", feet: false },
   goo: { name: "Goo", blurb: "Jelly drop", light: "#cfe9ff", mid: "#7cc0ff", dark: "#3d9bff", belly: ["#ffffff", "#ffffff"], detail: "#ffffff", feet: false },
 };
 
@@ -49,6 +51,7 @@ type PetProps = {
 
 const STONE = { light: "#e2dfe8", mid: "#c3c0cc", dark: "#9d99a8" };
 const BODY = "M120 52c56 0 90 42 90 94 0 46-36 72-90 72s-90-26-90-72c0-52 34-94 90-94z";
+const GHOST = "M120 52c56 0 90 42 90 94v64c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0-20-8-30 0-20 8-30 0-20-8-30 0v-64c0-52 34-94 90-94z";
 const DROP = "M120 34c30 34 90 62 90 112 0 46-36 72-90 72s-90-26-90-72c0-50 60-78 90-112z";
 
 /**
@@ -92,6 +95,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
   const bigArms = stage === "bloom" || stage === "blossom" || species === "pengu";
   const bodyT = baby ? "translate(12 30) scale(0.9 0.86)" : undefined;
   const isGoo = species === "goo";
+  const isBoo = species === "boo";
   const darkBody = species === "neko" || species === "pengu";
   const faceInk = darkBody && !dead ? "#1d1d1f" : "#1d1836";
   const crownOnSprout = species === "mochi";
@@ -128,7 +132,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
       <ellipse cx="120" cy="229" rx={baby ? 56 : 66} ry="6" fill="#1d1d1f" opacity="0.12" />
 
       <g className={dead || dance === "none" ? undefined : `pet-dance-${dance}`}>
-      <g className={dead ? undefined : "pet-body"}>
+      <g className={dead ? undefined : isBoo ? "pet-body pet-ghost" : "pet-body"}>
         <g transform={bodyT}>
           {/* tails, behind everything */}
           {species === "zap" && (
@@ -147,6 +151,17 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
             </g>
           )}
 
+          {species === "ember" && (
+            <g>
+              <path d="M186 192c26 0 40-16 42-36" fill="none" stroke={c.mid} strokeWidth="16" strokeLinecap="round" />
+              {!dead && (
+                <g className="pet-flame">
+                  <path d="M228 158c-14-6-18-22-10-38 2 10 8 14 14 14-4-12 0-24 10-30-2 14 8 22 6 36-2 12-10 20-20 18z" fill="#ffc83d" />
+                  <path d="M228 152c-6-4-8-12-4-20 2 6 6 8 10 8-2 6 0 12-6 12z" fill="#fff3c4" />
+                </g>
+              )}
+            </g>
+          )}
           {/* species evolution, back layer */}
           {!dead && species === "neko" && (stage === "bloom" || stage === "blossom") && (
             <g fill="none" stroke={c.mid} strokeWidth="12" strokeLinecap="round">
@@ -220,10 +235,10 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
           )}
 
           {/* body */}
-          <path d={isGoo ? DROP : BODY} fill={`url(#${g("body")})`} opacity={isGoo && !dead ? 0.92 : 1} />
+          <path d={isGoo ? DROP : isBoo ? GHOST : BODY} fill={`url(#${g("body")})`} opacity={(isGoo || isBoo) && !dead ? 0.9 : 1} />
           {species === "pengu" ? (
             <path d="M120 84c34 0 56 28 56 64 0 38-24 60-56 60s-56-22-56-60c0-36 22-64 56-64z" fill={`url(#${g("belly")})`} />
-          ) : !isGoo ? (
+          ) : !isGoo && !isBoo ? (
             <ellipse cx="120" cy="176" rx="46" ry="32" fill={`url(#${g("belly")})`} />
           ) : null}
           {/* gloss */}
@@ -274,6 +289,22 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
           )}
           {!dead && species === "goo" && (stage === "bloom" || stage === "blossom") && (
             <g fill="#fff" opacity="0.55"><circle cx="150" cy="176" r="8" /><circle cx="94" cy="190" r="5" /><circle cx="162" cy="150" r="4" /></g>
+          )}
+
+          {!dead && species === "ember" && (stage === "bloom" || stage === "blossom") && (
+            <g className="pet-flame">
+              {(stage === "blossom" ? [100, 120, 140] : [120]).map((x) => (
+                <path key={x} d={`M${x} 58c-10-6-12-18-6-28 2 6 6 9 10 9-2-8 2-16 8-20-2 10 6 16 4 26-2 8-8 14-16 13z`} fill="#ffc83d" />
+              ))}
+            </g>
+          )}
+          {!dead && species === "boo" && (stage === "bloom" || stage === "blossom") && (
+            <g className="pet-orbit" fill="#7cc0ff" opacity="0.8">
+              <circle cx="30" cy="96" r="9" /><circle cx="214" cy="110" r="7" /><circle cx="200" cy="54" r="5" />
+            </g>
+          )}
+          {!dead && species === "boo" && stage === "blossom" && (
+            <path d="M92 50l8-26 20 16 20-16 8 26z" fill="#ffd66b" stroke="#e0a800" strokeWidth="2" strokeLinejoin="round" />
           )}
 
           {/* limbs in front of the body */}

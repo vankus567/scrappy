@@ -76,6 +76,7 @@ scrappy/
 | `feed(amount)` | owner | owner tops up pet vault (optional; does not count as earnings) |
 | `withdraw(amount)` | owner | move USDC from pet vault to owner wallet |
 | `mark_dead(pet)` | settler | set Dead after starvation rule; vault stays withdrawable by owner |
+| `revive_pet(pet)` | owner | pay a tiny revive fee (~$0.05 USDC, configurable; SOL option) to the season reward pool; restores Alive with name, species, evolution stage, reputation and earnings intact; food reset to 50%; 24h cooldown per pet (`last_revived_at`) |
 | `publish_season(n, merkle_root)` | admin | store leaderboard root |
 | `claim_season(n, proof, amount)` | owner | claim reward against root |
 

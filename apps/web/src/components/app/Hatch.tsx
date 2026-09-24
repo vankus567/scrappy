@@ -45,7 +45,7 @@ export function Hatch() {
 
         <fieldset className="space-y-2">
           <legend className="text-[15px] font-medium">Pick your buddy</legend>
-          <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 sm:gap-2.5">
             {(Object.keys(SPECIES) as Species[]).map((id) => {
               const on = species === id;
               return (
