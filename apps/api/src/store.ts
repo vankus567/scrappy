@@ -72,6 +72,9 @@ export function openStore(path = process.env.SCRAPPY_DB ?? "scrappy.db") {
       worker_id TEXT NOT NULL, key TEXT NOT NULL, gold_seen INTEGER NOT NULL DEFAULT 0, gold_correct INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (worker_id, key)
     );
+    CREATE TABLE IF NOT EXISTS payouts (
+      id TEXT PRIMARY KEY, worker_id TEXT NOT NULL, wallet TEXT NOT NULL, amount_usdc REAL NOT NULL, tx_sig TEXT NOT NULL, created_at INTEGER NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS jobs_open ON jobs(status, language, created_at);
   `);
 
@@ -215,6 +218,19 @@ export function openStore(path = process.env.SCRAPPY_DB ?? "scrappy.db") {
         return { ok: true as const, earned_usdc: earned };
       });
       return tx();
+    },
+
+    /** Workers owed at least `min` USDC whose payout hold has ended. */
+    payable(min: number, now = Date.now()): Worker[] {
+      return (db.query("SELECT * FROM workers WHERE owed_usdc >= ? AND created_at <= ?").all(min, now - PAYOUT_HOLD_MS) as any[]).map(rowToWorker);
+    },
+
+    /** Record an on-chain payout and reduce what is owed. */
+    recordPayout(w: Worker, amount: number, txSig: string, now = Date.now()) {
+      db.transaction(() => {
+        db.query("INSERT INTO payouts (id, worker_id, wallet, amount_usdc, tx_sig, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(crypto.randomUUID(), w.id, w.wallet, amount, txSig, now);
+        db.query("UPDATE workers SET owed_usdc = MAX(0, owed_usdc - ?) WHERE id = ?").run(amount, w.id);
+      })();
     },
 
     leaderboard(limit = 50, city?: string) {

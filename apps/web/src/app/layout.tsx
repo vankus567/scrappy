@@ -24,6 +24,7 @@ const switzer = localFont({
 
 export const metadata: Metadata = {
   title: "Scrappy",
+  manifest: "/manifest.webmanifest",
   description:
     "A pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.",
 };

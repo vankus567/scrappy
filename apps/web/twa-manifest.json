@@ -1,0 +1,19 @@
+{
+  "packageId": "dev.scrappy.app",
+  "host": "REPLACE_WITH_DEPLOYED_HOST",
+  "name": "Scrappy",
+  "launcherName": "Scrappy",
+  "display": "standalone",
+  "themeColor": "#1d1d1f",
+  "navigationColor": "#1d1d1f",
+  "backgroundColor": "#f5f5f7",
+  "startUrl": "/app",
+  "iconUrl": "https://REPLACE_WITH_DEPLOYED_HOST/icon-512.png",
+  "maskableIconUrl": "https://REPLACE_WITH_DEPLOYED_HOST/icon-512.png",
+  "webManifestUrl": "https://REPLACE_WITH_DEPLOYED_HOST/manifest.webmanifest",
+  "enableNotifications": true,
+  "signingKey": { "path": "./android.keystore", "alias": "scrappy" },
+  "appVersionName": "0.1.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 23
+}
