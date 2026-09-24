@@ -1,5 +1,7 @@
 # Scrappy: Product Requirements Document
 
+> **Superseded positioning:** see `docs/POSITIONING.md` (Human API, router, capability graph, confidence, payment channels, human fallback). Sections below remain valid for the worker app.
+
 **One-liner (consumer):** Scrappy is a pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.
 **One-liner (business):** AI companies pay Indian students instantly to check AI answers. Think Scale AI for Indian languages, callable by any AI agent.
 

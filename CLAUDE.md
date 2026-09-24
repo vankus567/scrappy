@@ -1,6 +1,6 @@
 # Scrappy: project rules
 
-Product: Scrappy, a pocket pet that earns real money doing tiny jobs for AI agents. Specs: `docs/PRD.md`, `docs/ARCHITECTURE.md`. Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
+Product: Scrappy, the Human API. When AI needs a human, Scrappy pays one instantly. Human-in-the-loop infrastructure for AI agents; students are the first workers, the pet app is the worker front end. Source of truth: `docs/POSITIONING.md`. Specs: `docs/PRD.md`, `docs/ARCHITECTURE.md`. Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
 
 Deadlines: CLOCK IN (Solana Mobile) **Oct 8, 2026** · Colosseum + Superteam India **Oct 11** (hard deadline Oct 12).
 

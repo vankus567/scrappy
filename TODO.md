@@ -1,6 +1,7 @@
-﻿# Scrappy: TODO (locked 2026-09-24)
+# Scrappy: TODO (locked 2026-09-24)
 
-**Locked:** Scrappy. Main job type for the hackathon = checking AI answers (Indian languages + English). Phone-use demos + robot video = the pitch vision (after Oct 12).
+**Locked (v2, see docs/POSITIONING.md):** Scrappy = the Human API. Build order: Human API + SDK/MCP -> router + capability graph + confidence -> payment (Solana payment channels [verify], else escrow PDA) -> human fallback demo -> pet levels that unlock better work -> consensus/arbitration -> SKR expert stake.
+**Previously locked:** Scrappy. Main job type for the hackathon = checking AI answers (Indian languages + English). Phone-use demos + robot video = the pitch vision (after Oct 12).
 **Deadlines:** CLOCK IN **Oct 8** Â· Colosseum + Superteam Earn **Oct 11** (hard Oct 12).
 **Rule:** real product only. No mocks, no fake numbers. See `CLAUDE.md`.
 

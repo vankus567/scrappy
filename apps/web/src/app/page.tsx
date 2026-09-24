@@ -34,13 +34,12 @@ export default function Home() {
 
         <div className="mx-auto grid w-full max-w-6xl flex-1 items-end gap-6 pt-10 lg:grid-cols-[1.45fr_1fr] lg:pt-0">
           <h1 className="min-w-0 self-end font-display tracking-[-0.005em] text-balance text-[clamp(2.5rem,5.6vw,4.8rem)] font-bold leading-[1.04] tracking-[-0.01em] lg:col-span-2 lg:pt-14">
-              Your pet does tiny jobs for AI.
-              <span className="block text-[#007aff]"> You both get paid.</span>
+              When AI needs a human,
+              <span className="block text-[#007aff]"> Scrappy pays one instantly.</span>
             </h1>
           <div className="min-w-0 self-start pb-4 lg:pt-10 lg:pb-24">
             <p className="max-w-md text-[17px] font-semibold leading-relaxed text-navy-text">
-              AI teams pay for 20-second human checks in Indian languages and English. Mochi finds the jobs, you answer,
-              and the money lands in dollars within seconds.
+              An API where the endpoint is a human. Agents ask, your pet finds the job, you answer in seconds, and you are paid on Solana.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
               <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
@@ -111,7 +110,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-12 rounded-[28px] bg-white px-6 py-14 sm:px-12 lg:grid-cols-[1.2fr_1fr] lg:items-center [&>*]:min-w-0">
           <div>
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
-              Need a human in the loop?<br className="hidden sm:block" /> Call one function.
+              Call a human<br className="hidden sm:block" /> like you call an API.
             </h2>
             <dl className="mt-8 space-y-5 text-[15px]">
               <div>
