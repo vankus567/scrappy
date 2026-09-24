@@ -1,0 +1,101 @@
+"use client";
+
+import { useState } from "react";
+import { Egg } from "@/components/Egg";
+import { LANGUAGES, usePet, type Language } from "@/lib/pet-store";
+
+export function Hatch() {
+  const { hatch } = usePet();
+  const [name, setName] = useState("");
+  const [langs, setLangs] = useState<Language[]>([]);
+  const [city, setCity] = useState("");
+  const [college, setCollege] = useState("");
+  const [cracking, setCracking] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggle = (id: Language) =>
+    setLangs((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return setError("Give your pet a name.");
+    if (langs.length === 0) return setError("Pick at least one language you can check.");
+    setError("");
+    setCracking(true);
+    setTimeout(() => hatch({ name: name.trim(), languages: langs, city: city.trim(), college: college.trim() }), 900);
+  };
+
+  return (
+    <div className="grid gap-8 md:grid-cols-[1fr_1.1fr] md:items-center md:gap-12">
+      <div className="flex justify-center rounded-[28px] bg-ground-deep py-10 md:py-16">
+        <Egg cracking={cracking} className="w-[55%] max-w-[260px]" />
+      </div>
+
+      <form onSubmit={submit} className="space-y-7" noValidate>
+        <div>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-medium leading-[1.1]">Something is hatching.</h1>
+          <p className="mt-2 text-[16px] text-ink-soft">Name it, and tell it which languages you can check.</p>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="pet-name" className="block text-[15px] font-medium">Pet name</label>
+          <input
+            id="pet-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={20}
+            autoComplete="off"
+            className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] text-ink outline-none ring-leaf focus-visible:ring-2"
+          />
+        </div>
+
+        <fieldset className="space-y-2">
+          <legend className="text-[15px] font-medium">Languages you can check</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {LANGUAGES.map((l) => {
+              const on = langs.includes(l.id);
+              return (
+                <button
+                  type="button"
+                  key={l.id}
+                  onClick={() => toggle(l.id)}
+                  aria-pressed={on}
+                  className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-ground-deep text-ink hover:bg-edge"}`}
+                >
+                  <span lang={l.id} className="block text-[16px]">{l.native}</span>
+                  {l.native !== l.label && (
+                    <span className={`block text-[12px] ${on ? "opacity-80" : "text-ink-soft"}`}>{l.label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="city" className="block text-[15px] font-medium">
+              City <span className="font-normal text-ink-soft">(optional)</span>
+            </label>
+            <input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="college" className="block text-[15px] font-medium">
+              College <span className="font-normal text-ink-soft">(optional)</span>
+            </label>
+            <input id="college" value={college} onChange={(e) => setCollege(e.target.value)} className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
+          </div>
+        </div>
+
+        {error && <p role="alert" className="text-[15px] text-[#b3402a] dark:text-[#ff9a7a]">{error}</p>}
+
+        <div className="space-y-2">
+          <button type="submit" disabled={cracking} className="h-12 rounded-[14px] bg-leaf px-8 text-[16px] font-medium text-on-leaf transition-colors hover:bg-leaf-hover active:translate-y-px disabled:opacity-60">
+            Hatch
+          </button>
+          <p className="text-[13px] text-ink-faint">Saved on this device for now. Wallet sign-in comes with paid jobs.</p>
+        </div>
+      </form>
+    </div>
+  );
+}

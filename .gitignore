@@ -1,0 +1,18 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.keypair.json
+id.json
+target/
+.anchor/
+dist/
+.expo/
+android/app/build/
+*.apk
+*.aab
+.DS_Store
+New Text Document.*
+
+# private strategy notes
+ideas/

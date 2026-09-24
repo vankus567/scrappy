@@ -1,0 +1,9 @@
+{
+  "name": "scrappy",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun test"
+  }
+}

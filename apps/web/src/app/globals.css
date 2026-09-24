@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+:root {
+  /* Pistachio ground, green-black ink. Tonal accents only; colour lives in the pet. */
+  --ground: #eef1e4;
+  --ground-deep: #e3e8d5;
+  --ink: #161a12;
+  --ink-soft: #566050;
+  --ink-faint: #8d9684;
+  --leaf: #243a22;
+  --leaf-hover: #34502f;
+  --on-leaf: #eef1e4;
+  --night: #121710;
+  --night-raise: #1a2117;
+  --on-night: #e6ebdb;
+  --on-night-soft: #9aa58f;
+  --pet: #ef6a3d;
+  --pet-shade: #c9502a;
+  --pet-belly: #ffd7b5;
+  --pet-cheek: #ff9a7a;
+  --pet-ink: #1b1511;
+  --edge: color-mix(in oklab, var(--ink) 9%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #121710;
+    --ground-deep: #182015;
+    --ink: #e6ebdb;
+    --ink-soft: #a3ad97;
+    --ink-faint: #6f7a66;
+    --leaf: #d9e3c6;
+    --leaf-hover: #eef4e0;
+    --on-leaf: #121710;
+    --night: #0b0e0a;
+    --night-raise: #151b12;
+    --edge: color-mix(in oklab, var(--ink) 12%, transparent);
+  }
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ground-deep: var(--ground-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-leaf: var(--leaf);
+  --color-leaf-hover: var(--leaf-hover);
+  --color-on-leaf: var(--on-leaf);
+  --color-night: var(--night);
+  --color-night-raise: var(--night-raise);
+  --color-on-night: var(--on-night);
+  --color-on-night-soft: var(--on-night-soft);
+  --color-edge: var(--edge);
+  --font-display: var(--font-sentient), ui-serif, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
+html {
+  background: var(--ground);
+  color: var(--ink);
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--pet-belly);
+  color: var(--pet-ink);
+}
+
+/* Fine grain on the substrate only, never over content. */
+.grain {
+  position: relative;
+  isolation: isolate;
+}
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Pet motion: always visible, only moves things already on screen. */
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.025, 0.975); }
+}
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.08); }
+}
+@keyframes sprout {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(7deg); }
+}
+.pet-body { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 3.2s ease-in-out infinite; }
+.pet-eye { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.6s infinite; }
+.pet-sprout { transform-box: fill-box; transform-origin: 50% 100%; animation: sprout 2.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-body, .pet-eye, .pet-sprout { animation: none; }
+}
+
+@keyframes egg-wobble {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  76% { transform: rotate(-5deg); }
+  82% { transform: rotate(5deg); }
+  88% { transform: rotate(-3deg); }
+  94% { transform: rotate(2deg); }
+}
+@keyframes egg-crack {
+  0% { transform: rotate(0) scale(1); }
+  30% { transform: rotate(-8deg) scale(1.02); }
+  60% { transform: rotate(8deg) scale(1.03); }
+  100% { transform: rotate(0) scale(0.9); opacity: 0; }
+}
+.egg-wobble { transform-box: fill-box; transform-origin: 50% 90%; animation: egg-wobble 2.6s ease-in-out infinite; }
+.egg-crack { transform-box: fill-box; transform-origin: 50% 90%; animation: egg-crack 0.9s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .egg-wobble { animation: none; }
+  .egg-crack { animation: none; opacity: 0; }
+}
