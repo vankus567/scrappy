@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Egg } from "@/components/Egg";
+import { GlossButton } from "@/components/GlossButton";
 import { Pet, SPECIES, type Species } from "@/components/Pet";
 import { LANGUAGES, usePet, type Language } from "@/lib/pet-store";
 
@@ -118,9 +119,7 @@ export function Hatch() {
         {error && <p role="alert" className="text-[15px] text-[#b3402a] dark:text-[#ff9a7a]">{error}</p>}
 
         <div className="space-y-2">
-          <button type="submit" disabled={cracking} className="h-12 rounded-[14px] bg-leaf px-8 text-[16px] font-medium text-on-leaf transition-colors hover:bg-leaf-hover active:translate-y-px disabled:opacity-60">
-            Hatch
-          </button>
+          <GlossButton type="submit" disabled={cracking}>Hatch</GlossButton>
           <p className="text-[13px] text-ink-faint">Saved on this device for now. Wallet sign-in comes with paid jobs.</p>
         </div>
       </form>

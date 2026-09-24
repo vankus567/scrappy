@@ -1,4 +1,7 @@
 import { Pet } from "@/components/Pet";
+import { LandingNav } from "@/components/LandingNav";
+import { GlossButton } from "@/components/GlossButton";
+import { HeroClouds } from "@/components/backgrounds/HeroClouds";
 
 const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
 const PILOT_URL = process.env.NEXT_PUBLIC_PILOT_URL ?? `${REPO_URL}/issues/new?title=Pilot%20request`;
@@ -13,42 +16,35 @@ function Arrow() {
 
 function PrimaryLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a
-      href={href}
-      className="group inline-flex items-center gap-2.5 rounded-[14px] bg-leaf px-6 py-3.5 text-[15px] font-medium text-on-leaf transition-colors hover:bg-leaf-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-    >
+    <GlossButton href={href}>
       {children}
       <Arrow />
-    </a>
+    </GlossButton>
   );
 }
 
 export default function Home() {
   return (
     <main>
+      <LandingNav />
       {/* HERO: owns the first screen */}
-      <section className="grain relative flex min-h-[100svh] flex-col overflow-hidden px-4 sm:px-8">
-        <nav className="mx-auto mt-4 flex w-full max-w-6xl items-center justify-between rounded-2xl bg-ground-deep px-5 py-3">
-          <a href="/" className="font-display text-[22px] font-medium tracking-tight">scrappy</a>
-          <div className="flex items-center gap-5 text-[14px] text-ink-soft">
-            <a href="#ai-teams" className="transition-colors hover:text-ink">For AI teams</a>
-            <a href={REPO_URL} className="transition-colors hover:text-ink">GitHub</a>
-          </div>
-        </nav>
+      <section className="grain relative flex min-h-[100svh] flex-col overflow-hidden px-4 pt-20 sm:px-8">
+        <HeroClouds />
+
 
         <div className="mx-auto grid w-full max-w-6xl flex-1 items-end gap-6 pt-10 lg:grid-cols-[1.45fr_1fr] lg:pt-0">
           <h1 className="min-w-0 self-end font-display text-balance text-[clamp(2.4rem,5.4vw,4.6rem)] font-medium leading-[1] tracking-[-0.02em] lg:col-span-2 lg:pt-14">
               Your pet does tiny jobs for AI.
-              <span className="block italic text-ink-soft"> You both get paid.</span>
+              <span className="block italic text-[#2c3f6b]"> You both get paid.</span>
             </h1>
           <div className="min-w-0 self-start pb-4 lg:pt-10 lg:pb-24">
-            <p className="max-w-md text-[17px] leading-relaxed text-ink-soft">
+            <p className="max-w-md text-[17px] font-medium leading-relaxed text-ink">
               AI teams pay for 20-second human checks in Indian languages and English. Mochi finds the jobs, you answer,
               and the money lands in dollars within seconds.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <PrimaryLink href={REPO_URL}>Follow the build</PrimaryLink>
-              <span className="text-[14px] text-ink-faint">Hatching opens October 2026 on web and Seeker.</span>
+              <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
+              <span className="text-[14px] font-medium text-[#2c3f6b]">Hatching opens October 2026 on web and Seeker.</span>
             </div>
           </div>
 

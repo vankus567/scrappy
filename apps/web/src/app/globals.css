@@ -137,3 +137,13 @@ body {
 }
 .pet-heart { transform-box: fill-box; transform-origin: 50% 50%; animation: heart-float 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pet-heart { animation: none; } }
+
+/* Gloss button surface: candy sky marble drifting under a fixed shine */
+@keyframes gloss-drift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.gloss-surface {
+  background: linear-gradient(115deg, #ffe27a 0%, #ffc83d 22%, #ffd9b8 40%, #ffb89c 55%, #bfe0ff 76%, #ffe27a 100%);
+  background-size: 220% 220%;
+  animation: gloss-drift 6s ease-in-out infinite;
+}
+.gloss-btn { box-shadow: 0 8px 18px -10px rgba(217, 88, 58, 0.55); }
+@media (prefers-reduced-motion: reduce) { .gloss-surface { animation: none; } }
