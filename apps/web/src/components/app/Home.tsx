@@ -28,7 +28,7 @@ const IDLES: { mood: PetMood; dance: PetDance }[] = [
   { mood: "curious", dance: "none" },
   { mood: "happy", dance: "wiggle" },
 ];
-import { formatRupees, JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
+import { JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
@@ -74,7 +74,7 @@ export function Home() {
               <Heart size={26} weight="fill" className="text-[#ff7a59]" /> {bowl}%
             </p>
             <p className="rounded-[12px] bg-leaf px-3 py-1.5 text-[14px] font-bold tabular-nums text-on-leaf">
-              {formatRupees(pet.earnedPaise)} earned
+              ${(pet.earnedUsdc ?? 0).toFixed(2)} earned
             </p>
           </div>
 

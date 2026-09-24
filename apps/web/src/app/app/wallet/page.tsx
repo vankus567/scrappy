@@ -1,11 +1,5 @@
-import { EmptyState } from "@/components/app/EmptyState";
+import { WalletPanel } from "@/components/app/WalletPanel";
 
 export default function WalletPage() {
-  return (
-    <EmptyState
-      mood="happy"
-      title="Nothing earned yet"
-      body="Earnings land here in USDC, a digital dollar. You will be able to withdraw to UPI or your own wallet. Your money stays yours even if your pet dies."
-    />
-  );
+  return <WalletPanel />;
 }

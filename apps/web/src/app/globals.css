@@ -241,3 +241,8 @@ body {
   .pet-dance-spin, .pet-dance-cheer, .pet-dance-dizzy, .pet-dance-shake, .pet-dance-twirl, .pet-dance-sway, .pet-dance-peek,
   .pet-dance-cheer .pet-arm-l, .pet-dance-cheer .pet-arm-r { animation: none; }
 }
+
+/* Reward pop: the earned amount springs in (already visible, only scales) */
+@keyframes reward-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.reward-pop { display: inline-block; animation: reward-pop 0.6s cubic-bezier(.3,1.4,.5,1) both; }
+@media (prefers-reduced-motion: reduce) { .reward-pop { animation: none; } }

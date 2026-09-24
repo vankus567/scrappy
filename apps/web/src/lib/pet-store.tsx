@@ -49,6 +49,11 @@ export const LANGUAGES: LanguageInfo[] = [
 
 export type PetRecord = {
   species?: import("@/components/Pet").Species;
+  /** set once the owner registers a payout wallet with the Human API */
+  workerId?: string;
+  payoutAddress?: string;
+  /** real earnings from the API (owed + paid), in USDC */
+  earnedUsdc?: number;
   name: string;
   languages: Language[];
   city: string;
@@ -68,6 +73,7 @@ type Store = {
   pet: PetRecord | null;
   hatch: (p: Omit<PetRecord, "bornAt" | "earnedPaise" | "jobsDone">) => void;
   release: () => void;
+  update: (patch: Partial<PetRecord>) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -110,7 +116,16 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
     setPet(null);
   }, []);
 
-  const value = useMemo(() => ({ ready, pet, hatch, release }), [ready, pet, hatch, release]);
+  const update = useCallback((patch: Partial<PetRecord>) => {
+    setPet((p) => {
+      if (!p) return p;
+      const next = { ...p, ...patch };
+      write(next);
+      return next;
+    });
+  }, []);
+
+  const value = useMemo(() => ({ ready, pet, hatch, release, update }), [ready, pet, hatch, release, update]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

@@ -1,4 +1,5 @@
 import { Hono, type MiddlewareHandler } from "hono";
+import { cors } from "hono/cors";
 import { z } from "zod";
 import type { Store } from "./store";
 
@@ -49,6 +50,7 @@ function publicResult(job: NonNullable<ReturnType<Store["getJob"]>>) {
  */
 export function createApp(store: Store, paywall: MiddlewareHandler) {
   const app = new Hono();
+  app.use("*", cors({ origin: (process.env.WEB_ORIGINS ?? "http://localhost:3000").split(","), exposeHeaders: ["x-payment-response"] }));
 
   app.get("/health", (c) => c.json({ ok: true }));
 
