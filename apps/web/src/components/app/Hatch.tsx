@@ -37,9 +37,9 @@ export function Hatch() {
         </div>
       </div>
 
-      <form onSubmit={submit} className="space-y-7" noValidate>
+      <form onSubmit={submit} className="space-y-7 rounded-[28px] bg-ground-deep p-6 sm:p-8" noValidate>
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-medium leading-[1.1]">Something is hatching.</h1>
+          <h1 className="font-display tracking-[-0.005em] text-[clamp(2rem,4vw,2.8rem)] font-bold leading-[1.1]">Something is hatching.</h1>
           <p className="mt-2 text-[16px] text-ink-soft">Name it, and tell it which languages you can check.</p>
         </div>
 
@@ -55,7 +55,7 @@ export function Hatch() {
                   onClick={() => setSpecies(id)}
                   aria-pressed={on}
                   aria-label={`${SPECIES[id].name}, ${SPECIES[id].blurb}`}
-                  className={`rounded-[18px] px-1 pb-2 pt-1 transition-colors active:scale-[0.97] ${on ? "bg-leaf text-on-leaf" : "bg-ground-deep hover:bg-edge"}`}
+                  className={`rounded-[18px] px-1 pb-2 pt-1 transition-colors active:scale-[0.97] ${on ? "bg-leaf text-on-leaf" : "bg-field hover:bg-field-hover"}`}
                 >
                   <Pet species={id} stage="mochi" mood={on ? "happy" : "curious"} className="mx-auto w-full max-w-[84px]" title={SPECIES[id].name} />
                   <span className="block text-[13px] font-semibold">{SPECIES[id].name}</span>
@@ -74,7 +74,7 @@ export function Hatch() {
             onChange={(e) => setName(e.target.value)}
             maxLength={20}
             autoComplete="off"
-            className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] text-ink outline-none ring-leaf focus-visible:ring-2"
+            className="h-12 w-full rounded-[14px] bg-field px-4 text-[16px] text-ink outline-none ring-leaf focus-visible:ring-2"
           />
         </div>
 
@@ -89,7 +89,7 @@ export function Hatch() {
                   key={l.id}
                   onClick={() => toggle(l.id)}
                   aria-pressed={on}
-                  className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-ground-deep text-ink hover:bg-edge"}`}
+                  className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
                 >
                   <span lang={l.id} className="block text-[16px]">{l.native}</span>
                   {l.native !== l.label && (
@@ -106,17 +106,17 @@ export function Hatch() {
             <label htmlFor="city" className="block text-[15px] font-medium">
               City <span className="font-normal text-ink-soft">(optional)</span>
             </label>
-            <input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
+            <input id="city" value={city} onChange={(e) => setCity(e.target.value)} className="h-12 w-full rounded-[14px] bg-field px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
           </div>
           <div className="space-y-2">
             <label htmlFor="college" className="block text-[15px] font-medium">
               College <span className="font-normal text-ink-soft">(optional)</span>
             </label>
-            <input id="college" value={college} onChange={(e) => setCollege(e.target.value)} className="h-12 w-full rounded-[14px] bg-ground-deep px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
+            <input id="college" value={college} onChange={(e) => setCollege(e.target.value)} className="h-12 w-full rounded-[14px] bg-field px-4 text-[16px] outline-none ring-leaf focus-visible:ring-2" />
           </div>
         </div>
 
-        {error && <p role="alert" className="text-[15px] text-[#b3402a] dark:text-[#ff9a7a]">{error}</p>}
+        {error && <p role="alert" className="text-[15px] text-[#ffb4a3]">{error}</p>}
 
         <div className="space-y-2">
           <GlossButton type="submit" disabled={cracking}>Hatch</GlossButton>

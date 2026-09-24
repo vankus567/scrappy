@@ -22,7 +22,7 @@ export function Home() {
             <p className="flex items-center gap-2 text-[22px] font-semibold tabular-nums">
               <Heart size={26} weight="fill" className="text-[#ff7a59]" /> {bowl}%
             </p>
-            <p className="rounded-[12px] bg-ground px-3 py-1.5 text-[14px] font-medium tabular-nums">
+            <p className="rounded-[12px] bg-leaf px-3 py-1.5 text-[14px] font-bold tabular-nums text-on-leaf">
               {formatRupees(pet.earnedPaise)} earned
             </p>
           </div>
@@ -30,7 +30,7 @@ export function Home() {
           <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
             <Pet mood="happy" stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
             <div className="space-y-4">
-              <h1 className="font-display text-[clamp(1.9rem,6vw,2.6rem)] font-medium leading-[1.1]">{pet.name}</h1>
+              <h1 className="font-display tracking-[-0.005em] text-[clamp(1.9rem,6vw,2.6rem)] font-bold leading-[1.1]">{pet.name}</h1>
               <dl className="space-y-3 text-[15px]">
                 <div className="flex items-center gap-2.5">
                   <CalendarBlank size={20} className="text-ink-soft" />
@@ -52,7 +52,7 @@ export function Home() {
         </div>
 
         <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
-          <h2 className="font-display text-[22px] font-medium">
+          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">
             {JOBS_LIVE ? "Jobs are open" : `${pet.name} is waiting for work`}
           </h2>
           <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
@@ -62,7 +62,7 @@ export function Home() {
           </p>
         </div>
         <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
-          <h2 className="font-display text-[22px] font-medium">Forms</h2>
+          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">Forms</h2>
           <ol className="mt-4 grid grid-cols-4 gap-2">
             {STAGES.map((st) => {
               const reached = STAGES.indexOf(st) <= STAGES.indexOf(current);

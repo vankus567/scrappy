@@ -76,7 +76,7 @@ export function MorphNav({ links, cta, className, floating = false }: Props) {
         {cta && (
           <Link
             href={cta.href}
-            className={`group flex shrink-0 items-center justify-center gap-2 bg-ink font-semibold text-ground transition-colors hover:bg-ink-soft ${
+            className={`group flex shrink-0 items-center justify-center gap-2 bg-white font-semibold text-[#1d1d1f] transition-colors hover:bg-[#e8e8ed] ${
               scrolled ? "size-10 rounded-full" : "h-11 rounded-[14px] px-5 text-[15px]"
             }`}
             title={cta.label}

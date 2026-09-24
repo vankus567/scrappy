@@ -18,11 +18,11 @@ export function HeroClouds() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_bottom,#a9d1ff,#ddeeff)]">
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_bottom,#8ec0fa,#f5f5f7)]">
       <PixelCloud
         cloudColor="#f7fbff"
-        skyTopColor="#a9d1ff"
-        skyBottomColor="#ddeeff"
+        skyTopColor="#8ec0fa"
+        skyBottomColor="#f5f5f7"
         speed={reduce ? 0 : 1}
         count={6}
         pixelSize={6}

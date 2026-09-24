@@ -63,7 +63,7 @@ export function RadialNav({ items }: { items: Item[] }) {
                       onClick={() => setOpen(false)}
                       aria-current={item.active ? "page" : undefined}
                       className={`flex size-14 flex-col items-center justify-center rounded-full border-2 text-[10px] font-semibold ${
-                        item.active ? "border-[#ffe27a] bg-leaf text-on-leaf" : "border-white bg-ground-deep text-ink"
+                        item.active ? "border-[#7cc0ff] bg-leaf text-on-leaf" : "border-white bg-ground-deep text-ink"
                       }`}
                     >
                       <item.Icon size={20} weight={item.active ? "fill" : "bold"} />
