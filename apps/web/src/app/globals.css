@@ -204,3 +204,40 @@ body {
 @keyframes orbit-bob { 0%, 100% { translate: 0 0; opacity: 0.8; } 50% { translate: 0 -6px; opacity: 0.45; } }
 .pet-orbit { animation: orbit-bob 2.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pet-flame, .pet-ghost, .pet-orbit { animation: none; } }
+
+/* More dances */
+.pet-dance-spin, .pet-dance-cheer, .pet-dance-dizzy, .pet-dance-shake, .pet-dance-twirl, .pet-dance-sway, .pet-dance-peek {
+  transform-box: view-box; transform-origin: 120px 150px;
+}
+.pet-dance-spin { animation: dance-spin 1.1s cubic-bezier(.5,.1,.3,1) infinite; }
+@keyframes dance-spin { 0% { transform: rotate(0deg); } 80%, 100% { transform: rotate(360deg); } }
+
+.pet-dance-cheer { transform-origin: 120px 220px; animation: dance-cheer 0.7s ease-in-out infinite; }
+@keyframes dance-cheer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+.pet-dance-cheer .pet-arm-l { animation: cheer-arm-l 0.7s ease-in-out infinite; }
+.pet-dance-cheer .pet-arm-r { animation: cheer-arm-r 0.7s ease-in-out infinite; }
+@keyframes cheer-arm-l { 0%, 100% { transform: rotate(60deg); } 50% { transform: rotate(110deg); } }
+@keyframes cheer-arm-r { 0%, 100% { transform: rotate(-60deg); } 50% { transform: rotate(-110deg); } }
+
+.pet-dance-dizzy { animation: dance-dizzy 1.2s linear infinite; }
+@keyframes dance-dizzy {
+  0% { transform: translate(0, 0) rotate(-6deg); } 25% { transform: translate(8px, -4px) rotate(6deg); }
+  50% { transform: translate(0, -8px) rotate(-6deg); } 75% { transform: translate(-8px, -4px) rotate(6deg); } 100% { transform: translate(0, 0) rotate(-6deg); }
+}
+
+.pet-dance-shake { animation: dance-shake 0.25s linear infinite; }
+@keyframes dance-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px) rotate(-2deg); } 75% { transform: translateX(4px) rotate(2deg); } }
+
+.pet-dance-twirl { transform-origin: 120px 220px; animation: dance-twirl 1.3s ease-in-out infinite; }
+@keyframes dance-twirl { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-30px) rotate(180deg); } 70% { transform: translateY(-10px) rotate(340deg); } }
+
+.pet-dance-sway { transform-origin: 120px 220px; animation: dance-sway 2.4s ease-in-out infinite; }
+@keyframes dance-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+.pet-dance-peek { transform-origin: 120px 220px; animation: dance-peek 1.6s ease-in-out infinite; }
+@keyframes dance-peek { 0%, 100% { transform: rotate(0) translateX(0); } 40%, 60% { transform: rotate(12deg) translateX(10px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-dance-spin, .pet-dance-cheer, .pet-dance-dizzy, .pet-dance-shake, .pet-dance-twirl, .pet-dance-sway, .pet-dance-peek,
+  .pet-dance-cheer .pet-arm-l, .pet-dance-cheer .pet-arm-r { animation: none; }
+}

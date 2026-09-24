@@ -5,7 +5,9 @@ import { useEffect, useId, useRef, useState } from "react";
 export type PetMood =
   | "happy" | "curious" | "focused" | "hungry" | "dead"
   | "excited" | "love" | "sleepy" | "surprised" | "wink" | "sad";
-export type PetDance = "none" | "bounce" | "wiggle" | "hop" | "wave" | "march";
+export type PetDance =
+  | "none" | "bounce" | "wiggle" | "hop" | "wave" | "march"
+  | "spin" | "cheer" | "dizzy" | "shake" | "twirl" | "sway" | "peek";
 /** Evolution forms, unlocked by real work (see stageFor in pet-store). */
 export type PetStage = "sprout" | "mochi" | "bloom" | "blossom";
 export type Species = "mochi" | "neko" | "bun" | "kumo" | "pip" | "zap" | "kitsu" | "pengu" | "drako" | "goo" | "ember" | "boo";

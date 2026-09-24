@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart, CalendarBlank, Briefcase } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pet, type PetDance, type PetMood } from "@/components/Pet";
 
 const TRICKS: { mood: PetMood; dance: PetDance }[] = [
@@ -10,7 +10,23 @@ const TRICKS: { mood: PetMood; dance: PetDance }[] = [
   { mood: "wink", dance: "wave" },
   { mood: "happy", dance: "hop" },
   { mood: "surprised", dance: "march" },
-  { mood: "sleepy", dance: "none" },
+  { mood: "excited", dance: "spin" },
+  { mood: "happy", dance: "cheer" },
+  { mood: "surprised", dance: "dizzy" },
+  { mood: "love", dance: "shake" },
+  { mood: "excited", dance: "twirl" },
+  { mood: "wink", dance: "peek" },
+  { mood: "sleepy", dance: "sway" },
+];
+
+// Small things the pet does on its own while you look at it.
+const IDLES: { mood: PetMood; dance: PetDance }[] = [
+  { mood: "curious", dance: "peek" },
+  { mood: "happy", dance: "wave" },
+  { mood: "wink", dance: "none" },
+  { mood: "sleepy", dance: "sway" },
+  { mood: "curious", dance: "none" },
+  { mood: "happy", dance: "wiggle" },
 ];
 import { formatRupees, JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
@@ -18,11 +34,30 @@ import { JourneyMap } from "./JourneyMap";
 export function Home() {
   const { pet } = usePet();
   const [trick, setTrick] = useState<{ mood: PetMood; dance: PetDance } | null>(null);
+  const busy = useRef(false);
+
+  // idle life: every 7-12 s the pet does something small on its own
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let t = 0;
+    const tick = () => {
+      t = window.setTimeout(() => {
+        if (!busy.current) {
+          setTrick(IDLES[Math.floor(Math.random() * IDLES.length)]);
+          window.setTimeout(() => { if (!busy.current) setTrick(null); }, 1800);
+        }
+        tick();
+      }, 7000 + Math.random() * 5000);
+    };
+    tick();
+    return () => window.clearTimeout(t);
+  }, []);
+
   if (!pet) return null;
   const play = () => {
-    const next = TRICKS[Math.floor(Math.random() * TRICKS.length)];
-    setTrick(next);
-    window.setTimeout(() => setTrick(null), 2600);
+    busy.current = true;
+    setTrick(TRICKS[Math.floor(Math.random() * TRICKS.length)]);
+    window.setTimeout(() => { busy.current = false; setTrick(null); }, 2600);
   };
   const days = Math.max(0, Math.floor((Date.now() - pet.bornAt) / 86_400_000));
   // Hunger only ticks once paid jobs are live; until then the bowl is honestly full.
