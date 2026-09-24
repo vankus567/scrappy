@@ -12,7 +12,7 @@ const TRICKS: { mood: PetMood; dance: PetDance }[] = [
   { mood: "surprised", dance: "march" },
   { mood: "sleepy", dance: "none" },
 ];
-import { formatRupees, JOBS_LIVE, STAGES, stageFor, usePet } from "@/lib/pet-store";
+import { formatRupees, JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
@@ -63,7 +63,7 @@ export function Home() {
                 </div>
               </dl>
               <p className="text-[14px] text-ink-soft">
-                <span className="font-semibold text-ink">{current.name}</span>
+                <span className="font-semibold text-ink">{stageName(pet.species, current.id)}</span>
                 {next ? `, evolves at ${next.jobs} jobs${next.days ? ` and ${next.days} days` : ""}` : ", fully grown"}
               </p>
             </div>
@@ -88,9 +88,9 @@ export function Home() {
               return (
                 <li key={st.id} className="text-center">
                   <div className={reached ? "" : "opacity-35 grayscale"}>
-                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} species={pet.species} className="mx-auto w-full max-w-[96px]" title={st.name} />
+                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} species={pet.species} className="mx-auto w-full max-w-[96px]" title={stageName(pet.species, st.id)} />
                   </div>
-                  <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{st.name}</p>
+                  <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{stageName(pet.species, st.id)}</p>
                   <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} jobs`}</p>
                 </li>
               );

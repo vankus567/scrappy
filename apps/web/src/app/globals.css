@@ -187,3 +187,11 @@ body {
   .pet-dance-bounce, .pet-dance-wiggle, .pet-dance-hop, .pet-dance-march, .pet-dance-wave,
   .pet-dance-march .pet-leg-l, .pet-dance-march .pet-leg-r, .pet-dance-wave .pet-arm-r { animation: none; }
 }
+
+/* Agent orb fallback: visible until WebGL renders, then hidden */
+.agent-orb:not([data-ready="true"]) { border-radius: 9999px; background: radial-gradient(circle at 35% 30%, #cfe4ff, #007aff 70%); opacity: 0.85; }
+
+/* Hero pets float gently (always visible; only position moves) */
+@keyframes hero-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
+.hero-pet { animation: hero-float 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .hero-pet { animation: none; } }

@@ -1,73 +1,78 @@
-# Scrappy: TODO (locked 2026-09-24)
+# Scrappy: TODO v2 (the Human API)
 
-**Locked (v2, see docs/POSITIONING.md):** Scrappy = the Human API. Build order: Human API + SDK/MCP -> router + capability graph + confidence -> payment (Solana payment channels [verify], else escrow PDA) -> human fallback demo -> pet levels that unlock better work -> consensus/arbitration -> SKR expert stake.
-**Previously locked:** Scrappy. Main job type for the hackathon = checking AI answers (Indian languages + English). Phone-use demos + robot video = the pitch vision (after Oct 12).
-**Deadlines:** CLOCK IN **Oct 8** Â· Colosseum + Superteam Earn **Oct 11** (hard Oct 12).
-**Rule:** real product only. No mocks, no fake numbers. See `CLAUDE.md`.
+**One line:** When AI needs a human, Scrappy pays one instantly.
+**Source of truth:** `docs/POSITIONING.md`. **Rule:** real product only, no mocks (`CLAUDE.md`).
+**Deadlines:** CLOCK IN **Oct 8** (APK + repo + video + deck) · Colosseum + Superteam Earn **Oct 11** (hard Oct 12).
 
-Legend: [S] = sales/growth Â· [B] = build Â· [P] = pitch/submission Â· owner: A / B (assign)
+Legend: [S] sales/supply · [B] build · [P] pitch/submission
 
 ---
 
-## Day 0-1: Sep 24-25 (sell first, set up tools)
-- [ ] [S] Tweet the idea + 10-word line: "AI companies pay Indian students instantly to check AI answers."
-- [ ] [S] Run Grok: what CT/AI Twitter says about paying humans for AI feedback, RentAHuman, Karya, Scale AI India
-- [ ] [S] List 40 target buyers (Indic AI startups, support/voice-bot builders, Solana agent teams, Superteam India AI builders)
-- [ ] [S] Send first 20 buyer messages: "Get 500 Hindi answers human-checked by tomorrow, pay per task, from code. Free 50-task pilot."
-- [ ] [S] Apply for a Superteam / Solana Foundation public-goods grant: open Indic AI eval benchmark (grant = a real buyer)
-- [ ] [B] Install WSL2 Ubuntu â†’ Solana CLI â†’ Anchor (avm) inside WSL
-- [ ] [B] Install Android Studio SDK, set ANDROID_HOME, JDK 17/21 (for Bubblewrap TWA build)
-- [ ] [B] Verify day-1 unknowns: x402 Solana seller + facilitator package, paying into a PDA-owned ATA, dApp Store TWA/PWA guide, MWA from browser/TWA, Google-login embedded wallet (web SDK)
-- [x] [B] Scaffold apps/web (Next.js 16 + Tailwind 4 + Bun), production build passes
-- [x] [B] Landing page: responsive (desktop + 390px mobile), light + dark, SVG pet Mochi with 5 moods, verified by screenshots
-- [ ] [P] Brief a pet artist (distinct style, not AI-generic); 1 pet, 4 moods, death state
-- [ ] [P] Register on Colosseum (country = India) and CLOCK IN (Radiants site)
+## Done
+- [x] Idea locked and repositioned as the Human API (`docs/POSITIONING.md`)
+- [x] PRD, architecture, design system docs
+- [x] Web app (Next.js 16, Tailwind 4, Bun): landing page, morph nav, radial mobile nav, gloss buttons, pixel-cloud hero
+- [x] Worker app shell: hatch with 10 species, home with stats, journey map, evolution forms, jobs/ranks/wallet empty states
+- [x] Pets: arms/legs, 11 expressions, 5 dances, tap to play
+- [x] Apple Modern palette, Pally type
 
-## Day 2-3: Sep 26-27
-- [ ] [S] 20 more buyer messages; book calls; **target: 3 committed pilots**
-- [ ] [S] Line up 2 college clubs + Superteam India channel for worker launch on Oct 3
-- [ ] [B] Anchor program: `init_config`, `hatch_pet`, `open_job`, `settle_job`, `refund_job`, `withdraw`
-- [ ] [B] LiteSVM tests: happy path, refund, double-settle, wrong mint, wrong signer, dead pet payee
-- [ ] [B] Deploy program to devnet
+## Day 1-2 (Sep 25-26): verify + sell + set up
+- [ ] [B] **Verify Solana payment channels + x402 V2** for agentic micropayments (docs, SDK, devnet). Decide: channels, or fallback prepaid escrow PDA per agent
+- [ ] [B] Install WSL2 → Solana CLI → Anchor (avm); Android SDK + JDK 17/21 for the TWA build
+- [ ] [B] Verify MCP TypeScript SDK, embedded wallet (Google login) on web, MWA from browser/TWA
+- [ ] [S] Tweet the one-liner; run Grok on "human-in-the-loop for AI agents", RentAHuman, Scale, Karya
+- [ ] [S] Message 20 agent builders (Solana agent teams, x402 builders, Indic AI teams): "your agent can call a human for $0.07"; target 3 pilots
+- [ ] [S] Line up first workers: 2 college clubs + Superteam India (launch Oct 3)
+- [ ] [P] Register on Colosseum (India) and CLOCK IN; apply for a public-goods grant (open human-eval benchmark)
 
-## Day 4-6: Sep 28-30
-- [ ] [B] API (Bun + Hono + Postgres/Neon): `POST /v1/jobs` with x402 402-challenge â†’ paid â†’ job funded (real devnet USDC)
-- [ ] [B] MCP server `ask_human` that pays the 402 automatically within `max_price_usdc`
-- [ ] [B] Router + gold questions + 3-answer consensus + settlement worker calling `settle_job`
-- [ ] [S] First pilot buyer integrated on devnet
-- [ ] [P] Landing page v1 (AI-roast hero + CTA; benchmark against Scale AI / Ramp copy)
+## Day 3-5 (Sep 27-29): the Human API core
+- [ ] [B] `apps/api` (Bun + Hono + Postgres): `POST /v1/human/verify` (+ `ask`, `compare`) with `requirements {language, max_latency, min_accuracy}` and `budget`; response `{answer, confidence, human_id, latency}`
+- [ ] [B] Job lifecycle: quote → funded → routed → answered → accepted/refunded; deadline + refund
+- [ ] [B] **Human confidence** on every answer (0-100) + agent policy helper (>90 accept, 70-90 second human, <70 expert)
+- [ ] [B] Anchor program: agent budget account (channel or escrow PDA), per-answer payout to worker, platform fee, refund; LiteSVM tests; devnet deploy
 
-## Day 7-9: Oct 1-3
-- [ ] [B] Web app (apps/web, responsive desktop + mobile, PWA): onboarding (Google embedded wallet + desktop wallets + Seeker MWA), hatch, pet home, job card (rate / verify+correct / record audio), web push
-- [ ] [B] Pet state: food decay, hungry/starving pushes, `mark_dead`, death certificate
-- [ ] [B] Withdraw screen (to own wallet; UPI via off-ramp partner if confirmed)
-- [ ] [B] **Mainnet deploy** (program + API), real USDC
-- [ ] [S] **Worker launch:** 2 college clubs + Superteam India; first real paid jobs on mainnet
-- [ ] [S] **Checkpoint Oct 3: 3 buyers paying?** If 0, pivot the job type or buyer segment the same day
+## Day 6-7 (Sep 30-Oct 1): routing + quality
+- [ ] [B] **Human Router v1** (rules): language, domain, difficulty, latency, required accuracy, budget, availability, fairness
+- [ ] [B] **Capability graph v1**: per-domain accuracy from hidden gold tasks + agreement + history (never self-declared); shown as numbers
+- [ ] [B] Gold tasks seeded per domain; anti-farming (hidden evals, latency floors, payout holds for new accounts)
+- [ ] [B] `@scrappy/human` SDK (`human.ask({ task, budget, deadline })`) + MCP tool `ask_human` paying automatically
 
-## Day 10-12: Oct 4-6
-- [ ] [B] Helius webhook indexer â†’ leaderboards (Richest, Most hired, Longest alive, City, College, Graveyard; outside earnings only)
-- [ ] [B] Share cards (earnings, rank, death certificate) + referral (sibling pet)
-- [ ] [B] Public traction dashboard (chain + DB, no hardcoded numbers)
-- [ ] [B] SKR: food/cosmetics in SKR, stake SKR for ranked mode on non-Seeker Android
-- [ ] [S] Push to targets: 150 pets, 1,000+ paid jobs, 3+ buyers, 70%+ outside earnings, 80%+ new-to-Solana workers
-- [ ] [B] Security pass (EthelSec judges): Anchor constraints, settler key limits, rate limits
-- [ ] **Oct 6: demo-ready, numbers frozen**
+## Day 8-9 (Oct 2-3): worker app becomes real
+- [ ] [B] Job card screen (verify / compare / record) with confidence slider; answer submit; real payout shown
+- [ ] [B] Reward moment (coin into bowl, pet squish, +$0.11) driven by the real settlement tx
+- [ ] [B] Web push when a job is routed to you; wallet: Google embedded + Seeker MWA
+- [ ] [B] **Pet levels that unlock work**: Lv5 higher-paying tasks, Lv10 expert tasks (router respects level); hunger turns on when jobs are live
+- [ ] [B] Mainnet deploy (program + API); first real paid jobs from a pilot agent
+- [ ] [S] **Checkpoint Oct 3:** 3 agents paying? If 0, change buyer segment same day
 
-## Day 13-14: Oct 7-8 (CLOCK IN)
-- [ ] [P] Bubblewrap TWA â†’ Android APK from the same site (assetlinks.json); test on a real Seeker/Android
-- [ ] [P] CLOCK IN deck (pet-first story), demo video (Loom), README with GIF
-- [ ] [P] **Submit CLOCK IN: APK + GitHub + video + deck (Oct 8)**
+## Day 10-11 (Oct 4-5): the killer demo + network features
+- [ ] [B] **Human Fallback**: demo agent whose confidence drops (e.g. 61%) → calls Scrappy → human answers → agent continues at 96%
+- [ ] [B] Consensus for hard tasks (second human, split pay) + arbitration on disagreement (SHOULD)
+- [ ] [B] Leaderboards from real outside-agent earnings; share cards; public live dashboard (tx count, paid, median latency, agreement)
+- [ ] [B] SKR as expert reputation stake (gates expert eligibility; no fake slashing) (SHOULD, for the SKR prize)
+- [ ] [S] Push to: 3+ paying agents, 150 workers, 1,000+ paid human answers, measured latency + agreement
 
-## Day 15-17: Oct 9-11 (Colosseum + Superteam India)
-- [ ] [P] Colosseum pitch video (business-first: 10-word line, Scale AI anchor, traction, $1M ARR path, team)
-- [ ] [P] Technical demo video (program, x402 flow, `ask_human`, mainnet tx links)
-- [ ] [P] Answer YC / Alliance / Solana Incubator application questions; AI-roast the deck
-- [ ] [P] Open-source repo check: no secrets, README complete
-- [ ] [P] **Submit Colosseum (country = India) + Superteam Earn + any matching side tracks (Oct 11)**
-- [ ] Oct 12: buffer only, nothing new ships
+## Day 12 (Oct 6): demo-ready
+- [ ] [B] Security pass (Anchor constraints, settler key limits, rate limits, PII filter)
+- [ ] [B] Mobile check of every screen; reduced-motion check
+- [ ] **Freeze features. Record real numbers.**
+
+## Day 13-14 (Oct 7-8): CLOCK IN
+- [ ] [P] Bubblewrap TWA → APK; test on Seeker/Android
+- [ ] [P] Deck (worker app first; Human API as why jobs exist) + 90s demo video (script in POSITIONING.md)
+- [ ] [P] **Submit CLOCK IN (Oct 8)**
+
+## Day 15-17 (Oct 9-11): Colosseum + Superteam India
+- [ ] [P] Pitch video (infra first: Human API, router, payments, fallback; students = first supply; India = launch market)
+- [ ] [P] Technical video (program, payment flow, SDK/MCP, mainnet tx links)
+- [ ] [P] Answer YC / Alliance / Solana Incubator questions; AI-roast deck and landing copy
+- [ ] [P] Open-source check (no secrets), push repo
+- [ ] [P] **Submit Colosseum (country India) + Superteam Earn + matching side tracks (Oct 11)**
 
 ## Every day
-- [ ] Post a build-in-public update on X (clip, number, user quote)
-- [ ] Log real metrics (buyers, pets, jobs, earnings, retention)
-- [ ] Before any push to GitHub: ask first, no secrets
+- [ ] Build-in-public post (clip, number, user quote)
+- [ ] Log real metrics
+- [ ] Ask before any GitHub push
+
+## Not building (stay disciplined)
+Social network · NFT pet collection · token speculation · generic task marketplace · AI chatbot · annotation dashboard · "earn crypto by answering questions" pitch

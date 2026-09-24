@@ -147,6 +147,32 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
             </g>
           )}
 
+          {/* species evolution, back layer */}
+          {!dead && species === "neko" && (stage === "bloom" || stage === "blossom") && (
+            <g fill="none" stroke={c.mid} strokeWidth="12" strokeLinecap="round">
+              <path d="M188 196c26-2 38-24 30-46" /><path d="M52 196c-26-2-38-24-30-46" />
+            </g>
+          )}
+          {!dead && species === "zap" && (stage === "bloom" || stage === "blossom") && (
+            <path d="M44 170l-26-30 16-4-22-34 40 26-14 6 28 28z" fill={detail} stroke={c.dark} strokeWidth="4" strokeLinejoin="round" />
+          )}
+          {!dead && species === "kitsu" && stage === "bloom" && (
+            <path d="M54 186c-30-6-46-40-36-70 6 18 22 26 36 26-4 16-4 30 0 44z" fill={c.mid} stroke={c.dark} strokeWidth="3" />
+          )}
+          {!dead && species === "kitsu" && stage === "blossom" && (
+            <g>
+              {[-60, -30, 30, 60].map((a) => (
+                <path key={a} d="M120 190c-8-40 0-80 14-110 4 30 0 70-14 110z" fill={c.mid} stroke={c.dark} strokeWidth="3" transform={`rotate(${a} 120 190)`} />
+              ))}
+            </g>
+          )}
+          {!dead && (species === "pip" || species === "drako") && (stage === "bloom" || stage === "blossom") && (
+            <g fill={species === "pip" ? c.light : "#d1d1d6"} stroke={c.dark} strokeWidth="3" strokeLinejoin="round">
+              <path d="M40 140c-30-14-40-44-32-64 14 14 30 18 48 20z" />
+              <path d="M200 140c30-14 40-44 32-64-14 14-30 18-48 20z" />
+            </g>
+          )}
+
           {/* feet */}
 
           {/* arms / flippers */}
@@ -204,6 +230,52 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
           <ellipse cx="84" cy="92" rx="24" ry="12" fill="#fff" opacity={isGoo ? 0.7 : 0.5} transform="rotate(-30 84 92)" filter={`url(#${g("soft")})`} />
           <ellipse cx="76" cy="96" rx="7" ry="4.5" fill="#fff" opacity="0.9" transform="rotate(-30 76 96)" />
           {isGoo && <ellipse cx="160" cy="190" rx="10" ry="5" fill="#fff" opacity="0.5" />}
+          {/* species evolution, front layer */}
+          {!dead && species === "neko" && stage === "blossom" && (
+            <path d="M126 70a16 16 0 1 0 0 28 12 12 0 1 1 0-28z" fill="#ffd66b" />
+          )}
+          {!dead && species === "bun" && stage === "bloom" && (
+            <g fill="#7cc0ff">{[[146, 58], [158, 58], [152, 48]].map(([x, y]) => <circle key={x + "-" + y} cx={x} cy={y} r="7" />)}</g>
+          )}
+          {!dead && species === "bun" && stage === "blossom" && (
+            <g><path d="M92 6a14 14 0 1 0 0 24 10 10 0 1 1 0-24z" fill="#ffd66b" /><path d="M160 22l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#ffd66b" /></g>
+          )}
+          {!dead && species === "kumo" && (stage === "bloom" || stage === "blossom") && (
+            <g fill="#7cc0ff">
+              <path d="M52 200c4 7 6 11 6 13a6 6 0 01-12 0c0-2 2-6 6-13z" /><path d="M190 196c4 7 6 11 6 13a6 6 0 01-12 0c0-2 2-6 6-13z" />
+            </g>
+          )}
+          {!dead && species === "kumo" && stage === "blossom" && (
+            <path d="M124 76l-14 18h10l-6 16 16-20h-10l6-14z" fill="#ffd66b" />
+          )}
+          {!dead && species === "pip" && stage === "sprout" && (
+            <path d="M84 70l10-10 10 10 10-10 10 10 10-10 10 10 10-10 6 8c-8-22-26-34-46-34s-40 12-46 34z" fill="#fffaf0" stroke="#d1d1d6" strokeWidth="2" />
+          )}
+          {!dead && species === "pip" && stage === "blossom" && (
+            <g fill="#007aff">{[-16, 0, 16].map((a) => <ellipse key={a} cx="120" cy="30" rx="6" ry="20" transform={`rotate(${a} 120 56)`} />)}</g>
+          )}
+          {!dead && species === "zap" && stage === "blossom" && (
+            <g fill="#ffd66b">{[96, 120, 144].map((x) => <path key={x} d={`M${x + 2} 30l-8 14h6l-4 12 10-16h-6l4-10z`} />)}</g>
+          )}
+          {!dead && species === "pengu" && (stage === "bloom" || stage === "blossom") && (
+            <g fill="#007aff"><rect x="64" y="166" width="112" height="14" rx="7" /><rect x="140" y="170" width="14" height="34" rx="7" /></g>
+          )}
+          {!dead && species === "pengu" && stage === "sprout" && (
+            <g fill="#8e8e93">{[106, 120, 134].map((x) => <circle key={x} cx={x} cy="56" r="8" />)}</g>
+          )}
+          {!dead && (species === "pengu" || species === "goo") && stage === "blossom" && (
+            <path d="M92 50l8-26 20 16 20-16 8 26z" fill="#ffd66b" stroke="#e0a800" strokeWidth="2" strokeLinejoin="round" />
+          )}
+          {!dead && species === "drako" && stage === "sprout" && (
+            <path d="M40 176l14 10 14-10 14 10 14-10 14 10 14-10 14 10 14-10 14 10 14-10 14 10 14-10v50H40z" fill="#fffaf0" stroke="#d1d1d6" strokeWidth="2" />
+          )}
+          {!dead && species === "drako" && stage === "blossom" && (
+            <g fill="#f5f5f7" stroke="#8e8e93" strokeWidth="2"><path d="M86 64c-10-14-8-30 2-40 0 14 6 24 14 30z" /><path d="M154 64c10-14 8-30-2-40 0 14-6 24-14 30z" /></g>
+          )}
+          {!dead && species === "goo" && (stage === "bloom" || stage === "blossom") && (
+            <g fill="#fff" opacity="0.55"><circle cx="150" cy="176" r="8" /><circle cx="94" cy="190" r="5" /><circle cx="162" cy="150" r="4" /></g>
+          )}
+
           {/* limbs in front of the body */}
           {sp.feet !== false &&
             ([
@@ -241,8 +313,8 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
             </g>
           )}
           {species === "goo" && <circle cx="120" cy="34" r="6" fill={c.light} />}
-          {stage === "bloom" && <circle cx={crownOnSprout ? 125 : 150} cy={crownOnSprout ? 24 : 60} r="9" fill={`url(#${g("petal")})`} />}
-          {stage === "blossom" && (
+          {stage === "bloom" && crownOnSprout && <circle cx={crownOnSprout ? 125 : 150} cy={crownOnSprout ? 24 : 60} r="9" fill={`url(#${g("petal")})`} />}
+          {stage === "blossom" && crownOnSprout && (
             <g transform={crownOnSprout ? "translate(125 20)" : "translate(152 58) scale(0.8)"}>
               {[0, 72, 144, 216, 288].map((a) => (
                 <ellipse key={a} cx="0" cy="-11" rx="8" ry="12" fill={`url(#${g("petal")})`} transform={`rotate(${a})`} />

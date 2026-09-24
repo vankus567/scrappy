@@ -1,7 +1,9 @@
 import { Pet } from "@/components/Pet";
+import { HeroPets } from "@/components/HeroPets";
 import { LandingNav } from "@/components/LandingNav";
 import { GlossButton } from "@/components/GlossButton";
 import { HeroClouds } from "@/components/backgrounds/HeroClouds";
+import { AgentOrbClient } from "@/components/AgentOrbClient";
 
 const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
 const PILOT_URL = process.env.NEXT_PUBLIC_PILOT_URL ?? `${REPO_URL}/issues/new?title=Pilot%20request`;
@@ -32,29 +34,30 @@ export default function Home() {
         <HeroClouds />
 
 
-        <div className="mx-auto grid w-full max-w-6xl flex-1 items-end gap-6 pt-10 lg:grid-cols-[1.45fr_1fr] lg:pt-0">
-          <h1 className="min-w-0 self-end font-display tracking-[-0.005em] text-balance text-[clamp(2.5rem,5.6vw,4.8rem)] font-bold leading-[1.04] tracking-[-0.01em] lg:col-span-2 lg:pt-14">
-              When AI needs a human,
-              <span className="block text-[#007aff]"> Scrappy pays one instantly.</span>
-            </h1>
-          <div className="min-w-0 self-start pb-4 lg:pt-10 lg:pb-24">
-            <p className="max-w-md text-[17px] font-semibold leading-relaxed text-navy-text">
-              An API where the endpoint is a human. Agents ask, your pet finds the job, you answer in seconds, and you are paid on Solana.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
-              <span className="text-[14px] font-semibold text-navy-text">Hatching opens October 2026 on web and Seeker.</span>
-            </div>
+        <HeroPets />
+        <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center pb-20 pt-6 text-center">
+          <h1 className="font-display text-balance text-[clamp(2.5rem,6vw,4.9rem)] font-bold leading-[1.04] tracking-[-0.01em]">
+            When AI needs a human,
+            <span className="block text-[#007aff]">Scrappy pays one instantly.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
+            An API where the endpoint is a human. Agents ask, your pet finds the job, you answer in seconds, and you are paid on Solana.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
+            <span className="text-[14px] font-semibold text-navy-text">Hatching opens October 2026 on web and Seeker.</span>
           </div>
-
-          <div className="relative mx-auto w-full min-w-0 max-w-[460px] self-end">
-            <figure className="relative z-10 mb-[-6%] ml-auto mr-2 w-[min(78%,340px)] rounded-2xl bg-ground-deep px-5 py-4 shadow-[0_6px_16px_-8px_rgba(15,26,51,0.6)] sm:mr-6">
-              <figcaption className="text-[12px] text-ink-faint">Example job</figcaption>
-              <p className="mt-1.5 text-[15px] leading-snug">Does this Hindi reply sound natural?</p>
-              <p lang="hi" className="mt-2 text-[17px] leading-snug text-ink">आपका ऑर्डर कल तक पहुँच जाएगा।</p>
-              <p className="mt-3 text-[13px] text-ink-soft">Pays ₹4 · about 20 seconds</p>
-            </figure>
-            <Pet mood="curious" watchPointer className="relative -mb-3 w-full" />
+          <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">
+            <figcaption className="text-[12px] text-ink-faint">Example job from an agent</figcaption>
+            <p className="mt-1.5 text-[15px] leading-snug">Does this Hindi reply sound natural?</p>
+            <p lang="hi" className="mt-2 text-[17px] leading-snug text-ink">आपका ऑर्डर कल तक पहुँच जाएगा।</p>
+            <p className="mt-3 text-[13px] text-ink-soft">Pays $0.05 · about 20 seconds</p>
+          </figure>
+          <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
+            <Pet species="goo" mood="curious" dance="wave" className="w-20 shrink-0" title="A little pet asking you for help" />
+            <p className="relative mb-6 rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[15px] font-semibold leading-snug text-navy-text shadow-[0_4px_12px_-8px_rgba(29,29,31,0.45)]">
+              Psst, human! An agent is stuck on this one. Can you help? It takes 20 seconds.
+            </p>
           </div>
         </div>
       </section>
@@ -109,6 +112,7 @@ export default function Home() {
       <section id="ai-teams" className="scroll-mt-6 px-3 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-12 rounded-[28px] bg-white px-6 py-14 sm:px-12 lg:grid-cols-[1.2fr_1fr] lg:items-center [&>*]:min-w-0">
           <div>
+            <AgentOrbClient size={112} tone="light" className="-ml-3 mb-4" />
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
               Call a human<br className="hidden sm:block" /> like you call an API.
             </h2>

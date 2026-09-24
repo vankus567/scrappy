@@ -119,3 +119,22 @@ export function stageFor(pet: PetRecord, now = Date.now()) {
   STAGES.forEach((st, idx) => { if (pet.jobsDone >= st.jobs && days >= st.days) i = idx; });
   return { current: STAGES[i], next: STAGES[i + 1] ?? null };
 }
+
+/** Each species has its own four-form evolution line. */
+export const EVOLUTION: Record<import("@/components/Pet").Species, [string, string, string, string]> = {
+  mochi: ["Sprout", "Mochi", "Bloom", "Blossom"],
+  neko: ["Kitten", "Neko", "Twin-tail", "Moon Neko"],
+  bun: ["Bunlet", "Bun", "Clover Bun", "Moon Hare"],
+  kumo: ["Wisp", "Kumo", "Nimbus", "Stormcloud"],
+  pip: ["Egglet", "Pip", "Wingling", "Skylark"],
+  zap: ["Spark", "Zap", "Twin Volt", "Thunderking"],
+  kitsu: ["Kit", "Kitsu", "Two-tail", "Five-tail"],
+  pengu: ["Fluffchick", "Pengu", "Captain", "Emperor"],
+  drako: ["Hatchling", "Drako", "Wyvern", "Sky Drake"],
+  goo: ["Drop", "Goo", "Jelly", "Royal Goo"],
+};
+
+export function stageName(species: import("@/components/Pet").Species | undefined, stage: PetStage) {
+  const idx = STAGES.findIndex((s) => s.id === stage);
+  return EVOLUTION[species ?? "mochi"][Math.max(0, idx)];
+}
