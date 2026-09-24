@@ -47,9 +47,11 @@ export function AppNav() {
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-[60px] flex-col items-center justify-center gap-1 text-[12px] ${active ? "font-medium text-leaf" : "text-ink-faint"}`}
+                  className={`flex min-h-[64px] flex-col items-center justify-center gap-1 text-[12px] ${active ? "font-medium text-leaf" : "text-ink-faint"}`}
                 >
-                  <Icon size={24} weight={active ? "fill" : "regular"} />
+                  <span className={`grid size-11 place-items-center rounded-[16px] transition-colors ${active ? "bg-leaf text-on-leaf" : "bg-ground-deep"}`}>
+                    <Icon size={22} weight={active ? "fill" : "bold"} />
+                  </span>
                   {label}
                 </Link>
               </li>
