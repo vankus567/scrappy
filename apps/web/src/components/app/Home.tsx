@@ -1,13 +1,29 @@
 "use client";
 
 import { Heart, CalendarBlank, Briefcase } from "@phosphor-icons/react";
-import { Pet } from "@/components/Pet";
+import { useState } from "react";
+import { Pet, type PetDance, type PetMood } from "@/components/Pet";
+
+const TRICKS: { mood: PetMood; dance: PetDance }[] = [
+  { mood: "excited", dance: "bounce" },
+  { mood: "love", dance: "wiggle" },
+  { mood: "wink", dance: "wave" },
+  { mood: "happy", dance: "hop" },
+  { mood: "surprised", dance: "march" },
+  { mood: "sleepy", dance: "none" },
+];
 import { formatRupees, JOBS_LIVE, STAGES, stageFor, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
   const { pet } = usePet();
+  const [trick, setTrick] = useState<{ mood: PetMood; dance: PetDance } | null>(null);
   if (!pet) return null;
+  const play = () => {
+    const next = TRICKS[Math.floor(Math.random() * TRICKS.length)];
+    setTrick(next);
+    window.setTimeout(() => setTrick(null), 2600);
+  };
   const days = Math.max(0, Math.floor((Date.now() - pet.bornAt) / 86_400_000));
   // Hunger only ticks once paid jobs are live; until then the bowl is honestly full.
   const bowl = 100;
@@ -28,7 +44,10 @@ export function Home() {
           </div>
 
           <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
-            <Pet mood="happy" stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
+            <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="group relative rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-leaf">
+              <Pet mood={trick?.mood ?? "happy"} dance={trick?.dance ?? "none"} stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
+              <span className="mt-1 block text-center text-[13px] font-medium text-ink-faint">Tap {pet.name} to play</span>
+            </button>
             <div className="space-y-4">
               <h1 className="font-display tracking-[-0.005em] text-[clamp(1.9rem,6vw,2.6rem)] font-bold leading-[1.1]">{pet.name}</h1>
               <dl className="space-y-3 text-[15px]">

@@ -2,7 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-export type PetMood = "happy" | "curious" | "focused" | "hungry" | "dead";
+export type PetMood =
+  | "happy" | "curious" | "focused" | "hungry" | "dead"
+  | "excited" | "love" | "sleepy" | "surprised" | "wink" | "sad";
+export type PetDance = "none" | "bounce" | "wiggle" | "hop" | "wave" | "march";
 /** Evolution forms, unlocked by real work (see stageFor in pet-store). */
 export type PetStage = "sprout" | "mochi" | "bloom" | "blossom";
 export type Species = "mochi" | "neko" | "bun" | "kumo" | "pip" | "zap" | "kitsu" | "pengu" | "drako" | "goo";
@@ -38,6 +41,7 @@ type PetProps = {
   mood?: PetMood;
   stage?: PetStage;
   species?: Species;
+  dance?: PetDance;
   watchPointer?: boolean;
   className?: string;
   title?: string;
@@ -51,7 +55,7 @@ const DROP = "M120 34c30 34 90 62 90 112 0 46-36 72-90 72s-90-26-90-72c0-50 60-7
  * A squishy chibi creature. Big sparkly eyes, glossy body, blush, one signature detail per species.
  * Each evolution adds arms and a bud/flower. Always visible; motion only animates what is on screen.
  */
-export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchPointer = false, className, title = "A Scrappy pet" }: PetProps) {
+export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance = "none", watchPointer = false, className, title = "A Scrappy pet" }: PetProps) {
   const ref = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   const [look, setLook] = useState({ x: 0, y: 0 });
@@ -85,7 +89,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
   const detail = dead ? "#9d99a8" : sp.detail;
   const g = (n: string) => `${n}-${uid}`;
   const baby = stage === "sprout";
-  const hasArms = stage === "bloom" || stage === "blossom" || species === "pengu";
+  const bigArms = stage === "bloom" || stage === "blossom" || species === "pengu";
   const bodyT = baby ? "translate(12 30) scale(0.9 0.86)" : undefined;
   const isGoo = species === "goo";
   const darkBody = species === "neko" || species === "pengu";
@@ -93,7 +97,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
   const crownOnSprout = species === "mochi";
 
   return (
-    <svg ref={ref} viewBox="0 0 240 240" role="img" aria-label={title} className={className}>
+    <svg ref={ref} viewBox="0 0 240 240" overflow="visible" role="img" aria-label={title} className={className}>
       <defs>
         <radialGradient id={g("body")} cx="36%" cy="28%" r="78%">
           <stop offset="0%" stopColor={c.light} />
@@ -121,8 +125,9 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
         </filter>
       </defs>
 
-      <ellipse cx="120" cy="223" rx={baby ? 56 : 66} ry="7" fill="#1d1d1f" opacity="0.12" />
+      <ellipse cx="120" cy="229" rx={baby ? 56 : 66} ry="6" fill="#1d1d1f" opacity="0.12" />
 
+      <g className={dead || dance === "none" ? undefined : `pet-dance-${dance}`}>
       <g className={dead ? undefined : "pet-body"}>
         <g transform={bodyT}>
           {/* tails, behind everything */}
@@ -143,20 +148,8 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
           )}
 
           {/* feet */}
-          {sp.feet !== false && (
-            <>
-              <ellipse cx="92" cy="211" rx="17" ry="10" fill={species === "pengu" ? detail : c.dark} />
-              <ellipse cx="148" cy="211" rx="17" ry="10" fill={species === "pengu" ? detail : c.dark} />
-            </>
-          )}
 
           {/* arms / flippers */}
-          {hasArms && (
-            <>
-              <ellipse cx="38" cy="160" rx="13" ry="20" fill={c.mid} transform="rotate(28 38 160)" />
-              <ellipse cx="202" cy="160" rx="13" ry="20" fill={c.mid} transform="rotate(-28 202 160)" />
-            </>
-          )}
 
           {/* head features behind the body */}
           {(species === "neko" || species === "kitsu" || species === "zap") && (
@@ -211,6 +204,26 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
           <ellipse cx="84" cy="92" rx="24" ry="12" fill="#fff" opacity={isGoo ? 0.7 : 0.5} transform="rotate(-30 84 92)" filter={`url(#${g("soft")})`} />
           <ellipse cx="76" cy="96" rx="7" ry="4.5" fill="#fff" opacity="0.9" transform="rotate(-30 76 96)" />
           {isGoo && <ellipse cx="160" cy="190" rx="10" ry="5" fill="#fff" opacity="0.5" />}
+          {/* limbs in front of the body */}
+          {sp.feet !== false &&
+            ([
+              ["pet-leg-l", 92],
+              ["pet-leg-r", 148],
+            ] as const).map(([cls, x]) => (
+              <g key={cls} className={dead ? undefined : cls}>
+                <rect x={x - 11} y="198" width="22" height="24" rx="11" fill={c.mid} />
+                <ellipse cx={x} cy="222" rx="16" ry="8" fill={species === "pengu" ? detail : c.dark} />
+                <ellipse cx={x - 5} cy="219" rx="5" ry="2.5" fill="#fff" opacity="0.35" />
+              </g>
+            ))}
+          <g className={dead ? undefined : "pet-arm-l"}>
+            <ellipse cx="46" cy="164" rx={bigArms ? 13 : 10} ry={bigArms ? 21 : 15} fill={c.mid} stroke={c.dark} strokeOpacity="0.25" strokeWidth="2" transform="rotate(28 46 164)" />
+            <ellipse cx="40" cy="178" rx="5" ry="3" fill="#fff" opacity="0.3" />
+          </g>
+          <g className={dead ? undefined : "pet-arm-r"}>
+            <ellipse cx="194" cy="164" rx={bigArms ? 13 : 10} ry={bigArms ? 21 : 15} fill={c.mid} stroke={c.dark} strokeOpacity="0.25" strokeWidth="2" transform="rotate(-28 194 164)" />
+            <ellipse cx="200" cy="178" rx="5" ry="3" fill="#fff" opacity="0.3" />
+          </g>
         </g>
 
         {/* sprout (mochi) / tuft (pip) and the evolution crown */}
@@ -251,6 +264,54 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
               <path d="M79 130c7-12 22-12 29 0" />
               <path d="M132 130c7-12 22-12 29 0" />
             </g>
+          ) : mood === "excited" ? (
+            <g fill="#ffcc33" stroke="#e0a800" strokeWidth="2" strokeLinejoin="round">
+              {[92, 148].map((x) => (
+                <path key={x} d={`M${x} 106l5.5 11.5 12.5 1.8-9 8.8 2.1 12.4L${x} 134.6l-11.1 5.9 2.1-12.4-9-8.8 12.5-1.8z`} />
+              ))}
+            </g>
+          ) : mood === "love" ? (
+            <g fill="#ff5c86">
+              {[92, 148].map((x) => (
+                <path key={x} d={`M${x} 138c-14-9-20-16-20-23 0-7 5-11 10-11 4 0 8 2 10 6 2-4 6-6 10-6 5 0 10 4 10 11 0 7-6 14-20 23z`} />
+              ))}
+            </g>
+          ) : mood === "sleepy" ? (
+            <g>
+              <g stroke={faceInk} strokeWidth="6" strokeLinecap="round" fill="none">
+                <path d="M80 126c7 6 20 6 26 0" />
+                <path d="M134 126c7 6 20 6 26 0" />
+              </g>
+              <text x="186" y="74" fontSize="26" fontWeight="700" fill="#7cc0ff" fontFamily="var(--font-pally), sans-serif">z</text>
+              <text x="204" y="54" fontSize="18" fontWeight="700" fill="#7cc0ff" fontFamily="var(--font-pally), sans-serif">z</text>
+            </g>
+          ) : mood === "surprised" ? (
+            <g>
+              {[92, 148].map((x) => (
+                <g key={x}>
+                  <circle cx={x} cy="124" r="11" fill={`url(#${g("eye")})`} />
+                  <circle cx={x + 3} cy="120" r="3.5" fill="#fff" />
+                </g>
+              ))}
+            </g>
+          ) : mood === "wink" ? (
+            <g>
+              <path d="M79 128c7-10 22-10 29 0" stroke={faceInk} strokeWidth="6.5" strokeLinecap="round" fill="none" />
+              <ellipse cx="148" cy="124" rx="17" ry="20" fill={`url(#${g("eye")})`} />
+              <circle cx="153" cy="115" r="6.5" fill="#fff" />
+              <circle cx="142" cy="132" r="3" fill="#fff" opacity="0.85" />
+            </g>
+          ) : mood === "sad" ? (
+            <g>
+              {[92, 148].map((x, i) => (
+                <g key={x}>
+                  <ellipse cx={x} cy="128" rx="15" ry="16" fill={`url(#${g("eye")})`} />
+                  <circle cx={x + 4} cy="122" r="5" fill="#fff" />
+                  <path d={i === 0 ? "M76 104l26 8" : "M164 104l-26 8"} stroke={faceInk} strokeWidth="4.5" strokeLinecap="round" />
+                </g>
+              ))}
+              <path d="M78 146c4 7 6 11 6 13a6 6 0 01-12 0c0-2 2-6 6-13z" fill="#7cc0ff" />
+            </g>
           ) : (
             [92, 148].map((cx) => (
               <g key={cx} className="pet-eye">
@@ -279,6 +340,15 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
             <path d="M110 160h20" stroke="#1d1d1f" strokeWidth="5" strokeLinecap="round" />
           ) : sp.mouth === "beak" ? (
             <path d="M110 148l10 12 10-12z" fill="#ffb14a" stroke="#e08a1f" strokeWidth="2" strokeLinejoin="round" />
+          ) : mood === "excited" || mood === "love" ? (
+            <g>
+              <path d="M104 148q16 22 32 0z" fill="#1d1836" />
+              <ellipse cx="120" cy="158" rx="8" ry="4.5" fill="#ff6f86" />
+            </g>
+          ) : mood === "surprised" || mood === "sleepy" ? (
+            <ellipse cx="120" cy="156" rx={mood === "surprised" ? 8 : 5} ry={mood === "surprised" ? 10 : 5} fill="#1d1836" />
+          ) : mood === "sad" ? (
+            <path d="M108 160q12-10 24 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" fill="none" />
           ) : mood === "hungry" ? (
             <ellipse cx="120" cy="158" rx="8" ry="10" fill="#1d1836" />
           ) : mood === "focused" ? (
@@ -286,7 +356,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
           ) : (
             <g>
               <path d="M104 150q8 12 16 0q8 12 16 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              {mood === "happy" && <ellipse cx="120" cy="157" rx="6" ry="4" fill="#ff6f86" />}
+              {(mood === "happy" || mood === "wink") && <ellipse cx="120" cy="157" rx="6" ry="4" fill="#ff6f86" />}
             </g>
           )}
 
@@ -294,6 +364,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchP
         </g>
       </g>
 
+      </g>
       {mood === "happy" && (
         <path className="pet-heart" d="M200 60c-4-8-16-6-16 3 0 7 10 12 16 17 6-5 16-10 16-17 0-9-12-11-16-3z" fill="#ff7a93" />
       )}

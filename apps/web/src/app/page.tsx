@@ -115,15 +115,15 @@ export default function Home() {
             </h2>
             <dl className="mt-8 space-y-5 text-[15px]">
               <div>
-                <dt className="font-medium">Pay per task</dt>
+                <dt className="font-bold">Pay per task</dt>
                 <dd className="mt-1 text-ink-soft">No contracts or minimums. Your agent pays in USDC over x402 when it asks.</dd>
               </div>
               <div>
-                <dt className="font-medium">Indian languages and English</dt>
+                <dt className="font-bold">Indian languages and English</dt>
                 <dd className="mt-1 text-ink-soft">Hindi, Tamil, Marathi, Bengali, Telugu, Kannada, Gujarati, and English checks.</dd>
               </div>
               <div>
-                <dt className="font-medium">Checked twice</dt>
+                <dt className="font-bold">Checked twice</dt>
                 <dd className="mt-1 text-ink-soft">Known-answer tests, three-person agreement, and a window to reject bad work.</dd>
               </div>
             </dl>
@@ -132,7 +132,7 @@ export default function Home() {
             </div>
           </div>
 
-          <pre style={{ fontVariantLigatures: "none" }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
+          <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
 {`// MCP tool, or POST /v1/jobs with x402
 ask_human({
   task: "verify_correct",

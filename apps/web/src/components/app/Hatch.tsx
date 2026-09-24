@@ -57,7 +57,7 @@ export function Hatch() {
                   aria-label={`${SPECIES[id].name}, ${SPECIES[id].blurb}`}
                   className={`rounded-[18px] px-1 pb-2 pt-1 transition-colors active:scale-[0.97] ${on ? "bg-leaf text-on-leaf" : "bg-field hover:bg-field-hover"}`}
                 >
-                  <Pet species={id} stage="mochi" mood={on ? "happy" : "curious"} className="mx-auto w-full max-w-[84px]" title={SPECIES[id].name} />
+                  <Pet species={id} stage="mochi" mood={on ? "excited" : "curious"} dance={on ? "bounce" : "none"} className="mx-auto w-full max-w-[84px]" title={SPECIES[id].name} />
                   <span className="block text-[13px] font-semibold">{SPECIES[id].name}</span>
                 </button>
               );
