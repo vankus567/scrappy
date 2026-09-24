@@ -101,3 +101,20 @@ export function ageLabel(bornAt: number, now = Date.now()) {
   if (days < 1) return "Hatched today";
   return days === 1 ? "1 day old" : `${days} days old`;
 }
+
+import type { PetStage } from "@/components/Pet";
+
+export const STAGES: { id: PetStage; name: string; jobs: number; days: number }[] = [
+  { id: "sprout", name: "Sprout", jobs: 0, days: 0 },
+  { id: "mochi", name: "Mochi form", jobs: 10, days: 0 },
+  { id: "bloom", name: "Bloom", jobs: 50, days: 3 },
+  { id: "blossom", name: "Blossom", jobs: 200, days: 14 },
+];
+
+/** Evolution is earned: only real jobs and real days alive count. */
+export function stageFor(pet: PetRecord, now = Date.now()) {
+  const days = (now - pet.bornAt) / 86_400_000;
+  let i = 0;
+  STAGES.forEach((st, idx) => { if (pet.jobsDone >= st.jobs && days >= st.days) i = idx; });
+  return { current: STAGES[i], next: STAGES[i + 1] ?? null };
+}

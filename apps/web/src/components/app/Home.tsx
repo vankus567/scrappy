@@ -2,7 +2,7 @@
 
 import { Heart, CalendarBlank, Briefcase } from "@phosphor-icons/react";
 import { Pet } from "@/components/Pet";
-import { formatRupees, JOBS_LIVE, usePet } from "@/lib/pet-store";
+import { formatRupees, JOBS_LIVE, STAGES, stageFor, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
@@ -11,6 +11,7 @@ export function Home() {
   const days = Math.max(0, Math.floor((Date.now() - pet.bornAt) / 86_400_000));
   // Hunger only ticks once paid jobs are live; until then the bowl is honestly full.
   const bowl = 100;
+  const { current, next } = stageFor(pet);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-8">
@@ -19,7 +20,7 @@ export function Home() {
         <div className="relative overflow-hidden rounded-[28px] bg-ground-deep p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2 text-[22px] font-semibold tabular-nums">
-              <Heart size={26} weight="fill" className="text-[#e9964b]" /> {bowl}%
+              <Heart size={26} weight="fill" className="text-[#ff7a59]" /> {bowl}%
             </p>
             <p className="rounded-[12px] bg-ground px-3 py-1.5 text-[14px] font-medium tabular-nums">
               {formatRupees(pet.earnedPaise)} earned
@@ -27,7 +28,7 @@ export function Home() {
           </div>
 
           <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
-            <Pet mood="happy" watchPointer className="w-full max-w-[260px]" />
+            <Pet mood="happy" stage={current.id} watchPointer className="w-full max-w-[260px]" />
             <div className="space-y-4">
               <h1 className="font-display text-[clamp(1.9rem,6vw,2.6rem)] font-medium leading-[1.1]">{pet.name}</h1>
               <dl className="space-y-3 text-[15px]">
@@ -42,6 +43,10 @@ export function Home() {
                   <dd><span className="font-semibold tabular-nums">{pet.jobsDone}</span> {pet.jobsDone === 1 ? "job" : "jobs"} done</dd>
                 </div>
               </dl>
+              <p className="text-[14px] text-ink-soft">
+                <span className="font-semibold text-ink">{current.name}</span>
+                {next ? `, evolves at ${next.jobs} jobs${next.days ? ` and ${next.days} days` : ""}` : ", fully grown"}
+              </p>
             </div>
           </div>
         </div>
@@ -55,6 +60,23 @@ export function Home() {
               ? `Answer a few and ${pet.name} eats.`
               : `Paid jobs from AI teams open soon. Until then the bowl stays full, so ${pet.name} will not get hungry.`}
           </p>
+        </div>
+        <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
+          <h2 className="font-display text-[22px] font-medium">Forms</h2>
+          <ol className="mt-4 grid grid-cols-4 gap-2">
+            {STAGES.map((st) => {
+              const reached = STAGES.indexOf(st) <= STAGES.indexOf(current);
+              return (
+                <li key={st.id} className="text-center">
+                  <div className={reached ? "" : "opacity-35 grayscale"}>
+                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} className="mx-auto w-full max-w-[96px]" title={st.name} />
+                  </div>
+                  <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{st.name}</p>
+                  <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} jobs`}</p>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </section>
 

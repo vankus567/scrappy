@@ -2,7 +2,7 @@
 
 import { Check } from "@phosphor-icons/react";
 import { Pet } from "@/components/Pet";
-import type { PetRecord } from "@/lib/pet-store";
+import { stageFor, type PetRecord } from "@/lib/pet-store";
 
 type Milestone = { label: string; done: boolean; x: number; y: number };
 
@@ -29,22 +29,26 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
   return (
     <div className="relative overflow-hidden rounded-[28px] bg-night text-on-night">
       <svg viewBox="0 0 340 520" className="block h-auto w-full" role="img" aria-label={`${pet.name}'s journey. Next goal: ${ms[nextIdx]?.label ?? "all done"}`}>
-        {/* city blocks */}
-        <g fill="#1a2117">
-          {[
-            [16, 20, 90, 70], [130, 10, 80, 60], [230, 90, 90, 60], [20, 150, 70, 90], [170, 140, 60, 50],
-            [200, 300, 110, 70], [20, 380, 90, 50], [140, 460, 110, 50], [290, 420, 40, 80], [30, 240, 50, 40],
-          ].map(([x, y, w, h], i) => (
-            <rect key={i} x={x} y={y} width={w} height={h} rx="10" />
+        {/* a sky: stars and fluffy clouds */}
+        <g fill="#fff6d6">
+          {[[40, 40], [300, 70], [180, 20], [60, 330], [310, 260], [150, 500], [30, 200], [290, 480]].map(([x, y], i) => (
+            <path key={i} d={`M${x} ${y - 6}l2 4 4 2-4 2-2 4-2-4-4-2 4-2z`} opacity="0.8" />
+          ))}
+        </g>
+        <g fill="#2e4270">
+          {[[70, 60, 1], [270, 180, 0.8], [60, 250, 0.9], [260, 350, 1], [90, 430, 0.8]].map(([x, y, s], i) => (
+            <g key={i} transform={`translate(${x} ${y}) scale(${s})`}>
+              <circle cx="0" cy="0" r="18" /><circle cx="20" cy="-8" r="22" /><circle cx="42" cy="0" r="17" /><rect x="-10" y="0" width="62" height="16" rx="8" />
+            </g>
           ))}
         </g>
         {/* the road */}
-        <path d={PATH} fill="none" stroke="#2b3526" strokeWidth="22" strokeLinecap="round" />
-        <path d={PATH} fill="none" stroke="#e9b25b" strokeWidth="6" strokeLinecap="round" strokeDasharray="1 14" opacity="0.9" />
+        <path d={PATH} fill="none" stroke="#2e4270" strokeWidth="22" strokeLinecap="round" />
+        <path d={PATH} fill="none" stroke="#ffc83d" strokeWidth="6" strokeLinecap="round" strokeDasharray="1 14" opacity="0.9" />
 
         {/* paw prints near completed goals */}
         {ms.filter((m) => m.done).map((m, i) => (
-          <g key={i} fill="#e9b25b" opacity="0.55" transform={`translate(${m.x + 26} ${m.y - 22}) rotate(-20)`}>
+          <g key={i} fill="#ffc83d" opacity="0.6" transform={`translate(${m.x + 26} ${m.y - 22}) rotate(-20)`}>
             <ellipse cx="0" cy="6" rx="5" ry="4" />
             <circle cx="-5" cy="-1" r="2" /><circle cx="0" cy="-3" r="2" /><circle cx="5" cy="-1" r="2" />
           </g>
@@ -55,10 +59,10 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
           const w = m.label.length * 7.2 + 26;
           return (
             <g key={m.label} transform={`translate(${m.x} ${m.y})`}>
-              <circle r="11" fill={m.done ? "#e9b25b" : "#2b3526"} stroke={m.done ? "#fff3d6" : "#44513e"} strokeWidth="3" />
+              <circle r="11" fill={m.done ? "#ffc83d" : "#2e4270"} stroke={m.done ? "#fff3c4" : "#4a5f92"} strokeWidth="3" />
               <g transform={`translate(${m.x > 200 ? -w - 16 : 16} -16)`}>
-                <rect width={w} height="30" rx="12" fill={m.done ? "#e9b25b" : "#232b1f"} />
-                <text x={w / 2} y="15" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="600" fill={m.done ? "#2a1d0a" : "#b8c2ab"}>
+                <rect width={w} height="30" rx="12" fill={m.done ? "#ffc83d" : "#2a3b64"} />
+                <text x={w / 2} y="15" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="600" fill={m.done ? "#14213d" : "#c3d0ea"}>
                   {m.label}
                 </text>
               </g>
@@ -72,12 +76,12 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
         className="pointer-events-none absolute w-[18%]"
         style={{ left: `${(here.x / 340) * 100}%`, top: `${(here.y / 520) * 100}%`, transform: "translate(-50%, -92%)" }}
       >
-        <Pet mood="curious" className="w-full" title={`${pet.name} on the map`} />
+        <Pet mood="curious" stage={stageFor(pet).current.id} className="w-full" title={`${pet.name} on the map`} />
       </div>
 
       {nextIdx !== -1 && (
         <p className="flex items-center gap-2 px-6 pb-5 text-[14px] text-on-night-soft">
-          <Check size={16} weight="bold" className="text-[#e9b25b]" />
+          <Check size={16} weight="bold" className="text-[#ffc83d]" />
           {ms.filter((m) => m.done).length} of {ms.length} goals. Next: <span className="font-medium text-on-night">{ms[nextIdx].label}</span>
         </p>
       )}

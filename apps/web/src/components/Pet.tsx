@@ -3,25 +3,25 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 export type PetMood = "happy" | "curious" | "focused" | "hungry" | "dead";
+/** Evolution forms, unlocked by real work (see stageFor in pet-store). */
+export type PetStage = "sprout" | "mochi" | "bloom" | "blossom";
 
 type PetProps = {
   mood?: PetMood;
-  /** Eyes follow the pointer (off under reduced motion). */
+  stage?: PetStage;
   watchPointer?: boolean;
   className?: string;
   title?: string;
-  /** Body colour override, used for friends' pets on the map. */
-  tint?: { light: string; mid: string; dark: string };
 };
 
-const CORAL = { light: "#ff9a6b", mid: "#ef6a3d", dark: "#b8441f" };
-const STONE = { light: "#d6d0c7", mid: "#b9b2a8", dark: "#8c857b" };
+const CORAL = { light: "#ffb89c", mid: "#ff7a59", dark: "#e0553a" };
+const STONE = { light: "#e2dfe8", mid: "#c3c0cc", dark: "#9d99a8" };
 
 /**
- * Mochi: a soft, glossy dumpling with a leaf sprout. Shaded with gradients so it reads
- * as a squishy 3D toy. Always visible; motion only animates what is already on screen.
+ * Mochi: a squishy chibi dumpling. Big sparkly eyes, glossy body, blush, leaf sprout.
+ * Each evolution adds a detail. Always visible; motion only animates what is on screen.
  */
-export function Pet({ mood = "happy", watchPointer = false, className, title = "Mochi, a Scrappy pet", tint }: PetProps) {
+export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, className, title = "Mochi, a Scrappy pet" }: PetProps) {
   const ref = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   const [look, setLook] = useState({ x: 0, y: 0 });
@@ -36,7 +36,7 @@ export function Pet({ mood = "happy", watchPointer = false, className, title = "
         const box = ref.current?.getBoundingClientRect();
         if (!box) return;
         const dx = e.clientX - (box.left + box.width / 2);
-        const dy = e.clientY - (box.top + box.height * 0.45);
+        const dy = e.clientY - (box.top + box.height * 0.5);
         const d = Math.hypot(dx, dy) || 1;
         const reach = Math.min(1, d / 400);
         setLook({ x: (dx / d) * 5 * reach, y: (dy / d) * 4 * reach });
@@ -50,105 +50,139 @@ export function Pet({ mood = "happy", watchPointer = false, className, title = "
   }, [watchPointer]);
 
   const dead = mood === "dead";
-  const hungry = mood === "hungry";
-  const c = dead ? STONE : tint ?? CORAL;
+  const c = dead ? STONE : CORAL;
   const g = (n: string) => `${n}-${uid}`;
+  const baby = stage === "sprout";
+  const hasArms = stage === "bloom" || stage === "blossom";
+  // babies are squatter and rounder
+  const bodyT = baby ? "translate(12 30) scale(0.9 0.86)" : undefined;
 
   return (
     <svg ref={ref} viewBox="0 0 240 240" role="img" aria-label={title} className={className}>
       <defs>
-        <radialGradient id={g("body")} cx="38%" cy="30%" r="75%">
+        <radialGradient id={g("body")} cx="36%" cy="28%" r="78%">
           <stop offset="0%" stopColor={c.light} />
           <stop offset="55%" stopColor={c.mid} />
           <stop offset="100%" stopColor={c.dark} />
         </radialGradient>
-        <radialGradient id={g("belly")} cx="45%" cy="35%" r="70%">
-          <stop offset="0%" stopColor={dead ? "#ece8e1" : "#fff1e2"} />
-          <stop offset="100%" stopColor={dead ? "#cfc9c0" : "#ffcfa6"} />
+        <radialGradient id={g("belly")} cx="45%" cy="30%" r="75%">
+          <stop offset="0%" stopColor={dead ? "#f1eff4" : "#fff4ea"} />
+          <stop offset="100%" stopColor={dead ? "#d6d3dc" : "#ffd3b8"} />
         </radialGradient>
-        <radialGradient id={g("eye")} cx="40%" cy="35%" r="70%">
-          <stop offset="0%" stopColor="#3a2a22" />
-          <stop offset="100%" stopColor="#120c09" />
+        <radialGradient id={g("eye")} cx="45%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#3b3160" />
+          <stop offset="70%" stopColor="#16122b" />
         </radialGradient>
-        <linearGradient id={g("leafA")} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={dead ? "#a3a394" : "#8fcf6f"} />
-          <stop offset="100%" stopColor={dead ? "#7d7d70" : "#4f8a3e"} />
+        <linearGradient id={g("leaf")} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={dead ? "#b5b3bc" : "#9be27a"} />
+          <stop offset="100%" stopColor={dead ? "#8a8794" : "#4fa35a"} />
         </linearGradient>
-        <filter id={g("soft")} x="-20%" y="-20%" width="140%" height="140%">
+        <radialGradient id={g("petal")} cx="50%" cy="80%" r="80%">
+          <stop offset="0%" stopColor="#fff0f6" />
+          <stop offset="100%" stopColor="#ff9ec4" />
+        </radialGradient>
+        <filter id={g("soft")} x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="3" />
         </filter>
       </defs>
 
-      {/* ground contact shadow */}
-      <ellipse cx="122" cy="222" rx="66" ry="7" fill="var(--pet-ink)" opacity="0.14" />
+      <ellipse cx="120" cy="223" rx={baby ? 56 : 66} ry="7" fill="var(--pet-ink)" opacity="0.12" />
 
       <g className={dead ? undefined : "pet-body"}>
-        {/* feet */}
-        <ellipse cx="92" cy="211" rx="18" ry="10" fill={c.dark} />
-        <ellipse cx="148" cy="211" rx="18" ry="10" fill={c.dark} />
+        <g transform={bodyT}>
+          {/* feet */}
+          <ellipse cx="92" cy="211" rx="17" ry="10" fill={c.dark} />
+          <ellipse cx="148" cy="211" rx="17" ry="10" fill={c.dark} />
 
-        {/* body */}
-        <path d="M120 56c53 0 86 41 86 90 0 45-35 71-86 71s-86-26-86-71c0-49 33-90 86-90z" fill={`url(#${g("body")})`} />
-        {/* belly */}
-        <ellipse cx="120" cy="170" rx="47" ry="35" fill={`url(#${g("belly")})`} />
-        {/* specular highlights: the gloss */}
-        <ellipse cx="86" cy="92" rx="22" ry="11" fill="#fff" opacity="0.45" transform="rotate(-28 86 92)" filter={`url(#${g("soft")})`} />
-        <ellipse cx="78" cy="96" rx="6" ry="4" fill="#fff" opacity="0.8" transform="rotate(-28 78 96)" />
+          {/* arms (bloom and up) */}
+          {hasArms && (
+            <>
+              <ellipse cx="38" cy="160" rx="13" ry="18" fill={c.mid} transform="rotate(28 38 160)" />
+              <ellipse cx="202" cy="160" rx="13" ry="18" fill={c.mid} transform="rotate(-28 202 160)" />
+            </>
+          )}
 
-        {/* sprout */}
-        <g className={dead ? undefined : "pet-sprout"}>
-          <path d="M121 58c0-12 1-20 4-28" stroke={dead ? "#6f6f62" : "#3e6b35"} strokeWidth="5" strokeLinecap="round" fill="none" />
-          <path d="M125 32c10-15 32-17 40-10-6 15-26 21-40 10z" fill={`url(#${g("leafA")})`} />
-          <path d="M123 36c-8-13-26-15-32-8 6 12 20 16 32 8z" fill={`url(#${g("leafA")})`} />
+          {/* body: a chibi dumpling */}
+          <path d="M120 52c56 0 90 42 90 94 0 46-36 72-90 72s-90-26-90-72c0-52 34-94 90-94z" fill={`url(#${g("body")})`} />
+          <ellipse cx="120" cy="176" rx="46" ry="32" fill={`url(#${g("belly")})`} />
+          {/* gloss */}
+          <ellipse cx="84" cy="86" rx="24" ry="12" fill="#fff" opacity="0.5" transform="rotate(-30 84 86)" filter={`url(#${g("soft")})`} />
+          <ellipse cx="76" cy="90" rx="7" ry="4.5" fill="#fff" opacity="0.9" transform="rotate(-30 76 90)" />
         </g>
 
-        {/* face */}
-        {dead ? (
-          <g stroke="var(--pet-ink)" strokeWidth="6" strokeLinecap="round">
-            <path d="M84 118l16 16M100 118l-16 16" />
-            <path d="M140 118l16 16M156 118l-16 16" />
-          </g>
-        ) : mood === "happy" ? (
-          <g stroke="#1b1511" strokeWidth="6" strokeLinecap="round" fill="none">
-            <path d="M81 128c6-10 19-10 25 0" />
-            <path d="M136 128c6-10 19-10 25 0" />
-          </g>
-        ) : (
-          <g>
-            {[93, 149].map((cx) => (
+        {/* sprout and crown */}
+        <g className={dead ? undefined : "pet-sprout"} transform={baby ? "translate(0 26)" : undefined}>
+          <path d="M121 56c0-12 1-20 4-28" stroke={dead ? "#8a8794" : "#3f8a48"} strokeWidth="5" strokeLinecap="round" fill="none" />
+          <path d="M125 30c11-16 34-18 42-10-6 16-28 22-42 10z" fill={`url(#${g("leaf")})`} />
+          {!baby && <path d="M123 34c-9-14-28-16-34-8 6 13 21 17 34 8z" fill={`url(#${g("leaf")})`} />}
+          {stage === "bloom" && <circle cx="125" cy="24" r="9" fill={`url(#${g("petal")})`} />}
+          {stage === "blossom" && (
+            <g transform="translate(125 20)">
+              {[0, 72, 144, 216, 288].map((a) => (
+                <ellipse key={a} cx="0" cy="-11" rx="8" ry="12" fill={`url(#${g("petal")})`} transform={`rotate(${a})`} />
+              ))}
+              <circle r="7" fill="#ffd66b" />
+            </g>
+          )}
+        </g>
+
+        <g transform={bodyT}>
+          {/* face */}
+          {dead ? (
+            <g stroke="var(--pet-ink)" strokeWidth="6" strokeLinecap="round">
+              <path d="M82 118l16 16M98 118l-16 16" />
+              <path d="M142 118l16 16M158 118l-16 16" />
+            </g>
+          ) : mood === "happy" ? (
+            <g stroke="#1d1836" strokeWidth="6.5" strokeLinecap="round" fill="none">
+              <path d="M79 130c7-12 22-12 29 0" />
+              <path d="M132 130c7-12 22-12 29 0" />
+            </g>
+          ) : (
+            [92, 148].map((cx) => (
               <g key={cx} className="pet-eye">
-                <ellipse cx={cx} cy="124" rx="15" ry={mood === "focused" ? 13 : 17} fill={`url(#${g("eye")})`} />
-                <circle cx={cx + 4 + look.x} cy={117 + look.y} r="5.5" fill="#fff" />
-                <circle cx={cx - 5 + look.x * 0.6} cy={131 + look.y * 0.6} r="2.5" fill="#fff" opacity="0.7" />
+                <ellipse cx={cx} cy="124" rx="17" ry={mood === "focused" ? 15 : 20} fill={`url(#${g("eye")})`} />
+                <circle cx={cx + 5 + look.x} cy={115 + look.y} r="6.5" fill="#fff" />
+                <circle cx={cx - 6 + look.x * 0.6} cy={132 + look.y * 0.6} r="3" fill="#fff" opacity="0.85" />
+                <path d={`M${cx - 10} ${136} q10 6 20 0`} stroke="#6e5fb8" strokeOpacity="0.5" strokeWidth="2.5" fill="none" strokeLinecap="round" />
               </g>
-            ))}
-          </g>
-        )}
+            ))
+          )}
 
-        {/* cheeks */}
-        {!dead && (
-          <>
-            <ellipse cx="70" cy="148" rx="12" ry="7" fill="#ff8e7a" opacity="0.7" filter={`url(#${g("soft")})`} />
-            <ellipse cx="170" cy="148" rx="12" ry="7" fill="#ff8e7a" opacity="0.7" filter={`url(#${g("soft")})`} />
-          </>
-        )}
+          {/* blush with little lines */}
+          {!dead && (
+            <g>
+              <ellipse cx="64" cy="150" rx="14" ry="8" fill="#ff8fa3" opacity="0.65" filter={`url(#${g("soft")})`} />
+              <ellipse cx="176" cy="150" rx="14" ry="8" fill="#ff8fa3" opacity="0.65" filter={`url(#${g("soft")})`} />
+              <g stroke="#ff6f86" strokeWidth="2.5" strokeLinecap="round" opacity="0.8">
+                <path d="M57 150l4-5M64 151l4-5M71 150l4-5" />
+                <path d="M169 150l4-5M176 151l4-5M183 150l4-5" />
+              </g>
+            </g>
+          )}
 
-        {/* mouth */}
-        {dead ? (
-          <path d="M110 158h20" stroke="var(--pet-ink)" strokeWidth="5" strokeLinecap="round" />
-        ) : hungry ? (
-          <ellipse cx="121" cy="157" rx="8" ry="10" fill="#1b1511" />
-        ) : mood === "focused" ? (
-          <path d="M112 156h18" stroke="#1b1511" strokeWidth="5" strokeLinecap="round" />
-        ) : (
-          <g>
-            <path d="M106 150c7 11 23 11 30 0" stroke="#1b1511" strokeWidth="5" strokeLinecap="round" fill="none" />
-            <path d="M113 155c4 4 12 4 16 0" stroke="#e8645a" strokeWidth="4" strokeLinecap="round" fill="none" />
-          </g>
-        )}
+          {/* mouth */}
+          {dead ? (
+            <path d="M110 160h20" stroke="var(--pet-ink)" strokeWidth="5" strokeLinecap="round" />
+          ) : mood === "hungry" ? (
+            <ellipse cx="120" cy="158" rx="8" ry="10" fill="#1d1836" />
+          ) : mood === "focused" ? (
+            <path d="M113 156q7 4 14 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" fill="none" />
+          ) : (
+            <g>
+              <path d="M104 150q8 12 16 0q8 12 16 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              {mood === "happy" && <ellipse cx="120" cy="157" rx="6" ry="4" fill="#ff6f86" />}
+            </g>
+          )}
 
-        {hungry && <path d="M186 96c6 10 8 15 8 18a8 8 0 01-16 0c0-3 2-8 8-18z" fill="#8fc7e8" />}
+          {mood === "hungry" && <path d="M188 92c6 10 8 15 8 18a8 8 0 01-16 0c0-3 2-8 8-18z" fill="#8fd0f5" />}
+        </g>
       </g>
+
+      {/* floating heart when happy */}
+      {mood === "happy" && (
+        <path className="pet-heart" d="M200 60c-4-8-16-6-16 3 0 7 10 12 16 17 6-5 16-10 16-17 0-9-12-11-16-3z" fill="#ff7a93" />
+      )}
     </svg>
   );
 }

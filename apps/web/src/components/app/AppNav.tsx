@@ -27,7 +27,7 @@ export function AppNav() {
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`rounded-[12px] px-4 py-2 text-[15px] transition-colors ${active ? "bg-ground-deep font-medium text-leaf" : "text-ink-soft hover:text-ink"}`}
+                  className={`rounded-[12px] px-4 py-2 text-[15px] transition-colors ${active ? "bg-leaf font-semibold text-on-leaf" : "text-ink-soft hover:text-ink"}`}
                 >
                   {label}
                 </Link>
@@ -47,7 +47,7 @@ export function AppNav() {
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-[64px] flex-col items-center justify-center gap-1 text-[12px] ${active ? "font-medium text-leaf" : "text-ink-faint"}`}
+                  className={`flex min-h-[64px] flex-col items-center justify-center gap-1 text-[12px] ${active ? "font-semibold text-ink" : "text-ink-soft"}`}
                 >
                   <span className={`grid size-11 place-items-center rounded-[16px] transition-colors ${active ? "bg-leaf text-on-leaf" : "bg-ground-deep"}`}>
                     <Icon size={22} weight={active ? "fill" : "bold"} />

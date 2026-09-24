@@ -1,39 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  /* Pistachio ground, green-black ink. Tonal accents only; colour lives in the pet. */
-  --ground: #eef1e4;
-  --ground-deep: #e3e8d5;
-  --ink: #161a12;
-  --ink-soft: #566050;
-  --ink-faint: #8d9684;
-  --leaf: #243a22;
-  --leaf-hover: #34502f;
-  --on-leaf: #eef1e4;
-  --night: #121710;
-  --night-raise: #1a2117;
-  --on-night: #e6ebdb;
-  --on-night-soft: #9aa58f;
-  --pet: #ef6a3d;
-  --pet-shade: #c9502a;
-  --pet-belly: #ffd7b5;
-  --pet-cheek: #ff9a7a;
-  --pet-ink: #1b1511;
-  --edge: color-mix(in oklab, var(--ink) 9%, transparent);
+  /* Candy sky: sky ground, cloud surfaces, navy ink, one sunshine accent. The pet is coral. */
+  --ground: #ddeeff;
+  --ground-deep: #f4f9ff;
+  --ink: #14213d;
+  --ink-soft: #4a5a7a;
+  --ink-faint: #7a88a4;
+  --leaf: #ffc83d;
+  --leaf-hover: #ffd466;
+  --on-leaf: #14213d;
+  --night: #1b2a4a;
+  --night-raise: #24365c;
+  --on-night: #eef4ff;
+  --on-night-soft: #a9b8d6;
+  --pet: #ff7a59;
+  --pet-shade: #d9583a;
+  --pet-belly: #ffd9c2;
+  --pet-cheek: #ff9a8a;
+  --pet-ink: #14213d;
+  --edge: color-mix(in oklab, var(--ink) 10%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #121710;
-    --ground-deep: #182015;
-    --ink: #e6ebdb;
-    --ink-soft: #a3ad97;
-    --ink-faint: #6f7a66;
-    --leaf: #d9e3c6;
-    --leaf-hover: #eef4e0;
-    --on-leaf: #121710;
-    --night: #0b0e0a;
-    --night-raise: #151b12;
+    --ground: #111a2e;
+    --ground-deep: #1b2742;
+    --ink: #eef4ff;
+    --ink-soft: #a9b8d6;
+    --ink-faint: #6f7e9c;
+    --leaf: #ffc83d;
+    --leaf-hover: #ffd466;
+    --on-leaf: #14213d;
+    --night: #0b1222;
+    --night-raise: #16213a;
     --edge: color-mix(in oklab, var(--ink) 12%, transparent);
   }
 }
@@ -130,3 +130,10 @@ body {
   .egg-wobble { animation: none; }
   .egg-crack { animation: none; opacity: 0; }
 }
+
+@keyframes heart-float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.95; }
+  50% { transform: translateY(-8px) scale(1.08); opacity: 0.7; }
+}
+.pet-heart { transform-box: fill-box; transform-origin: 50% 50%; animation: heart-float 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pet-heart { animation: none; } }
