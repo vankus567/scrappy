@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createApp, WORKER_SHARE, VERIFY_PRICE_USDC } from "./app";
-import { openStore } from "./store";
+import { openStore, MIN_ANSWER_MS } from "./store";
 
 // The paywall is x402 in production; here it passes through so we can test routing and answers.
 const passThrough = async (_c: unknown, next: () => Promise<void>) => next();
@@ -40,6 +40,7 @@ describe("Human API", () => {
     expect(job.language).toBe("hi");
     expect(job.pays_usdc).toBeCloseTo(VERIFY_PRICE_USDC * WORKER_SHARE);
 
+    await Bun.sleep(MIN_ANSWER_MS + 50); // respect the anti-farming floor
     const ans = await req("POST", `/v1/jobs/${job.job_id}/answer`, { worker_id: w.worker_id, answer: "Natural", confidence: 92 });
     expect(ans.status).toBe(200);
 
@@ -58,7 +59,7 @@ describe("Human API", () => {
   test("router never hands a job to a worker without the language", async () => {
     const { req, store } = setup();
     const w = await (await req("POST", "/v1/workers", { wallet: WALLET_B, languages: ["ta"] })).json();
-    store.createJob({ task: "Check this", content: null, options: null, language: "hi", max_latency_ms: 60_000, min_accuracy: 0.9, price_usdc: 0.05, payment_tx: null });
+    store.createJob({ task: "Check this", content: null, options: null, language: "hi", max_latency_ms: 60_000, min_accuracy: 0.7, price_usdc: 0.05, payment_tx: null });
     const next = await req("GET", `/v1/workers/${w.worker_id}/next`);
     expect(next.status).toBe(204);
   });
@@ -67,7 +68,7 @@ describe("Human API", () => {
     const { req, store } = setup();
     const a = await (await req("POST", "/v1/workers", { wallet: WALLET_A, languages: ["en"] })).json();
     const b = await (await req("POST", "/v1/workers", { wallet: WALLET_B, languages: ["en"] })).json();
-    store.createJob({ task: "Which is correct?", content: null, options: ["A", "B"], language: "en", max_latency_ms: 60_000, min_accuracy: 0.9, price_usdc: 0.05, payment_tx: null });
+    store.createJob({ task: "Which is correct?", content: null, options: ["A", "B"], language: "en", max_latency_ms: 60_000, min_accuracy: 0.7, price_usdc: 0.05, payment_tx: null });
     const job = await (await req("GET", `/v1/workers/${a.worker_id}/next`)).json();
     const stolen = await req("POST", `/v1/jobs/${job.job_id}/answer`, { worker_id: b.worker_id, answer: "B", confidence: 99 });
     expect(stolen.status).toBe(409);

@@ -13,10 +13,20 @@ const verifyBody = z.object({
   requirements: z
     .object({
       language: z.string().min(2).max(5).default("en"),
+      domain: z.string().min(2).max(40).default("general"),
       max_latency: z.number().int().min(5).max(600).default(60), // seconds
-      min_accuracy: z.number().min(0).max(1).default(0.9),
+      min_accuracy: z.number().min(0).max(1).default(0.8),
     })
     .prefault({}),
+});
+
+const goldBody = z.object({
+  task: z.string().min(3).max(500),
+  content: z.string().max(4000).optional(),
+  options: z.array(z.string().max(500)).min(2).max(6).optional(),
+  language: z.string().min(2).max(5),
+  domain: z.string().min(2).max(40).default("general"),
+  answer: z.string().min(1).max(500),
 });
 
 const answerBody = z.object({
@@ -28,6 +38,9 @@ const answerBody = z.object({
 const workerBody = z.object({
   wallet: z.string().min(32).max(44),
   languages: z.array(z.string().min(2).max(5)).min(1).max(40),
+  pet_name: z.string().min(1).max(20).optional(),
+  species: z.string().min(2).max(12).optional(),
+  city: z.string().max(40).optional(),
 });
 
 function publicResult(job: NonNullable<ReturnType<Store["getJob"]>>) {
@@ -64,6 +77,7 @@ export function createApp(store: Store, paywall: MiddlewareHandler) {
       content: b.content ?? null,
       options: b.options ?? null,
       language: b.requirements.language,
+      domain: b.requirements.domain,
       max_latency_ms: b.requirements.max_latency * 1000,
       min_accuracy: b.requirements.min_accuracy,
       price_usdc: VERIFY_PRICE_USDC,
@@ -82,20 +96,43 @@ export function createApp(store: Store, paywall: MiddlewareHandler) {
 
   app.get("/v1/jobs/:id", (c) => {
     const job = store.getJob(c.req.param("id"));
-    return job ? c.json(publicResult(job)) : c.json({ error: "not found" }, 404);
+    return job && !job.is_gold ? c.json(publicResult(job)) : c.json({ error: "not found" }, 404);
+  });
+
+  // ---- admin: gold tasks (hidden known-answer checks) ----
+  app.post("/v1/admin/gold", async (c) => {
+    const token = process.env.ADMIN_TOKEN;
+    if (!token || c.req.header("x-admin-token") !== token) return c.json({ error: "forbidden" }, 403);
+    const parsed = goldBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+    const g = parsed.data;
+    const job = store.createJob({
+      task: g.task, content: g.content ?? null, options: g.options ?? null, language: g.language, domain: g.domain,
+      max_latency_ms: 3_600_000, min_accuracy: 0, price_usdc: VERIFY_PRICE_USDC, payment_tx: null, gold_answer: g.answer,
+    });
+    return c.json({ gold_id: job.id });
   });
 
   // ---- workers ----
   app.post("/v1/workers", async (c) => {
     const parsed = workerBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-    const w = store.createWorker(parsed.data.wallet, parsed.data.languages);
+    const { wallet, languages, ...profile } = parsed.data;
+    const w = store.createWorker(wallet, languages, profile);
     return c.json({ worker_id: w.id, jobs_done: w.jobs_done, owed_usdc: w.owed_usdc });
   });
 
   app.get("/v1/workers/:id", (c) => {
     const w = store.getWorker(c.req.param("id"));
-    return w ? c.json({ worker_id: w.id, languages: w.languages, jobs_done: w.jobs_done, owed_usdc: w.owed_usdc }) : c.json({ error: "not found" }, 404);
+    if (!w) return c.json({ error: "not found" }, 404);
+    return c.json({
+      worker_id: w.id,
+      languages: w.languages,
+      jobs_done: w.jobs_done,
+      owed_usdc: w.owed_usdc,
+      payout_held: store.payoutHeld(w),
+      skills: store.skillsOf(w.id),
+    });
   });
 
   app.get("/v1/workers/:id/next", (c) => {
@@ -109,6 +146,7 @@ export function createApp(store: Store, paywall: MiddlewareHandler) {
       content: job.content,
       options: job.options,
       language: job.language,
+      domain: job.domain,
       pays_usdc: Math.round(job.price_usdc * WORKER_SHARE * 1e6) / 1e6,
       answer_within_ms: 60_000,
     });
@@ -120,6 +158,10 @@ export function createApp(store: Store, paywall: MiddlewareHandler) {
     const r = store.answer(c.req.param("id"), parsed.data.worker_id, parsed.data.answer, parsed.data.confidence, WORKER_SHARE);
     return r.ok ? c.json(r) : c.json({ error: r.error }, 409);
   });
+
+  // ---- public network data ----
+  app.get("/v1/leaderboard", (c) => c.json({ entries: store.leaderboard(50, c.req.query("city") || undefined) }));
+  app.get("/v1/stats", (c) => c.json(store.stats()));
 
   return app;
 }
