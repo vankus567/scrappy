@@ -12,14 +12,13 @@ const pally = localFont({
   display: "swap",
 });
 
-const satoshi = localFont({
+const switzer = localFont({
   src: [
-    { path: "../fonts/satoshi-400.woff2", weight: "400", style: "normal" },
-    { path: "../fonts/satoshi-500.woff2", weight: "500", style: "normal" },
-    { path: "../fonts/satoshi-700.woff2", weight: "700", style: "normal" },
-    { path: "../fonts/satoshi-900.woff2", weight: "900", style: "normal" },
+    { path: "../fonts/switzer-400.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/switzer-500.woff2", weight: "500", style: "normal" },
+    { path: "../fonts/switzer-600.woff2", weight: "600", style: "normal" },
   ],
-  variable: "--font-satoshi",
+  variable: "--font-switzer",
   display: "swap",
 });
 
@@ -37,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${pally.variable} ${satoshi.variable}`}>
+    <html lang="en" className={`${pally.variable} ${switzer.variable}`}>
       <body>{children}</body>
     </html>
   );

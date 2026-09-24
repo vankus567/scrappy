@@ -8,8 +8,8 @@
   --field: #2c2c2e;
   --field-hover: #3a3a3c;
   --ink: #1d1d1f;
-  --ink-soft: #6e6e73;
-  --ink-faint: #8e8e93;
+  --ink-soft: #48484a;
+  --ink-faint: #6e6e73;
   --leaf: #007aff;
   --leaf-hover: #1a88ff;
   --on-leaf: #ffffff;
@@ -32,8 +32,8 @@
 .bg-night,
 .bg-night-raise {
   --ink: #f5f5f7;
-  --ink-soft: #aaaaaa;
-  --ink-faint: #8e8e93;
+  --ink-soft: #d1d1d6;
+  --ink-faint: #aeaeb2;
   --edge: rgb(255 255 255 / 0.12);
   color: var(--ink);
 }
@@ -55,8 +55,8 @@
   --color-field: var(--field);
   --color-field-hover: var(--field-hover);
   --color-navy-text: var(--navy-text);
-  --font-display: var(--font-pally), var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-satoshi), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-pally), var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-switzer), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
 }
 
@@ -65,7 +65,12 @@ html {
   color: var(--ink);
 }
 
+p, dd, li { text-wrap: pretty; }
+
 body {
+  font-size: 16px;
+  line-height: 1.6;
+  font-feature-settings: "ss01", "cv11";
   background: var(--ground);
   color: var(--ink);
   font-family: var(--font-sans);
