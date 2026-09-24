@@ -78,27 +78,32 @@ export function Hatch() {
           />
         </div>
 
-        <fieldset className="space-y-2">
+        <fieldset className="space-y-3">
           <legend className="text-[15px] font-medium">Languages you can check</legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {LANGUAGES.map((l) => {
-              const on = langs.includes(l.id);
-              return (
-                <button
-                  type="button"
-                  key={l.id}
-                  onClick={() => toggle(l.id)}
-                  aria-pressed={on}
-                  className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
-                >
-                  <span lang={l.id} className="block text-[16px]">{l.native}</span>
-                  {l.native !== l.label && (
-                    <span className={`block text-[12px] ${on ? "opacity-80" : "text-ink-soft"}`}>{l.label}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {(["india", "world"] as const).map((grp) => (
+            <div key={grp} className="space-y-2">
+              <p className="text-[13px] font-semibold text-ink-soft">{grp === "india" ? "India" : "World"}</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {LANGUAGES.filter((l) => l.group === grp).map((l) => {
+                  const on = langs.includes(l.id);
+                  return (
+                    <button
+                      type="button"
+                      key={l.id}
+                      onClick={() => toggle(l.id)}
+                      aria-pressed={on}
+                      className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
+                    >
+                      <span lang={l.id} className="block text-[16px] leading-tight">{l.native}</span>
+                      {l.native !== l.label && (
+                        <span className={`block text-[12px] ${on ? "opacity-80" : "text-ink-soft"}`}>{l.label}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">

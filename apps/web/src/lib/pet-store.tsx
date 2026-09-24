@@ -7,17 +7,44 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * Earnings, jobs and ranks come from the API once it is live; until then they are
  * honestly zero / empty, never invented.
  */
-export type Language = "hi" | "ta" | "mr" | "bn" | "te" | "kn" | "gu" | "en";
+export type Language =
+  | "hi" | "en" | "ta" | "mr" | "bn" | "te" | "kn" | "gu" | "ml" | "pa" | "or" | "ur" | "as"
+  | "es" | "pt" | "fr" | "de" | "it" | "ar" | "zh" | "ja" | "ko" | "id" | "vi" | "th" | "fil" | "tr" | "ru" | "sw" | "fa" | "nl";
 
-export const LANGUAGES: { id: Language; label: string; native: string }[] = [
-  { id: "hi", label: "Hindi", native: "हिन्दी" },
-  { id: "en", label: "English", native: "English" },
-  { id: "ta", label: "Tamil", native: "தமிழ்" },
-  { id: "mr", label: "Marathi", native: "मराठी" },
-  { id: "bn", label: "Bengali", native: "বাংলা" },
-  { id: "te", label: "Telugu", native: "తెలుగు" },
-  { id: "kn", label: "Kannada", native: "ಕನ್ನಡ" },
-  { id: "gu", label: "Gujarati", native: "ગુજરાતી" },
+export type LanguageInfo = { id: Language; label: string; native: string; group: "india" | "world" };
+
+export const LANGUAGES: LanguageInfo[] = [
+  { id: "hi", label: "Hindi", native: "हिन्दी", group: "india" },
+  { id: "en", label: "English", native: "English", group: "india" },
+  { id: "ta", label: "Tamil", native: "தமிழ்", group: "india" },
+  { id: "mr", label: "Marathi", native: "मराठी", group: "india" },
+  { id: "bn", label: "Bengali", native: "বাংলা", group: "india" },
+  { id: "te", label: "Telugu", native: "తెలుగు", group: "india" },
+  { id: "kn", label: "Kannada", native: "ಕನ್ನಡ", group: "india" },
+  { id: "gu", label: "Gujarati", native: "ગુજરાતી", group: "india" },
+  { id: "ml", label: "Malayalam", native: "മലയാളം", group: "india" },
+  { id: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ", group: "india" },
+  { id: "or", label: "Odia", native: "ଓଡ଼ିଆ", group: "india" },
+  { id: "ur", label: "Urdu", native: "اردو", group: "india" },
+  { id: "as", label: "Assamese", native: "অসমীয়া", group: "india" },
+  { id: "es", label: "Spanish", native: "Español", group: "world" },
+  { id: "pt", label: "Portuguese", native: "Português", group: "world" },
+  { id: "fr", label: "French", native: "Français", group: "world" },
+  { id: "de", label: "German", native: "Deutsch", group: "world" },
+  { id: "it", label: "Italian", native: "Italiano", group: "world" },
+  { id: "ar", label: "Arabic", native: "العربية", group: "world" },
+  { id: "zh", label: "Mandarin", native: "中文", group: "world" },
+  { id: "ja", label: "Japanese", native: "日本語", group: "world" },
+  { id: "ko", label: "Korean", native: "한국어", group: "world" },
+  { id: "id", label: "Indonesian", native: "Bahasa Indonesia", group: "world" },
+  { id: "vi", label: "Vietnamese", native: "Tiếng Việt", group: "world" },
+  { id: "th", label: "Thai", native: "ไทย", group: "world" },
+  { id: "fil", label: "Filipino", native: "Filipino", group: "world" },
+  { id: "tr", label: "Turkish", native: "Türkçe", group: "world" },
+  { id: "ru", label: "Russian", native: "Русский", group: "world" },
+  { id: "sw", label: "Swahili", native: "Kiswahili", group: "world" },
+  { id: "fa", label: "Persian", native: "فارسی", group: "world" },
+  { id: "nl", label: "Dutch", native: "Nederlands", group: "world" },
 ];
 
 export type PetRecord = {

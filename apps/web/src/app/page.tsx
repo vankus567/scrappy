@@ -122,8 +122,8 @@ export default function Home() {
                 <dd className="mt-1 text-ink-soft">No contracts or minimums. Your agent pays in USDC over x402 when it asks.</dd>
               </div>
               <div>
-                <dt className="font-bold">Indian languages and English</dt>
-                <dd className="mt-1 text-ink-soft">Hindi, Tamil, Marathi, Bengali, Telugu, Kannada, Gujarati, and English checks.</dd>
+                <dt className="font-bold">31 languages</dt>
+                <dd className="mt-1 text-ink-soft">13 Indian languages plus Spanish, Arabic, Mandarin, Japanese, Portuguese, French and more.</dd>
               </div>
               <div>
                 <dt className="font-bold">Checked twice</dt>
