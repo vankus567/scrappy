@@ -5,23 +5,32 @@ import { useEffect, useId, useRef, useState } from "react";
 export type PetMood = "happy" | "curious" | "focused" | "hungry" | "dead";
 /** Evolution forms, unlocked by real work (see stageFor in pet-store). */
 export type PetStage = "sprout" | "mochi" | "bloom" | "blossom";
+export type Species = "mochi" | "neko" | "bun" | "kumo" | "pip";
+
+export const SPECIES: Record<Species, { name: string; blurb: string; light: string; mid: string; dark: string; belly: [string, string] }> = {
+  mochi: { name: "Mochi", blurb: "Coral dumpling", light: "#ffb89c", mid: "#ff7a59", dark: "#e0553a", belly: ["#fff4ea", "#ffd3b8"] },
+  neko: { name: "Neko", blurb: "Peach kitten", light: "#ffd2a8", mid: "#ffa66b", dark: "#e57f45", belly: ["#fff8ef", "#ffe0c4"] },
+  bun: { name: "Bun", blurb: "Mint bunny", light: "#c8f5e2", mid: "#7fd9b5", dark: "#4fb08c", belly: ["#f7fffb", "#d6f5e8"] },
+  kumo: { name: "Kumo", blurb: "Cloud puff", light: "#eaf3ff", mid: "#b9d6ff", dark: "#86b0ea", belly: ["#ffffff", "#e6f0ff"] },
+  pip: { name: "Pip", blurb: "Sunny chick", light: "#fff0a8", mid: "#ffd35c", dark: "#e8ad2c", belly: ["#fffdf2", "#ffeeb8"] },
+};
 
 type PetProps = {
   mood?: PetMood;
   stage?: PetStage;
+  species?: Species;
   watchPointer?: boolean;
   className?: string;
   title?: string;
 };
 
-const CORAL = { light: "#ffb89c", mid: "#ff7a59", dark: "#e0553a" };
 const STONE = { light: "#e2dfe8", mid: "#c3c0cc", dark: "#9d99a8" };
 
 /**
  * Mochi: a squishy chibi dumpling. Big sparkly eyes, glossy body, blush, leaf sprout.
  * Each evolution adds a detail. Always visible; motion only animates what is on screen.
  */
-export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, className, title = "Mochi, a Scrappy pet" }: PetProps) {
+export function Pet({ mood = "happy", stage = "mochi", species = "mochi", watchPointer = false, className, title = "Mochi, a Scrappy pet" }: PetProps) {
   const ref = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   const [look, setLook] = useState({ x: 0, y: 0 });
@@ -50,7 +59,9 @@ export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, cla
   }, [watchPointer]);
 
   const dead = mood === "dead";
-  const c = dead ? STONE : CORAL;
+  const sp = SPECIES[species] ?? SPECIES.mochi;
+  const c = dead ? STONE : sp;
+  const sprouty = species === "mochi";
   const g = (n: string) => `${n}-${uid}`;
   const baby = stage === "sprout";
   const hasArms = stage === "bloom" || stage === "blossom";
@@ -66,8 +77,8 @@ export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, cla
           <stop offset="100%" stopColor={c.dark} />
         </radialGradient>
         <radialGradient id={g("belly")} cx="45%" cy="30%" r="75%">
-          <stop offset="0%" stopColor={dead ? "#f1eff4" : "#fff4ea"} />
-          <stop offset="100%" stopColor={dead ? "#d6d3dc" : "#ffd3b8"} />
+          <stop offset="0%" stopColor={dead ? "#f1eff4" : sp.belly[0]} />
+          <stop offset="100%" stopColor={dead ? "#d6d3dc" : sp.belly[1]} />
         </radialGradient>
         <radialGradient id={g("eye")} cx="45%" cy="30%" r="75%">
           <stop offset="0%" stopColor="#3b3160" />
@@ -102,6 +113,27 @@ export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, cla
             </>
           )}
 
+          {/* species head features (behind the body) */}
+          {species === "neko" && (
+            <g fill={c.mid}>
+              <path d="M52 92L60 34l44 32z" /><path d="M188 92l-8-58-44 32z" />
+              <path d="M64 78l5-30 22 18z" fill="#ffb0b8" /><path d="M176 78l-5-30-22 18z" fill="#ffb0b8" />
+            </g>
+          )}
+          {species === "bun" && (
+            <g className={dead ? undefined : "pet-sprout"}>
+              <ellipse cx="88" cy="40" rx="17" ry="44" fill={c.mid} transform="rotate(-14 88 40)" />
+              <ellipse cx="152" cy="40" rx="17" ry="44" fill={c.mid} transform="rotate(14 152 40)" />
+              <ellipse cx="88" cy="42" rx="8" ry="30" fill="#ffc7d6" transform="rotate(-14 88 42)" />
+              <ellipse cx="152" cy="42" rx="8" ry="30" fill="#ffc7d6" transform="rotate(14 152 42)" />
+            </g>
+          )}
+          {species === "kumo" && (
+            <g fill={c.light}>
+              <circle cx="84" cy="66" r="24" /><circle cx="120" cy="52" r="28" /><circle cx="156" cy="66" r="24" />
+            </g>
+          )}
+
           {/* body: a chibi dumpling */}
           <path d="M120 52c56 0 90 42 90 94 0 46-36 72-90 72s-90-26-90-72c0-52 34-94 90-94z" fill={`url(#${g("body")})`} />
           <ellipse cx="120" cy="176" rx="46" ry="32" fill={`url(#${g("belly")})`} />
@@ -112,12 +144,21 @@ export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, cla
 
         {/* sprout and crown */}
         <g className={dead ? undefined : "pet-sprout"} transform={baby ? "translate(0 26)" : undefined}>
-          <path d="M121 56c0-12 1-20 4-28" stroke={dead ? "#8a8794" : "#3f8a48"} strokeWidth="5" strokeLinecap="round" fill="none" />
-          <path d="M125 30c11-16 34-18 42-10-6 16-28 22-42 10z" fill={`url(#${g("leaf")})`} />
-          {!baby && <path d="M123 34c-9-14-28-16-34-8 6 13 21 17 34 8z" fill={`url(#${g("leaf")})`} />}
-          {stage === "bloom" && <circle cx="125" cy="24" r="9" fill={`url(#${g("petal")})`} />}
+          {sprouty && (
+            <>
+              <path d="M121 56c0-12 1-20 4-28" stroke={dead ? "#8a8794" : "#3f8a48"} strokeWidth="5" strokeLinecap="round" fill="none" />
+              <path d="M125 30c11-16 34-18 42-10-6 16-28 22-42 10z" fill={`url(#${g("leaf")})`} />
+              {!baby && <path d="M123 34c-9-14-28-16-34-8 6 13 21 17 34 8z" fill={`url(#${g("leaf")})`} />}
+            </>
+          )}
+          {species === "pip" && (
+            <g fill={c.dark}>
+              <path d="M120 58c-4-16 0-28 10-34-2 10 0 20-4 34z" /><path d="M116 58c-10-12-10-24-4-32 2 10 6 18 8 32z" />
+            </g>
+          )}
+          {stage === "bloom" && <circle cx={sprouty ? 125 : 150} cy={sprouty ? 24 : 58} r="9" fill={`url(#${g("petal")})`} />}
           {stage === "blossom" && (
-            <g transform="translate(125 20)">
+            <g transform={sprouty ? "translate(125 20)" : "translate(152 56) scale(0.8)"}>
               {[0, 72, 144, 216, 288].map((a) => (
                 <ellipse key={a} cx="0" cy="-11" rx="8" ry="12" fill={`url(#${g("petal")})`} transform={`rotate(${a})`} />
               ))}
@@ -168,6 +209,8 @@ export function Pet({ mood = "happy", stage = "mochi", watchPointer = false, cla
             <ellipse cx="120" cy="158" rx="8" ry="10" fill="#1d1836" />
           ) : mood === "focused" ? (
             <path d="M113 156q7 4 14 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" fill="none" />
+          ) : species === "pip" ? (
+            <path d="M110 148l10 12 10-12z" fill="#ff9a3c" stroke="#e07a1f" strokeWidth="2" strokeLinejoin="round" />
           ) : (
             <g>
               <path d="M104 150q8 12 16 0q8 12 16 0" stroke="#1d1836" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />

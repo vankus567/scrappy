@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { Egg } from "@/components/Egg";
+import { Pet, SPECIES, type Species } from "@/components/Pet";
 import { LANGUAGES, usePet, type Language } from "@/lib/pet-store";
 
 export function Hatch() {
   const { hatch } = usePet();
+  const [species, setSpecies] = useState<Species>("mochi");
   const [name, setName] = useState("");
   const [langs, setLangs] = useState<Language[]>([]);
   const [city, setCity] = useState("");
@@ -22,13 +24,16 @@ export function Hatch() {
     if (langs.length === 0) return setError("Pick at least one language you can check.");
     setError("");
     setCracking(true);
-    setTimeout(() => hatch({ name: name.trim(), languages: langs, city: city.trim(), college: college.trim() }), 900);
+    setTimeout(() => hatch({ species, name: name.trim(), languages: langs, city: city.trim(), college: college.trim() }), 900);
   };
 
   return (
     <div className="grid gap-8 md:grid-cols-[1fr_1.1fr] md:items-center md:gap-12">
       <div className="flex justify-center rounded-[28px] bg-ground-deep py-10 md:py-16">
-        <Egg cracking={cracking} className="w-[55%] max-w-[260px]" />
+        <div className="relative w-[55%] max-w-[260px]">
+          <Egg cracking={cracking} className="w-full" />
+          <Pet species={species} stage="sprout" mood="curious" className={`absolute inset-x-[18%] bottom-[8%] w-[64%] transition-opacity duration-500 ${cracking ? "opacity-100" : "opacity-0"}`} title={`Baby ${SPECIES[species].name}`} />
+        </div>
       </div>
 
       <form onSubmit={submit} className="space-y-7" noValidate>
@@ -36,6 +41,29 @@ export function Hatch() {
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-medium leading-[1.1]">Something is hatching.</h1>
           <p className="mt-2 text-[16px] text-ink-soft">Name it, and tell it which languages you can check.</p>
         </div>
+
+        <fieldset className="space-y-2">
+          <legend className="text-[15px] font-medium">Pick your buddy</legend>
+          <div className="grid grid-cols-5 gap-2">
+            {(Object.keys(SPECIES) as Species[]).map((id) => {
+              const on = species === id;
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => setSpecies(id)}
+                  aria-pressed={on}
+                  aria-label={`${SPECIES[id].name}, ${SPECIES[id].blurb}`}
+                  className={`rounded-[18px] px-1 pb-2 pt-1 transition-colors active:scale-[0.97] ${on ? "bg-leaf text-on-leaf" : "bg-ground-deep hover:bg-edge"}`}
+                >
+                  <Pet species={id} stage="mochi" mood={on ? "happy" : "curious"} className="mx-auto w-full max-w-[84px]" title={SPECIES[id].name} />
+                  <span className="block text-[13px] font-semibold">{SPECIES[id].name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[13px] text-ink-soft">{SPECIES[species].name}, the {SPECIES[species].blurb.toLowerCase()}.</p>
+        </fieldset>
 
         <div className="space-y-2">
           <label htmlFor="pet-name" className="block text-[15px] font-medium">Pet name</label>

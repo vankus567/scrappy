@@ -76,7 +76,7 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
         className="pointer-events-none absolute w-[18%]"
         style={{ left: `${(here.x / 340) * 100}%`, top: `${(here.y / 520) * 100}%`, transform: "translate(-50%, -92%)" }}
       >
-        <Pet mood="curious" stage={stageFor(pet).current.id} className="w-full" title={`${pet.name} on the map`} />
+        <Pet mood="curious" stage={stageFor(pet).current.id} species={pet.species} className="w-full" title={`${pet.name} on the map`} />
       </div>
 
       {nextIdx !== -1 && (

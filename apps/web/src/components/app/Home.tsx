@@ -28,7 +28,7 @@ export function Home() {
           </div>
 
           <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
-            <Pet mood="happy" stage={current.id} watchPointer className="w-full max-w-[260px]" />
+            <Pet mood="happy" stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
             <div className="space-y-4">
               <h1 className="font-display text-[clamp(1.9rem,6vw,2.6rem)] font-medium leading-[1.1]">{pet.name}</h1>
               <dl className="space-y-3 text-[15px]">
@@ -69,7 +69,7 @@ export function Home() {
               return (
                 <li key={st.id} className="text-center">
                   <div className={reached ? "" : "opacity-35 grayscale"}>
-                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} className="mx-auto w-full max-w-[96px]" title={st.name} />
+                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} species={pet.species} className="mx-auto w-full max-w-[96px]" title={st.name} />
                   </div>
                   <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{st.name}</p>
                   <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} jobs`}</p>

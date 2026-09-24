@@ -21,6 +21,7 @@ export const LANGUAGES: { id: Language; label: string; native: string }[] = [
 ];
 
 export type PetRecord = {
+  species?: import("@/components/Pet").Species;
   name: string;
   languages: Language[];
   city: string;
@@ -106,7 +107,7 @@ import type { PetStage } from "@/components/Pet";
 
 export const STAGES: { id: PetStage; name: string; jobs: number; days: number }[] = [
   { id: "sprout", name: "Sprout", jobs: 0, days: 0 },
-  { id: "mochi", name: "Mochi form", jobs: 10, days: 0 },
+  { id: "mochi", name: "Buddy", jobs: 10, days: 0 },
   { id: "bloom", name: "Bloom", jobs: 50, days: 3 },
   { id: "blossom", name: "Blossom", jobs: 200, days: 14 },
 ];
