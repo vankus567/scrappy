@@ -27,7 +27,7 @@ ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps
 ## 3. Android APK (Trusted Web Activity)
 Needs the site live on https (step 2).
 ```
-cd apps/web
+cd apps/android   (never apps/web: a Bubblewrap app/ folder there hijacks the Next.js router)
 bunx @bubblewrap/cli init --manifest https://scrappypet.vercel.app/manifest.webmanifest   # or reuse twa-manifest.json
 bunx @bubblewrap/cli build                                                        # creates android.keystore (gitignored) + app-release-signed.apk
 bunx @bubblewrap/cli fingerprint generateAssetLinks                              # writes assetlinks.json
