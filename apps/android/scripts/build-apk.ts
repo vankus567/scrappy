@@ -11,10 +11,12 @@ import { fileURLToPath } from "node:url";
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", process.argv[2] ?? "");
 const signing = JSON.parse(readFileSync(join(dir, "android-signing.local.json"), "utf8"));
 
+const jdkBin = "C:\\Users\\ksubh\\jdk17-extract\\jdk-17.0.20.1+1\\bin";
 const child = spawn("cmd", ["/c", "bunx", "@bubblewrap/cli", "build", "--skipPwaValidation"], {
   cwd: dir,
   env: {
     ...process.env,
+    PATH: `${jdkBin};${process.env.PATH}`,
     BUBBLEWRAP_KEYSTORE_PASSWORD: signing.storePassword,
     BUBBLEWRAP_KEY_PASSWORD: signing.keyPassword,
   },
@@ -31,6 +33,7 @@ const answer = (match: string, value: string) => {
 child.stdout.on("data", (d) => {
   out += d.toString();
   answer("would you like to regenerate", "y");
+  answer("apply them to the", "y");
   answer("versionName for the new App version", "0.1.0");
   answer("install the JDK", "y");
   process.stdout.write(d);
