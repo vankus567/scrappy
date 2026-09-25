@@ -141,6 +141,15 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  /** The agent tells the humans what it did with their answer ("Ordered from the shop that has it in stock"). */
+  app.post("/v1/tasks/:id/outcome", rateLimit("outcome", 60), async (c) => {
+    const p = auth.projectForKey(bearer(c.req.header("authorization")));
+    if (!p) return c.json({ error: "invalid_api_key" }, 401);
+    const q = z.object({ outcome: z.string().trim().min(3).max(280) }).safeParse(await body(c));
+    if (!q.success) return bad(c, q.error);
+    return tasks.setOutcome(c.req.param("id"), p.id, q.data.outcome) ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+  });
+
   /** Free: how many qualified humans are online right now. */
   app.get("/v1/capacity", rateLimit("read", 600), (c) => {
     const q = z.object({ language: lang.default("en"), skill: z.string().default("general"), min_accuracy: z.coerce.number().min(0).max(1).default(0.8) }).safeParse(c.req.query());
@@ -292,8 +301,10 @@ export function createApp(deps: AppDeps) {
     const w = worker(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
     const answers = db.query(
-      `SELECT r.task_id, t.prompt, r.answer, r.paid_micro, r.created_at, t.status, t.is_gold, cr.answer AS consensus
+      `SELECT r.task_id, t.prompt, r.answer, r.paid_micro, r.created_at, t.status, t.is_gold, cr.answer AS consensus,
+              x.agent_name, x.kind, COALESCE(o.outcome, x.outcome) AS outcome
        FROM task_responses r JOIN tasks t ON t.id = r.task_id LEFT JOIN consensus_results cr ON cr.task_id = r.task_id
+       LEFT JOIN task_context x ON x.task_id = t.root_id LEFT JOIN task_context o ON o.task_id = t.id
        WHERE r.worker_id = ? ORDER BY r.created_at DESC LIMIT 50`,
     ).all(w.id) as any[];
     const payouts = db.query("SELECT amount_micro, tx_sig, created_at FROM payments WHERE kind = 'payout' AND worker_id = ? ORDER BY created_at DESC LIMIT 50").all(w.id) as any[];
@@ -301,6 +312,7 @@ export function createApp(deps: AppDeps) {
       answers: answers.map((a) => ({
         prompt: a.prompt, answer: a.answer, earned_usdc: toUsdc(a.paid_micro), at: new Date(a.created_at).toISOString(),
         qualification: !!a.is_gold, matched_consensus: a.consensus == null || a.is_gold ? null : a.consensus.toLowerCase() === a.answer.toLowerCase(),
+        agent: a.agent_name ?? null, kind: a.kind ?? "judgment", outcome: a.outcome ?? null,
       })),
       payouts: payouts.map((p) => ({ amount_usdc: toUsdc(p.amount_micro), tx_sig: p.tx_sig, at: new Date(p.created_at).toISOString() })),
     });

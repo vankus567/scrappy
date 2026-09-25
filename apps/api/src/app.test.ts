@@ -250,6 +250,50 @@ describe("developers: API keys, balance, deposits", () => {
     expect((await s.req("GET", "/v1/project", undefined, key)).body.balance_usdc).toBe(1);
   });
 
+  test("real-world call task: routed by city, shows the asking agent, longer window, outcome flows back to the human", async () => {
+    tick(0);
+    const s = setup();
+    const key = (await s.req("POST", "/v1/projects", { name: "ShopBot", funding_wallet: wallets[7] })).body.api_key;
+    const other = (await s.req("POST", "/v1/projects", { name: "Other", funding_wallet: wallets[6] })).body.api_key;
+    s.db.query("UPDATE projects SET balance_micro = 5000000").run();
+    const join = async (i: number, city: string) => {
+      const r = await s.req("POST", "/v1/workers", { wallet: wallets[i], languages: ["en"], pet_name: `Pet${i}`, city });
+      await s.req("GET", "/v1/worker/next", undefined, r.body.worker_token);
+      return r.body.worker_token as string;
+    };
+    const mumbai = await join(0, "Mumbai");
+    const pune = await join(1, "pune");
+
+    const call = {
+      task: "Call this shop and ask if Amul butter 500g is in stock today",
+      kind: "call",
+      city: "Pune",
+      agent: { name: "ShopBot", reason: "The store's website has no live stock info" },
+      response_schema: { type: "text", max_length: 200 },
+      budget: 0.2,
+      deadline: 600,
+    };
+    expect((await s.req("POST", "/v1/tasks", { ...call }, key)).status).toBe(400); // a call needs a phone number
+    const t = await s.req("POST", "/v1/tasks", { ...call, phone: "+91 20 2553 1234" }, key);
+    expect(t.status).toBe(201);
+
+    expect((await s.req("GET", "/v1/worker/next", undefined, mumbai)).status).toBe(204); // wrong city never sees it
+    const job = await s.req("GET", "/v1/worker/next", undefined, pune);
+    expect(job.status).toBe(200);
+    expect(job.body).toMatchObject({ kind: "call", phone: "+91 20 2553 1234", city: "Pune", agent: { name: "ShopBot" } });
+    expect(Date.parse(job.body.expires_at) - Date.now()).toBeGreaterThan(4 * 60_000);
+
+    tick(90_000); // a real call takes a while; still inside the window
+    expect((await s.req("POST", `/v1/tasks/${job.body.task_id}/respond`, { answer: "Yes, 3 packs left", confidence: 95 }, pune)).status).toBe(200);
+
+    expect((await s.req("POST", `/v1/tasks/${t.body.task_id}/outcome`, { outcome: "Ordered 2 packs for pickup" }, other)).status).toBe(404);
+    expect((await s.req("POST", `/v1/tasks/${t.body.task_id}/outcome`, { outcome: "Ordered 2 packs for pickup" }, key)).status).toBe(200);
+    const res = await s.req("GET", `/v1/tasks/${t.body.task_id}`, undefined, key);
+    expect(res.body).toMatchObject({ status: "completed", answer: "Yes, 3 packs left", kind: "call", outcome: "Ordered 2 packs for pickup" });
+    const hist = await s.req("GET", "/v1/worker/history", undefined, pune);
+    expect(hist.body.answers[0]).toMatchObject({ agent: "ShopBot", kind: "call", outcome: "Ordered 2 packs for pickup" });
+  });
+
   test("deposits are verified from the chain and credited once", async () => {
     const db = openDb(":memory:");
     const PLATFORM = "P1atform1111111111111111111111111111111111";

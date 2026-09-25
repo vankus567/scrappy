@@ -155,6 +155,18 @@ export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "
       created_at INTEGER NOT NULL
     );
 
+    -- Who asked and why, what kind of real-world check it is, and what the agent did with the answer.
+    CREATE TABLE IF NOT EXISTS task_context (
+      task_id TEXT PRIMARY KEY REFERENCES tasks(id),
+      agent_name TEXT,
+      agent_reason TEXT,
+      kind TEXT NOT NULL DEFAULT 'judgment' CHECK (kind IN ('judgment', 'call', 'photo_check', 'price_check')),
+      city TEXT,
+      phone TEXT,
+      outcome TEXT,
+      outcome_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       worker_id TEXT NOT NULL REFERENCES workers(id),

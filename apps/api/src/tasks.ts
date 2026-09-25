@@ -7,6 +7,7 @@ export const MIN_REWARD_USDC = 0.01;
 export const MAX_REWARD_USDC = 5;
 export const AVAILABLE_MS = 45_000; // a worker polled within this window counts as online
 export const ASSIGN_MS = 60_000; // a claimed task must be answered within this window
+export const REAL_WORLD_ASSIGN_MS = 5 * 60_000; // calls, photo and price checks take a few minutes
 export const MIN_ANSWER_MS = 2_000; // anti-farming latency floor
 export const PENDING_PAYMENT_MS = 120_000;
 export const GOLD_WARMUP = 5; // qualification tasks before paid work (when gold exists for the language)
@@ -112,8 +113,18 @@ export const taskInput = z
     quality_threshold: z.number().min(0.5).max(1).default(0.8),
     webhook_url: z.string().url().max(500).optional(),
     extends: z.string().uuid().optional(),
+    // who is asking and why it got stuck: shown to the human on the task card
+    agent: z.object({ name: z.string().trim().min(2).max(60), reason: z.string().trim().max(200).optional() }).optional(),
+    // real-world checks a person can do from their phone in a few minutes
+    kind: z.enum(["judgment", "call", "photo_check", "price_check"]).default("judgment"),
+    city: z.string().trim().min(2).max(60).optional(),
+    phone: z.string().trim().regex(/^\+?[0-9][0-9 -]{6,18}$/, "phone must be a business phone number").optional(),
   })
   .transform((b, ctx) => {
+    if (b.kind === "call" && !b.phone) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "a call task needs the business phone number to call" });
+      return z.NEVER;
+    }
     const schema: ResponseSchema = b.response_schema ?? (b.options ? { type: "choice", options: b.options } : { type: "binary" });
     const perHuman = b.budget !== undefined ? b.budget / b.humans : 0.05;
     if (perHuman < MIN_REWARD_USDC || perHuman > MAX_REWARD_USDC) {
@@ -347,10 +358,28 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
     }
   };
 
+  // ---- task context: the asking agent, the real-world kind, the city, and what the agent did next ----
+  type TaskContext = { agent_name: string | null; agent_reason: string | null; kind: string; city: string | null; phone: string | null; outcome: string | null; outcome_at: number | null };
+  const ctxOf = (taskId: string) => db.query("SELECT * FROM task_context WHERE task_id = ?").get(taskId) as TaskContext | null;
+  const sameCity = (a: string | null | undefined, b: string | null | undefined) => !b || (!!a && a.trim().toLowerCase() === b.trim().toLowerCase());
+  const cityOk = (w: WorkerRow, t: TaskRow) => sameCity(w.city, ctxOf(t.root_id)?.city ?? ctxOf(t.id)?.city);
+  const assignWindow = (t: TaskRow) => ((ctxOf(t.root_id) ?? ctxOf(t.id))?.kind ?? "judgment") === "judgment" ? ASSIGN_MS : REAL_WORLD_ASSIGN_MS;
+
+  /** The agent reports what it did with the humans' answer; shown back to the humans who answered. */
+  const setOutcome = (taskId: string, projectId: string, outcome: string, now = Date.now()) => {
+    const t = getTask(taskId);
+    if (!t || t.project_id !== projectId) return false;
+    db.query(
+      `INSERT INTO task_context (task_id, outcome, outcome_at) VALUES (?, ?, ?)
+       ON CONFLICT(task_id) DO UPDATE SET outcome = excluded.outcome, outcome_at = excluded.outcome_at`,
+    ).run(taskId, outcome, now);
+    return true;
+  };
+
   /** Workers online now who qualify for a task with these requirements. */
-  const capacity = (req: { language: string; skill: string; min_accuracy: number; reward_micro?: number }, now = Date.now(), exclude: Set<string> = new Set()) => {
+  const capacity = (req: { language: string; skill: string; min_accuracy: number; reward_micro?: number; city?: string | null }, now = Date.now(), exclude: Set<string> = new Set()) => {
     const online = db.query("SELECT * FROM workers WHERE last_seen_at >= ?").all(now - AVAILABLE_MS) as WorkerRow[];
-    const qualified = online.filter((w) => !exclude.has(w.id) && eligible(w, new Map(skillsOf(w.id).map((s) => [s.skill, s])), req));
+    const qualified = online.filter((w) => !exclude.has(w.id) && sameCity(w.city, req.city) && eligible(w, new Map(skillsOf(w.id).map((s) => [s.skill, s])), req));
     return { online: online.length, available: qualified.length };
   };
 
@@ -379,7 +408,9 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       parentId = parent.id;
     }
 
-    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy, reward_micro: input.reward_micro }, now, rootId ? chainWorkers(rootId) : new Set());
+    const parentCtx = rootId ? ctxOf(rootId) : null;
+    const city = input.city ?? parentCtx?.city ?? null;
+    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy, reward_micro: input.reward_micro, city }, now, rootId ? chainWorkers(rootId) : new Set());
     if (cap.available < input.humans) {
       return {
         ok: false, status: 409, error: "insufficient_capacity",
@@ -410,6 +441,11 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       ).run(task.id, task.root_id, task.parent_id, task.project_id, task.payer, task.billing, task.prompt, task.content, task.response_schema,
         task.language, task.skill, task.min_accuracy, task.humans_required, task.reward_micro, task.budget_micro, task.consensus_threshold,
         task.deadline_at, task.status, task.webhook_url, task.created_at);
+      if (!rootId && (input.agent || input.kind !== "judgment" || input.city || input.phone)) {
+        db.query("INSERT INTO task_context (task_id, agent_name, agent_reason, kind, city, phone) VALUES (?, ?, ?, ?, ?, ?)").run(
+          task.id, input.agent?.name ?? null, input.agent?.reason ?? null, input.kind, input.city ?? null, input.phone ?? null,
+        );
+      }
       return true;
     })();
     if (!ok) return { ok: false, status: 402, error: "insufficient_balance", detail: { required_usdc: toUsdc(task.budget_micro) } };
@@ -449,7 +485,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
 
   const claim = (t: TaskRow, workerId: string, now: number) => {
     db.query("INSERT INTO task_assignments (id, task_id, root_id, worker_id, status, assigned_at, expires_at) VALUES (?, ?, ?, ?, 'assigned', ?, ?)").run(
-      uid(), t.id, t.root_id, workerId, now, Math.min(now + ASSIGN_MS, t.deadline_at),
+      uid(), t.id, t.root_id, workerId, now, Math.min(now + assignWindow(t), t.deadline_at),
     );
     if (t.status === "matching") setStatus(t, "collecting");
   };
@@ -498,7 +534,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
            AND (SELECT COUNT(*) FROM task_assignments a WHERE a.task_id = t.id AND a.status IN ('assigned', 'responded')) < t.humans_required
          ORDER BY CASE WHEN ? >= ? THEN t.reward_micro ELSE -t.deadline_at END DESC LIMIT 50`,
       ).all(now + MIN_ANSWER_MS + 1_000, ...langs, w.id, levelOf(w.tasks_done), PRIORITY_LEVEL) as TaskRow[];
-      const t = candidates.find((c) => eligible(w, skills, c));
+      const t = candidates.find((c) => eligible(w, skills, c) && cityOk(w, c));
       if (!t) return null;
       claim(t, w.id, now);
       return t;
@@ -527,7 +563,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
          AND NOT EXISTS (SELECT 1 FROM task_assignments a WHERE a.root_id = t.root_id AND a.worker_id = ?)
          AND (SELECT COUNT(*) FROM task_assignments a WHERE a.task_id = t.id AND a.status IN ('assigned', 'responded')) < t.humans_required`,
     ).all(now, ...langs, w.id) as TaskRow[];
-    return rows.filter((t) => eligible(w, skills, t)).length;
+    return rows.filter((t) => eligible(w, skills, t) && cityOk(w, t)).length;
   };
 
   /** A worker answers a task they claimed. */
@@ -594,6 +630,10 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       responses_this_round: got,
       ...(t.parent_id && { extends: t.parent_id }),
       ...(t.status === "insufficient_capacity" && { reason: "Not enough qualified humans answered before the deadline" }),
+      ...(() => {
+        const ctx = ctxOf(t.root_id) ?? ctxOf(t.id);
+        return ctx ? { kind: ctx.kind, ...(ctx.city && { city: ctx.city }), ...(ctx.outcome && { outcome: ctx.outcome }) } : { kind: "judgment" };
+      })(),
       price_usdc: toUsdc(t.budget_micro),
       refund_usdc: toUsdc(t.refund_micro),
       payment_tx: t.payment_tx,
@@ -607,6 +647,8 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   const workerView = (t: TaskRow, w: WorkerRow) => {
     const a = db.query("SELECT expires_at FROM task_assignments WHERE task_id = ? AND worker_id = ?").get(t.id, w.id) as any;
     const schema = JSON.parse(t.response_schema) as ResponseSchema;
+    const ctx = ctxOf(t.root_id) ?? ctxOf(t.id);
+    const kind = ctx?.kind ?? "judgment";
     return {
       task_id: t.id,
       prompt: t.prompt,
@@ -616,12 +658,16 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       skill: t.skill,
       reward_usdc: t.is_gold ? 0 : toUsdc(Math.floor(t.reward_micro * WORKER_SHARE)),
       qualification: !!t.is_gold,
-      estimated_seconds: schema.type === "text" ? 45 : t.content && t.content.length > 400 ? 30 : 10,
+      kind,
+      agent: ctx?.agent_name ? { name: ctx.agent_name, reason: ctx.agent_reason } : null,
+      city: ctx?.city ?? null,
+      phone: ctx?.phone ?? null,
+      estimated_seconds: kind !== "judgment" ? 150 : schema.type === "text" ? 45 : t.content && t.content.length > 400 ? 30 : 10,
       expires_at: new Date(a?.expires_at ?? t.deadline_at).toISOString(),
     };
   };
 
-  return { getTask, createTask, markFunded, cancelUnpaid, sweep, capacity, nextFor, availableFor, qualificationFor, respond, publicResult, workerView, addGold, skillsOf, finalize };
+  return { getTask, createTask, markFunded, cancelUnpaid, sweep, capacity, nextFor, availableFor, qualificationFor, respond, publicResult, workerView, addGold, skillsOf, finalize, setOutcome };
 }
 
 export type TaskService = ReturnType<typeof createTaskService>;
