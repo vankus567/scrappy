@@ -246,3 +246,32 @@ body {
 @keyframes reward-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .reward-pop { display: inline-block; animation: reward-pop 0.6s cubic-bezier(.3,1.4,.5,1) both; }
 @media (prefers-reduced-motion: reduce) { .reward-pop { animation: none; } }
+
+/* ---- App screens wear the hero's daylight: sky at the top, white cards, blue accents ---- */
+.app-sky .bg-ground-deep,
+.app-sky .bg-night {
+  background-color: #ffffff;
+  --ink: #1d1d1f;
+  --ink-soft: #48484a;
+  --ink-faint: #6e6e73;
+  --edge: rgb(0 122 255 / 0.14);
+  --field: #eef5ff;
+  --field-hover: #e0edff;
+  color: var(--ink);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 3px 10px -6px rgb(0 82 204 / 0.28);
+}
+.app-sky .bg-field { background-color: var(--field); }
+.app-sky .hover\:bg-field-hover:hover { background-color: var(--field-hover); }
+
+/* Journey map motion: marching road dots, drifting clouds, twinkling sparkles */
+@keyframes journey-march { to { stroke-dashoffset: -30; } }
+@keyframes journey-cloud { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(14px); } }
+@keyframes journey-twinkle { 0%, 100% { transform: scale(1); opacity: 0.95; } 50% { transform: scale(0.55); opacity: 0.5; } }
+@keyframes app-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.journey-march { animation: journey-march 1.4s linear infinite; }
+.journey-cloud { animation: journey-cloud 10s ease-in-out infinite; }
+.journey-twinkle { animation: journey-twinkle 3.2s ease-in-out infinite; transform-box: fill-box; }
+.app-bob { animation: app-bob 3.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .journey-march, .journey-cloud, .journey-twinkle, .app-bob { animation: none; }
+}

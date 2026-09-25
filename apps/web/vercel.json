@@ -1,6 +1,10 @@
 {
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "https://kageai.me/v1/:path*" },
+    { "source": "/health", "destination": "https://kageai.me/health" }
+  ],
   "headers": [
     {
       "source": "/scrappy.apk",

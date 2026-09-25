@@ -164,7 +164,7 @@ export function Hatch() {
           </div>
         </div>
 
-        {error && <p role="alert" className="text-[15px] text-[#ffb4a3]">{error}</p>}
+        {error && <p role="alert" className="text-[15px] text-[#c2410c]">{error}</p>}
 
         <div className="space-y-2">
           <GlossButton type="submit" disabled={cracking}>Hatch {sp.name}</GlossButton>

@@ -17,9 +17,14 @@ export function RanksBoard() {
   useEffect(() => {
     let alive = true;
     const q = scope === "city" && city ? `?city=${encodeURIComponent(city)}` : "";
-    fetch(`${API_URL}/v1/leaderboard${q}`)
-      .then((r) => r.json())
-      .then((d) => alive && (setEntries(d.entries ?? []), setError(false)))
+    fetch(`${API_URL}/v1/leaderboard${q}`, { headers: pet?.workerId ? { authorization: `Bearer ${pet.workerId}` } : {} })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d) => {
+        if (!alive) return;
+        const rows = (d.entries ?? []) as { rank: number; pet_name: string | null; species: string | null; city: string | null; tasks_done: number; earned_usdc: number; you: boolean }[];
+        setEntries(rows.map((r) => ({ id: r.you && pet?.workerId ? pet.workerId : `rank-${r.rank}`, pet_name: r.pet_name, species: r.species, city: r.city, jobs_done: r.tasks_done, owed_usdc: r.earned_usdc })));
+        setError(false);
+      })
       .catch(() => alive && setError(true));
     return () => {
       alive = false;

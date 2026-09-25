@@ -27,24 +27,26 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
   const here = ms[Math.max(0, (nextIdx === -1 ? ms.length : nextIdx) - 1)];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] bg-night text-on-night">
+    <div className="relative overflow-hidden rounded-[28px] bg-[linear-gradient(to_bottom,#8ec0fa,#dcebfd_55%,#f7fbff)] text-ink">
       <svg viewBox="0 0 340 520" className="block h-auto w-full" role="img" aria-label={`${pet.name}'s journey. Next goal: ${ms[nextIdx]?.label ?? "all done"}`}>
-        {/* a sky: stars and fluffy clouds */}
-        <g fill="#f5f5f7">
+        {/* a daytime sky: twinkling sparkles and drifting clouds */}
+        <g fill="#ffffff">
           {[[40, 40], [300, 70], [180, 20], [60, 330], [310, 260], [150, 500], [30, 200], [290, 480]].map(([x, y], i) => (
-            <path key={i} d={`M${x} ${y - 6}l2 4 4 2-4 2-2 4-2-4-4-2 4-2z`} opacity="0.8" />
+            <path key={i} className="journey-twinkle" style={{ animationDelay: `${i * 0.7}s`, transformOrigin: `${x}px ${y}px` }} d={`M${x} ${y - 6}l2 4 4 2-4 2-2 4-2-4-4-2 4-2z`} />
           ))}
         </g>
-        <g fill="#2c2c2e">
+        <g fill="#ffffff">
           {[[70, 60, 1], [270, 180, 0.8], [60, 250, 0.9], [260, 350, 1], [90, 430, 0.8]].map(([x, y, s], i) => (
             <g key={i} transform={`translate(${x} ${y}) scale(${s})`}>
-              <circle cx="0" cy="0" r="18" /><circle cx="20" cy="-8" r="22" /><circle cx="42" cy="0" r="17" /><rect x="-10" y="0" width="62" height="16" rx="8" />
+              <g className="journey-cloud" style={{ animationDelay: `${-i * 2.3}s`, animationDuration: `${9 + i * 1.5}s` }}>
+                <circle cx="0" cy="0" r="18" /><circle cx="20" cy="-8" r="22" /><circle cx="42" cy="0" r="17" /><rect x="-10" y="0" width="62" height="16" rx="8" />
+              </g>
             </g>
           ))}
         </g>
-        {/* the road */}
-        <path d={PATH} fill="none" stroke="#3a3a3c" strokeWidth="22" strokeLinecap="round" />
-        <path d={PATH} fill="none" stroke="#007aff" strokeWidth="6" strokeLinecap="round" strokeDasharray="1 14" opacity="0.9" />
+        {/* the road: the dots march toward the next goal */}
+        <path d={PATH} fill="none" stroke="#ffffff" strokeWidth="22" strokeLinecap="round" />
+        <path d={PATH} className="journey-march" fill="none" stroke="#007aff" strokeWidth="6" strokeLinecap="round" strokeDasharray="1 14" />
 
         {/* paw prints near completed goals */}
         {ms.filter((m) => m.done).map((m, i) => (
@@ -59,10 +61,10 @@ export function JourneyMap({ pet }: { pet: PetRecord }) {
           const w = m.label.length * 7.2 + 26;
           return (
             <g key={m.label} transform={`translate(${m.x} ${m.y})`}>
-              <circle r="11" fill={m.done ? "#007aff" : "#2c2c2e"} stroke={m.done ? "#cfe4ff" : "#48484a"} strokeWidth="3" />
+              <circle r="11" fill={m.done ? "#007aff" : "#ffffff"} stroke={m.done ? "#cfe4ff" : "#9cc8fb"} strokeWidth="3" />
               <g transform={`translate(${m.x > 200 ? -w - 16 : 16} -16)`}>
-                <rect width={w} height="30" rx="12" fill={m.done ? "#007aff" : "#2c2c2e"} />
-                <text x={w / 2} y="15" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="600" fill={m.done ? "#ffffff" : "#aaaaaa"}>
+                <rect width={w} height="30" rx="12" fill={m.done ? "#007aff" : "#ffffff"} />
+                <text x={w / 2} y="15" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="600" fill={m.done ? "#ffffff" : "#1d1d1f"}>
                   {m.label}
                 </text>
               </g>

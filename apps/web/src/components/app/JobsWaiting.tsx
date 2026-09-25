@@ -87,7 +87,7 @@ export function JobsWaiting() {
     return (
       <Shell pet={pet} stage={stage} mood="excited" dance="cheer" name={name}>
         <p className="text-[14px] font-semibold text-ink-soft">Answer accepted</p>
-        <p className="reward-pop mt-1 font-display text-[clamp(2.6rem,6vw,3.8rem)] font-bold leading-none text-[#9fe3b8]">
+        <p className="reward-pop mt-1 font-display text-[clamp(2.6rem,6vw,3.8rem)] font-bold leading-none text-[#15803d]">
           +${reward.earned.toFixed(2)}
         </p>
         <p className="mt-3 text-ink-soft">{name} ate. Earned to your payout wallet.</p>
@@ -141,7 +141,7 @@ export function JobsWaiting() {
             <input id="conf" type="range" min={0} max={100} step={5} value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} className="w-full accent-[#007aff]" />
           </div>
 
-          {error && <p role="alert" className="text-[15px] text-[#ffb4a3]">{error}</p>}
+          {error && <p role="alert" className="text-[15px] text-[#c2410c]">{error}</p>}
           <GlossButton type="button" onClick={submit} disabled={busy || !answer.trim()}>Send answer</GlossButton>
         </section>
       </div>
