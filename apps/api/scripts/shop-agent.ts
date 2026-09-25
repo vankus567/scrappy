@@ -65,3 +65,5 @@ console.log(`ShopBot: the human called and said "${said}" (${Math.round((result.
 const outcome = inStock ? `Confirmed in stock. Told the customer to pick up ${item} at ${shop}.` : `Not in stock. Sent the customer to another shop instead.`;
 await call(`/v1/tasks/${task.task_id}/outcome`, { method: "POST", body: JSON.stringify({ outcome }) });
 console.log(`ShopBot: ${outcome}`);
+
+export {};
