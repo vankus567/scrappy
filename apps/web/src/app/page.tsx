@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LandingNav } from "@/components/LandingNav";
 import { Pet, type Species } from "@/components/Pet";
+import { InstallApp } from "@/components/InstallApp";
 import { Arrow } from "@/components/ui/Button";
 import { CodeTabs } from "@/components/scrappy/CodeTabs";
 import { NetworkStats } from "@/components/scrappy/NetworkStats";
@@ -97,11 +98,7 @@ export default function Landing() {
             </ul>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
               <Link href="/app" className="scrappy-btn">Earn with Scrappy <Arrow /></Link>
-              {APK_URL && (
-                <a href={APK_URL} download className="scrappy-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
-                  Download for Android (APK)
-                </a>
-              )}
+              <InstallApp apkUrl={APK_URL} className="scrappy-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover" />
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-sm">

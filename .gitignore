@@ -21,3 +21,4 @@ ideas/
 *.keystore
 *.jks
 android-twa/
+android-signing.local.json
