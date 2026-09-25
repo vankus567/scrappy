@@ -66,6 +66,7 @@ export function createAuth(db: Db) {
       id: uid(), wallet, token_hash: sha256(token), languages: JSON.stringify(languages), pet_name: profile.pet_name ?? null,
       species: profile.species ?? null, city: profile.city ?? null, created_at: now, last_seen_at: now, tasks_done: 0,
       earned_micro: 0, owed_micro: 0, pending_micro: 0, push_subscription: null,
+      pet_food: 0, pet_hunger: 0, pet_hunger_at: null, pet_starving_at: null, pet_dead: 0,
     };
     db.query(
       "INSERT INTO workers (id, wallet, token_hash, languages, pet_name, species, city, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

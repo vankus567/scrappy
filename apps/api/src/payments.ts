@@ -1,6 +1,6 @@
 import { type Db, uid } from "./db";
 import { sha256 } from "./auth";
-import type { TaskRow } from "./tasks";
+import { REVIVE_MICRO, type TaskRow, type WorkerRow } from "./tasks";
 
 export const USDC_MINT = process.env.USDC_MINT ?? "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"; // devnet USDC
 const RPC = process.env.SOLANA_RPC ?? "https://api.devnet.solana.com";
@@ -45,6 +45,35 @@ export async function verifyDeposit(db: Db, rpc: Rpc, project: { id: string; fun
       uid(), project.id, project.funding_wallet, amount, txSig, now,
     );
     db.query("UPDATE projects SET balance_micro = balance_micro + ? WHERE id = ?").run(amount, project.id);
+  })();
+  return { ok: true as const, amount_micro: amount };
+}
+
+/**
+ * Revive a dead pet by an on-chain USDC payment: the tx must move at least REVIVE_MICRO
+ * out of the worker's wallet and into the platform wallet. Each signature revives once.
+ */
+export async function verifyRevive(db: Db, rpc: Rpc, w: WorkerRow, txSig: string, platform: string, now = Date.now()) {
+  if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(txSig)) return { ok: false as const, error: "not a transaction signature" };
+  if (db.query("SELECT 1 FROM payments WHERE tx_sig = ?").get(txSig)) return { ok: false as const, error: "this transaction was already used" };
+
+  const tx = await rpc("getTransaction", [txSig, { encoding: "jsonParsed", commitment: "confirmed", maxSupportedTransactionVersion: 0 }]);
+  if (!tx) return { ok: false as const, error: "transaction not found (wait for confirmation and retry)" };
+  if (tx.meta?.err) return { ok: false as const, error: "transaction failed on-chain" };
+
+  const delta = (owner: string) => {
+    const pick = (list: any[] = []) =>
+      list.filter((b) => b.owner === owner && b.mint === USDC_MINT).reduce((s, b) => s + Number(b.uiTokenAmount.amount), 0);
+    return pick(tx.meta?.postTokenBalances) - pick(tx.meta?.preTokenBalances);
+  };
+  const amount = Math.min(delta(platform), -delta(w.wallet));
+  if (amount < REVIVE_MICRO) return { ok: false as const, error: `revive needs at least $${REVIVE_MICRO / 1_000_000} USDC from your payout wallet` };
+
+  db.transaction(() => {
+    db.query("INSERT INTO payments (id, kind, worker_id, wallet, amount_micro, tx_sig, created_at) VALUES (?, 'revive', ?, ?, ?, ?, ?)").run(
+      uid(), w.id, w.wallet, amount, txSig, now,
+    );
+    db.query("UPDATE workers SET pet_dead = 0, pet_hunger = 60, pet_hunger_at = ?, pet_starving_at = NULL WHERE id = ?").run(now, w.id);
   })();
   return { ok: true as const, amount_micro: amount };
 }

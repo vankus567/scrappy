@@ -265,6 +265,70 @@ describe("developers: API keys, balance, deposits", () => {
   });
 });
 
+describe("pet", () => {
+  /** Keep "jobs live" over multi-day ticks without touching capacity checks. */
+  const liveTask = (db: ReturnType<typeof openDb>, deadlineMs = 600_000) => {
+    const id = crypto.randomUUID();
+    db.query(
+      `INSERT INTO tasks (id, root_id, billing, prompt, response_schema, language, skill, min_accuracy, humans_required,
+         reward_micro, budget_micro, consensus_threshold, deadline_at, status, created_at)
+       VALUES (?, ?, 'none', 'keepalive', '{"type":"binary"}', 'en', 'general', 0.5, 15, 50000, 50000, 0.8, ?, 'matching', ?)`,
+    ).run(id, id, Date.now() + deadlineMs, Date.now());
+  };
+
+  test("answers earn food, feeding drops hunger, starvation kills, revive costs $0.05", async () => {
+    tick(0);
+    const s = setup();
+    const t = await s.worker(0);
+    const t2 = await s.worker(1);
+
+    const task = await s.req("POST", "/v1/consensus", { task: "Is this image a cat?", options: ["yes", "no"], humans: 1, budget: 0.1, deadline: 600 });
+    expect(task.status).toBe(201);
+
+    await answer(s.req, t, "yes"); // +1 meal
+    let me = await s.req("GET", "/v1/worker/me", undefined, t);
+    expect(me.body.pet).toMatchObject({ food: 1, hunger: 0, starving: false, dead: false });
+    expect((await s.req("POST", "/v1/worker/feed", {}, t)).status).toBe(409); // not hungry
+
+    tick(16 * 3_600_000);
+    liveTask(s.db);
+    me = await s.req("GET", "/v1/worker/me", undefined, t);
+    expect(me.body.pet.hunger).toBe(20); // +10 per 8h while jobs are live
+
+    const fed = await s.req("POST", "/v1/worker/feed", {}, t);
+    expect(fed.body.pet).toMatchObject({ food: 0, hunger: 0, starving: false });
+    expect((await s.req("POST", "/v1/worker/feed", {}, t)).body.error).toContain("no food"); // food spent
+
+    tick(80 * 3_600_000);
+    liveTask(s.db);
+    me = await s.req("GET", "/v1/worker/me", undefined, t);
+    await s.req("GET", "/v1/worker/me", undefined, t2); // t2 starves on the same schedule
+    expect(me.body.pet).toMatchObject({ starving: true, dead: false });
+
+    tick(72 * 3_600_000 + 60_000);
+    liveTask(s.db);
+    const nx = await s.req("GET", "/v1/worker/next", undefined, t);
+    expect(nx.status).toBe(403);
+    expect(nx.body.error).toBe("pet_dead");
+    expect((await s.req("POST", "/v1/worker/feed", {}, t)).body.error).toBe("pet_dead");
+
+    // earned $0.08 -> revive pays $0.05 from owed, recorded as a payment
+    const rv = await s.req("POST", "/v1/worker/revive", {}, t);
+    expect(rv.status).toBe(200);
+    expect(rv.body.pet).toMatchObject({ dead: false, hunger: 60 });
+    expect((s.db.query("SELECT kind, amount_micro FROM payments WHERE kind = 'revive'").get() as any)).toMatchObject({ amount_micro: 50_000 });
+    expect((await s.req("GET", "/v1/worker/me", undefined, t)).body.earnings.owed_usdc).toBeCloseTo(0.03);
+
+    // t2 is dead too but never earned -> 402 with the pay-to address
+    tick(1);
+    liveTask(s.db);
+    await s.req("GET", "/v1/worker/me", undefined, t2);
+    const broke = await s.req("POST", "/v1/worker/revive", {}, t2);
+    expect(broke.status).toBe(402);
+    expect(broke.body.pay_to).toStartWith("P1atform");
+  });
+});
+
 describe("pure pieces", () => {
   test("consensus math", () => {
     const v = (answer: string, weight = 0.9, confidence = 80) => ({ answer, weight, confidence });

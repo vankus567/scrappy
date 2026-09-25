@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Pet, type PetDance, type PetMood } from "@/components/Pet";
 import { LinkButton } from "@/components/ui/Button";
-import { pct, secs } from "@/lib/api";
+import { ApiError, feedPet, pct, revivePet, secs, type PetState } from "@/lib/api";
 import { skillLabel, stageFor, stageName, usePet } from "@/lib/pet-store";
 import { EnablePush } from "./EnablePush";
 import { JoinPanel } from "./JoinPanel";
@@ -18,11 +18,13 @@ const TRICKS: { mood: PetMood; dance: PetDance }[] = [
 
 export function Home() {
   const { pet } = usePet();
-  const { token, profile, offline } = useWorker();
+  const { token, profile, offline, refresh } = useWorker();
   const [trick, setTrick] = useState<{ mood: PetMood; dance: PetDance } | null>(null);
   const timer = useRef(0);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   if (!pet) return null;
+
+  const petState = profile?.pet;
 
   const { current } = stageFor(pet);
   const play = () => {
@@ -31,6 +33,7 @@ export function Home() {
     timer.current = window.setTimeout(() => setTrick(null), 2400);
   };
   const available = profile?.available_tasks ?? 0;
+  const petMood: PetMood = petState?.dead ? "dead" : petState?.starving ? "sad" : available ? "excited" : "happy";
   const checks = profile?.qualification_checks ?? 0;
   const headline = checks
     ? `${checks} quick ${checks === 1 ? "check" : "checks"} to unlock paid tasks`
@@ -51,7 +54,7 @@ export function Home() {
             </p>
           </div>
           <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="scrappy-focus -mr-2 -mt-2 w-24 shrink-0 rounded-[20px] sm:w-28">
-            <Pet species={pet.species} stage={current.id} mood={trick?.mood ?? (available ? "excited" : "happy")} dance={trick?.dance ?? "none"} watchPointer />
+            <Pet species={pet.species} stage={current.id} mood={trick?.mood ?? petMood} dance={trick?.dance ?? "none"} watchPointer />
           </button>
         </div>
 
@@ -87,6 +90,8 @@ export function Home() {
           <Stat label="Avg answer" value={secs(profile?.avg_response_ms)} />
         </dl>
 
+        {token && petState && <PetVitals token={token} state={petState} onChanged={refresh} />}
+
         {!!profile?.skills.length && (
           <ul className="mt-6 space-y-3">
             {profile.skills.slice(0, 3).map((s) => (
@@ -112,6 +117,91 @@ export function Home() {
           <JoinPanel />
         </div>
       )}
+    </div>
+  );
+}
+
+/** Hunger, meals and the dead/revive flow: the daily loop that keeps a Scrappy alive. */
+function PetVitals({ token, state, onChanged }: { token: string; state: PetState; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [payTo, setPayTo] = useState<{ price_usdc?: number; pay_to?: string } | null>(null);
+  const [sig, setSig] = useState("");
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await fn();
+      onChanged();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) setPayTo(e.body as { price_usdc?: number; pay_to?: string });
+      else setErr(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (state.dead) {
+    return (
+      <div className="mt-6 rounded-[16px] bg-ink p-4 text-ground">
+        <p className="font-display text-[17px] font-bold">{state.dead ? "Your Scrappy starved." : ""}</p>
+        <p className="mt-1 text-[13px] text-ground/70">
+          Revive it for ${(state.revive_price_usdc ?? 0.05).toFixed(2)} USDC to work again. Paid from your earnings if there's enough.
+        </p>
+        {payTo ? (
+          <div className="mt-3">
+            <p className="text-[13px] text-ground/80">
+              Send ${(payTo.price_usdc ?? 0.05).toFixed(2)} USDC from your payout wallet to <code className="break-all">{payTo.pay_to}</code>, then paste the transaction signature:
+            </p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={sig}
+                onChange={(e) => setSig(e.target.value.trim())}
+                placeholder="transaction signature"
+                className="min-w-0 flex-1 rounded-xl border border-ground/20 bg-transparent px-3 py-2 text-[13px] text-ground placeholder:text-ground/40"
+              />
+              <button type="button" disabled={busy || sig.length < 60} onClick={() => run(() => revivePet(token, sig))} className="rounded-xl bg-ground px-4 py-2 text-[13px] font-semibold text-ink disabled:opacity-40">
+                Revive
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" disabled={busy} onClick={() => run(() => revivePet(token))} className="mt-3 rounded-xl bg-ground px-4 py-2 text-[13px] font-semibold text-ink disabled:opacity-40">
+            {busy ? "Reviving…" : `Revive for $${(state.revive_price_usdc ?? 0.05).toFixed(2)}`}
+          </button>
+        )}
+        {err && <p className="mt-2 text-[13px] text-clay">{err}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between text-[13.5px]">
+        <span className="text-ink-soft">{state.starving ? "Starving: feed now" : "Hunger"}</span>
+        <span className="tabular-nums text-ink-faint">
+          {state.hunger}% · {state.food} {state.food === 1 ? "meal" : "meals"}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-field">
+        <div
+          className={`h-full rounded-full transition-all ${state.hunger >= 100 ? "bg-clay" : state.hunger >= 60 ? "bg-sun" : "bg-leaf"}`}
+          style={{ width: `${state.hunger}%` }}
+        />
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-[12.5px] text-ink-faint">Each answer earns a meal. Hunger rises while jobs are live.</p>
+        <button
+          type="button"
+          disabled={busy || state.food < 1 || state.hunger <= 0}
+          onClick={() => run(() => feedPet(token))}
+          className="scrappy-focus shrink-0 rounded-xl bg-leaf px-4 py-2 text-[13px] font-semibold text-ground transition-colors hover:bg-leaf-hover disabled:opacity-40"
+        >
+          {busy ? "Feeding…" : "Feed"}
+        </button>
+      </div>
+      {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
     </div>
   );
 }

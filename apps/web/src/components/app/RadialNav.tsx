@@ -7,7 +7,8 @@ import { X, type Icon } from "@phosphor-icons/react";
 
 type Item = { href: string; label: string; Icon: Icon; active: boolean };
 
-const RADIUS = 92;
+/** Wider arc once 7+ tabs fan out, so neighboring buttons keep ~60px between edges. */
+const radiusFor = (n: number) => (n > 6 ? 118 : 92);
 
 /**
  * Mobile radial nav, adapted from RewampUI "circular-radial-navbar": a round button
@@ -18,6 +19,7 @@ export function RadialNav({ items }: { items: Item[] }) {
   const reduce = useReducedMotion();
   const current = items.find((i) => i.active) ?? items[0];
   const step = 180 / (items.length - 1);
+  const radius = radiusFor(items.length);
 
   useEffect(() => {
     if (!open) return;
@@ -47,8 +49,8 @@ export function RadialNav({ items }: { items: Item[] }) {
             {open &&
               items.map((item, i) => {
                 const angle = 180 + i * step;
-                const x = RADIUS * Math.cos((angle * Math.PI) / 180);
-                const y = RADIUS * Math.sin((angle * Math.PI) / 180);
+                const x = radius * Math.cos((angle * Math.PI) / 180);
+                const y = radius * Math.sin((angle * Math.PI) / 180);
                 return (
                   <motion.div
                     key={item.href}

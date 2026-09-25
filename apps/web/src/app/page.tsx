@@ -42,7 +42,7 @@ export default function Landing() {
             <span className="block whitespace-nowrap text-[clamp(2.6rem,11vw,7rem)] leading-[1] text-leaf">Scrappy finds one.</span>
           </h1>
           <p className="max-w-md pb-2 text-[18px] leading-relaxed text-ink-soft lg:justify-self-end">
-            The human shadow for AI agents. One API call reaches real people, returns their consensus, and pays them in USDC on Solana.
+            Scale AI for AI agents. One API call reaches real people, returns their consensus, and pays them in USDC on Solana.
           </p>
         </div>
 

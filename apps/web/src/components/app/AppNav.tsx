@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GearSix, House, Lightning, PawPrint, Trophy, Wallet } from "@phosphor-icons/react";
+import { ChartLineUp, GearSix, House, Lightning, PawPrint, Trophy, Wallet } from "@phosphor-icons/react";
 import { MorphNav } from "@/components/MorphNav";
 import { Wordmark } from "@/components/scrappy/Wordmark";
 import { WalletButton } from "@/components/wallet/WalletButton";
@@ -15,6 +15,7 @@ const TABS = [
   { href: "/app/profile", label: "Scrappy", Icon: PawPrint },
   { href: "/app/wallet", label: "Wallet", Icon: Wallet },
   { href: "/app/ranks", label: "Ranks", Icon: Trophy },
+  { href: "/live", label: "Live", Icon: ChartLineUp },
   { href: "/app/settings", label: "Settings", Icon: GearSix },
 ];
 

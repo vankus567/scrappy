@@ -26,6 +26,7 @@ export type WorkerTask = {
 };
 
 export type Skill = { skill: string; accuracy: number; samples: number };
+export type PetState = { food: number; hunger: number; starving: boolean; dead: boolean; revive_price_usdc: number };
 
 export type WorkerProfile = {
   wallet: string;
@@ -47,6 +48,7 @@ export type WorkerProfile = {
   available_tasks: number;
   qualification_checks: number;
   push: boolean;
+  pet: PetState;
 };
 
 export type History = {
@@ -110,6 +112,9 @@ export const respond = (token: string, taskId: string, answer: string, confidenc
     token,
     body: JSON.stringify({ answer, confidence }),
   });
+export const feedPet = (token: string) => call<{ ok: true; pet: PetState }>("/v1/worker/feed", { method: "POST", token });
+export const revivePet = (token: string, tx_sig?: string) =>
+  call<{ ok: true; pet: PetState }>("/v1/worker/revive", { method: "POST", token, body: JSON.stringify(tx_sig ? { tx_sig } : {}) });
 export const getHistory = (token: string) => call<History>("/v1/worker/history", { token });
 export const savePush = (token: string, sub: PushSubscriptionJSON) => call<{ ok: true }>("/v1/worker/push", { method: "PUT", token, body: JSON.stringify(sub) });
 

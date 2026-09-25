@@ -25,6 +25,66 @@ export const PRIORITY_LEVEL = 20; // Lv20 gets first pick: their queue sorts by 
 export const levelOf = (tasksDone: number) => Math.min(30, 1 + Math.floor(tasksDone / TASKS_PER_LEVEL));
 export const nextLevelAt = (level: number) => (level >= 30 ? null : level * TASKS_PER_LEVEL);
 
+// ---- pet: it gets hungry while jobs are live; workers feed it with food earned per answer (PRD §7) ----
+export const FOOD_PER_ANSWER = 1; // one meal per completed answer
+export const FOOD_MAX = 10; // meals a worker can stockpile
+export const FEED_DROP = 40; // hunger points one meal removes
+export const HUNGER_MS = 8 * 3_600_000; // +10 hunger per 8h, but only while live tasks exist
+export const STARVING_MS = 72 * 3_600_000; // >72h at max hunger and the Scrappy dies
+export const REVIVE_MICRO = 50_000; // $0.05 USDC to bring a dead Scrappy back
+
+/** What the worker app renders for pet health. */
+export const petView = (w: WorkerRow) => ({
+  food: w.pet_food,
+  hunger: w.pet_hunger,
+  starving: w.pet_hunger >= 100,
+  dead: !!w.pet_dead,
+  revive_price_usdc: toUsdc(REVIVE_MICRO),
+});
+
+/**
+ * Lazy hunger tick, called on worker reads. Hunger only accrues while live tasks exist
+ * ("hunger turns on when jobs are live") and pauses when the network is quiet.
+ */
+export function tickPet(db: Db, w: WorkerRow, now = Date.now()): WorkerRow {
+  if (w.pet_dead) return w;
+  const live = db.query("SELECT 1 FROM tasks WHERE status IN ('matching', 'collecting') AND deadline_at > ? LIMIT 1").get(now);
+  let { pet_hunger: hunger, pet_hunger_at: hungerAt, pet_starving_at: starvingAt } = w;
+  if (live) {
+    const since = hungerAt ?? now;
+    const ticks = Math.floor((now - since) / HUNGER_MS);
+    if (ticks > 0) {
+      hunger = Math.min(100, hunger + ticks * 10);
+      hungerAt = since + ticks * HUNGER_MS;
+    }
+  } else {
+    hungerAt = now;
+  }
+  if (hunger >= 100) {
+    starvingAt = starvingAt ?? now;
+  } else {
+    starvingAt = null;
+  }
+  const dead = starvingAt !== null && now - starvingAt >= STARVING_MS ? 1 : 0;
+  if (hunger !== w.pet_hunger || hungerAt !== w.pet_hunger_at || starvingAt !== w.pet_starving_at || dead !== w.pet_dead) {
+    db.query("UPDATE workers SET pet_hunger = ?, pet_hunger_at = ?, pet_starving_at = ?, pet_dead = ? WHERE id = ?").run(hunger, hungerAt, starvingAt, dead, w.id);
+    Object.assign(w, { pet_hunger: hunger, pet_hunger_at: hungerAt, pet_starving_at: starvingAt, pet_dead: dead });
+  }
+  return w;
+}
+
+/** Feed the pet one earned meal. */
+export function feedPet(db: Db, w: WorkerRow, now = Date.now()) {
+  if (w.pet_dead) return { ok: false as const, status: 409, error: "pet_dead" };
+  tickPet(db, w, now);
+  if (w.pet_food < 1) return { ok: false as const, status: 409, error: "no food - answer a task to earn some" };
+  if (w.pet_hunger <= 0) return { ok: false as const, status: 409, error: "not hungry" };
+  const hunger = Math.max(0, w.pet_hunger - FEED_DROP);
+  db.query("UPDATE workers SET pet_food = pet_food - 1, pet_hunger = ?, pet_hunger_at = ?, pet_starving_at = NULL WHERE id = ?").run(hunger, now, w.id);
+  Object.assign(w, { pet_food: w.pet_food - 1, pet_hunger: hunger, pet_hunger_at: now, pet_starving_at: null });
+  return { ok: true as const, pet: petView(w) };
+}
+
 /** Laplace-smoothed accuracy so one lucky answer is not "100%". */
 export const smoothAccuracy = (correct: number, seen: number) => (correct + 1) / (seen + 2);
 
@@ -64,10 +124,24 @@ export const taskInput = z
       ctx.addIssue({ code: "custom", path: ["webhook_url"], message: "webhook_url must be a public https URL" });
       return z.NEVER;
     }
+    const pii = piiScan(`${b.task} ${b.content ?? ""}`);
+    if (pii) {
+      ctx.addIssue({ code: "custom", path: ["task"], message: `task content appears to contain a ${pii}; do not send personal identifiers to human workers` });
+      return z.NEVER;
+    }
     const reward_micro = Math.floor(toMicro(perHuman));
     return { ...b, schema, reward_micro, price_micro: reward_micro * b.humans };
   });
 export type TaskInput = z.output<typeof taskInput>;
+
+/** Never broadcast card numbers or SSNs to human workers; other PII is the buyer's responsibility. */
+const CARD_RE = /\b(?:\d{4}[- ]){3}\d{4}\b|\b\d{16}\b/;
+const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/;
+export function piiScan(text: string) {
+  if (SSN_RE.test(text)) return "social security number";
+  if (CARD_RE.test(text)) return "card number";
+  return null;
+}
 
 /** Blocks webhooks to localhost / private ranges (SSRF). */
 export function safeWebhookUrl(raw: string) {
@@ -110,7 +184,9 @@ export type TaskRow = {
 
 export type WorkerRow = {
   id: string; wallet: string; token_hash: string; languages: string; pet_name: string | null; species: string | null; city: string | null;
-  created_at: number; last_seen_at: number | null; tasks_done: number; earned_micro: number; owed_micro: number; pending_micro: number; push_subscription: string | null;
+  created_at: number; last_seen_at: number | null; tasks_done: number; earned_micro: number; owed_micro: number; pending_micro: number;
+  pet_food: number; pet_hunger: number; pet_hunger_at: number | null; pet_starving_at: number | null; pet_dead: number;
+  push_subscription: string | null;
 };
 
 type Skill = { skill: string; accuracy: number; samples: number };
@@ -480,7 +556,9 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(uid(), t.id, t.root_id, w.id, answer, Math.round(confidence), weight, now - a.assigned_at, paid, now);
       db.query("UPDATE task_assignments SET status = 'responded' WHERE id = ?").run(a.id);
-      db.query("UPDATE workers SET tasks_done = tasks_done + 1, earned_micro = earned_micro + ?, owed_micro = owed_micro + ? WHERE id = ?").run(paid, paid, w.id);
+      db.query("UPDATE workers SET tasks_done = tasks_done + 1, earned_micro = earned_micro + ?, owed_micro = owed_micro + ?, pet_food = MIN(pet_food + ?, ?) WHERE id = ?").run(
+        paid, paid, FOOD_PER_ANSWER, FOOD_MAX, w.id,
+      );
 
       let correct: boolean | null = null;
       if (t.is_gold) {

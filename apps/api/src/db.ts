@@ -46,7 +46,12 @@ export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "
       earned_micro INTEGER NOT NULL DEFAULT 0,
       owed_micro INTEGER NOT NULL DEFAULT 0 CHECK (owed_micro >= 0),
       push_subscription TEXT,
-      pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0)
+      pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0),
+      pet_food INTEGER NOT NULL DEFAULT 0 CHECK (pet_food >= 0),
+      pet_hunger INTEGER NOT NULL DEFAULT 0 CHECK (pet_hunger BETWEEN 0 AND 100),
+      pet_hunger_at INTEGER,
+      pet_starving_at INTEGER,
+      pet_dead INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS worker_skills (
       worker_id TEXT NOT NULL REFERENCES workers(id),
@@ -140,7 +145,7 @@ export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "
 
     CREATE TABLE IF NOT EXISTS payments (
       id TEXT PRIMARY KEY,
-      kind TEXT NOT NULL CHECK (kind IN ('payout', 'refund', 'deposit')),
+      kind TEXT NOT NULL CHECK (kind IN ('payout', 'refund', 'deposit', 'revive')),
       worker_id TEXT REFERENCES workers(id),
       project_id TEXT REFERENCES projects(id),
       task_id TEXT REFERENCES tasks(id),
@@ -161,7 +166,36 @@ export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "
   `);
   // migrations for databases created before a column existed
   const wcols = (db.query("PRAGMA table_info(workers)").all() as { name: string }[]).map((c) => c.name);
-  if (!wcols.includes("pending_micro")) db.exec("ALTER TABLE workers ADD COLUMN pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0)");
+  const addWorkerCol = (def: string) => {
+    if (!wcols.includes(def.split(" ")[0])) db.exec(`ALTER TABLE workers ADD COLUMN ${def}`);
+  };
+  addWorkerCol("pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0)");
+  addWorkerCol("pet_food INTEGER NOT NULL DEFAULT 0 CHECK (pet_food >= 0)");
+  addWorkerCol("pet_hunger INTEGER NOT NULL DEFAULT 0 CHECK (pet_hunger BETWEEN 0 AND 100)");
+  addWorkerCol("pet_hunger_at INTEGER");
+  addWorkerCol("pet_starving_at INTEGER");
+  addWorkerCol("pet_dead INTEGER NOT NULL DEFAULT 0");
+
+  // payments.kind gained 'revive' after the table first shipped: rebuild it when the old CHECK is still there
+  const paySql = (db.query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'payments'").get() as { sql?: string } | null)?.sql ?? "";
+  if (paySql && !paySql.includes("'revive'")) {
+    db.exec(`
+      CREATE TABLE payments_v2 (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL CHECK (kind IN ('payout', 'refund', 'deposit', 'revive')),
+        worker_id TEXT REFERENCES workers(id),
+        project_id TEXT REFERENCES projects(id),
+        task_id TEXT REFERENCES tasks(id),
+        wallet TEXT NOT NULL,
+        amount_micro INTEGER NOT NULL CHECK (amount_micro > 0),
+        tx_sig TEXT NOT NULL UNIQUE,
+        created_at INTEGER NOT NULL
+      );
+      INSERT INTO payments_v2 SELECT * FROM payments;
+      DROP TABLE payments;
+      ALTER TABLE payments_v2 RENAME TO payments;
+    `);
+  }
   return db;
 }
 

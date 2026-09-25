@@ -3,9 +3,9 @@ import { cors } from "hono/cors";
 import { decodePaymentResponseHeader } from "@x402/core/http";
 import { z } from "zod";
 import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
-import { type Db, toUsdc } from "./db";
-import { type Rpc, verifyDeposit } from "./payments";
-import { EXPERT_LEVEL, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, PRIORITY_LEVEL, responseSchema, type TaskInput, taskInput, type TaskService, type TaskStatus, WORKER_SHARE } from "./tasks";
+import { type Db, toUsdc, uid } from "./db";
+import { type Rpc, verifyDeposit, verifyRevive } from "./payments";
+import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
 type Env = { Variables: { input: TaskInput; billing: Billing; taskId?: string } };
@@ -174,6 +174,7 @@ export function createApp(deps: AppDeps) {
     const w = worker(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
     const now = Date.now();
+    tickPet(db, w, now);
     const tz = Number(c.req.query("tz_offset") ?? 0) * 60_000; // client's getTimezoneOffset(), minutes
     const dayStart = Math.floor((now - tz) / DAY) * DAY + tz;
     const sum = (since: number) =>
@@ -205,6 +206,7 @@ export function createApp(deps: AppDeps) {
       available_tasks: tasks.availableFor(w, now),
       qualification_checks: tasks.qualificationFor(w),
       push: !!w.push_subscription,
+      pet: petView(w),
     });
   });
 
@@ -232,8 +234,49 @@ export function createApp(deps: AppDeps) {
   app.get("/v1/worker/next", rateLimit("poll", 120), (c) => {
     const w = worker(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
+    tickPet(db, w);
+    if (w.pet_dead) return c.json({ error: "pet_dead", pet: petView(w) }, 403);
     const t = tasks.nextFor(w);
     return t ? c.json(tasks.workerView(t, w)) : c.body(null, 204);
+  });
+
+  app.post("/v1/worker/feed", rateLimit("pet", 30), (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const r = feedPet(db, w);
+    return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 409);
+  });
+
+  /**
+   * Revive a dead Scrappy. Pays from earned owed_micro when it's enough; otherwise the worker
+   * sends $0.05 USDC to the platform wallet and passes the signature for on-chain verification.
+   */
+  app.post("/v1/worker/revive", rateLimit("pet", 30), async (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const now = Date.now();
+    tickPet(db, w, now);
+    if (!w.pet_dead) return c.json({ error: "not_dead" }, 409);
+    const b = (await body(c)) ?? {};
+    const txSig = typeof b.tx_sig === "string" ? b.tx_sig : undefined;
+    if (txSig) {
+      if (!deps.rpc || !deps.platformWallet) return c.json({ error: "on-chain revive unavailable on this server" }, 503);
+      const r = await verifyRevive(db, deps.rpc, w, txSig, deps.platformWallet, now);
+      if (!r.ok) return c.json({ error: r.error }, 400);
+      return c.json({ ok: true, pet: petView({ ...w, pet_dead: 0, pet_hunger: 60 }) });
+    }
+    if (w.owed_micro < REVIVE_MICRO) {
+      return c.json({ error: "payment_required", price_usdc: toUsdc(REVIVE_MICRO), pay_to: deps.platformWallet }, 402);
+    }
+    db.transaction(() => {
+      const r = db.query("UPDATE workers SET owed_micro = owed_micro - ? WHERE id = ? AND owed_micro >= ?").run(REVIVE_MICRO, w.id, REVIVE_MICRO);
+      if (r.changes === 0) throw new Error("insufficient owed");
+      db.query("INSERT INTO payments (id, kind, worker_id, wallet, amount_micro, tx_sig, created_at) VALUES (?, 'revive', ?, ?, ?, ?, ?)").run(
+        uid(), w.id, w.wallet, REVIVE_MICRO, `revive:${w.id}:${now}`, now,
+      );
+      db.query("UPDATE workers SET pet_dead = 0, pet_hunger = 60, pet_hunger_at = ?, pet_starving_at = NULL WHERE id = ?").run(now, w.id);
+    })();
+    return c.json({ ok: true, pet: petView({ ...w, pet_dead: 0, pet_hunger: 60 }) });
   });
 
   app.post("/v1/tasks/:id/respond", rateLimit("respond", 60), async (c) => {

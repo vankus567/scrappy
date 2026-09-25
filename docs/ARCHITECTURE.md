@@ -1,7 +1,12 @@
 # Scrappy: Architecture
 
-Companion to `PRD.md`. Stack rules: TypeScript everywhere offchain, Bun runtime, Anchor (Rust) onchain.
-Items marked **[verify]** are library/API details to confirm on day 1 before building on them.
+Companion to `PRD.md`. This document describes the system **as shipped**, not the original plan.
+Stack: Bun + TypeScript everywhere, Hono API, SQLite, Next.js web app (also the Android app via TWA),
+x402 v2 for buyer payments, real USDC transfers for payouts, refunds, deposits and revives.
+
+The onchain escrow program (`programs/scrappy/`) is **not built**. Custody is a platform wallet:
+buyers pay the platform address via x402, workers and payers are paid out of it by the settlement
+daemon. Every transfer is a real Solana transaction recorded in `payments`.
 
 ---
 
@@ -10,279 +15,155 @@ Items marked **[verify]** are library/API details to confirm on day 1 before bui
 ```mermaid
 flowchart LR
   subgraph Buyers
-    A1[AI agent<br/>MCP client] -->|ask_human| MCP[MCP server]
-    A2[AI agent / backend<br/>HTTP] -->|POST /v1/jobs| API
+    A1[AI agent<br/>MCP client] -->|scrappy_ask_human / scrappy_consensus| MCP[MCP server<br/>stdio]
+    A2[AI agent / backend<br/>HTTP] -->|POST /v1/tasks| API
+    A3[Developer dashboard<br/>/dev] -->|API key| API
   end
-  MCP -->|x402 pay + create job| API[Scrappy API<br/>Bun + Hono]
-  API -->|verify/settle x402| FAC[x402 facilitator<br/>Solana]
-  FAC -->|USDC transfer| ESC[(Job escrow<br/>program PDA)]
-  API --> DB[(Postgres)]
-  API --> Q[Job router + queue]
-  Q -->|push| PUSH[Expo Push]
-  PUSH --> APP[Mobile app<br/>Expo / React Native]
-  APP -->|answers| API
-  Q -->|easy jobs| LLM[LLM provider<br/>pet auto-answer]
-  API -->|settle_job / refund| PROG[Scrappy Anchor program]
-  PROG --> ESC
-  PROG --> PV[(Pet vault<br/>USDC ATA)]
-  HEL[Helius webhooks] -->|program events| IDX[Indexer]
-  IDX --> DB
-  DB --> LB[Leaderboards + dashboard]
-  APP --> LB
-  API -->|reputation| SAS[Solana Attestation Service]
+  MCP -->|x402 pay + create| API[Scrappy API<br/>Bun + Hono]
+  API -->|402 challenge / settle| FAC[x402 facilitator]
+  FAC -->|USDC transfer| PW[(Platform wallet<br/>Solana)]
+  API --> DB[(SQLite<br/>WAL)]
+  subgraph Web["scrappypet.vercel.app (Next.js)"]
+    L[Landing /docs /live /dev]
+    WAPP[Worker app /app<br/>PWA + TWA APK]
+  end
+  Web -->|same-origin rewrites /v1/*| API
+  WAPP -->|claim + answer| API
+  API -->|60s claim window| WAPP
+  PW --> SET[Settlement daemon<br/>in-process, every 10 min]
+  SET -->|owed >= $0.10, 48h hold| WRK[(Worker wallets)]
+  SET -->|unfilled seat refunds| PAY[(x402 payers)]
+  API -->|verify tx on-chain| DEP[Deposit + revive<br/>verification]
 ```
 
-Principle: **money and final state onchain, fast game state offchain.** Balances, escrow, payouts, deaths, reputation snapshots and season results are onchain and verifiable. Hunger ticks, animations, the job queue and routing live in Postgres for speed.
+Money path: agent USDC in (x402 or prepaid balance) -> workers paid 80% of each seat ->
+unfilled seats refunded to the payer. Pet revives and worker-internal payments are
+recorded in `payments` like every other transfer.
 
-## 2. Repo layout (Bun workspaces monorepo)
+## 2. Repo layout
 
 ```
-scrappy/
-├─ programs/scrappy/          # Anchor program (Rust)
+solana_coloseum/
 ├─ apps/
-│  ├─ mobile/                 # Expo React Native app (Android)
-│  ├─ api/                    # Bun + Hono API, x402 seller, router, settlement worker
-│  ├─ mcp/                    # MCP server exposing ask_human (x402 buyer side)
-│  ├─ indexer/                # Helius webhook receiver -> Postgres
-│  └─ web/                    # Public dashboard + share-card image endpoint + claim/landing
-├─ packages/
-│  ├─ sdk/                    # Typed client for API + program (used by mobile, mcp, web)
-│  ├─ shared/                 # zod schemas: Job, Pet, Answer, events
-│  └─ idl/                    # Generated Anchor IDL + TS types
-└─ tests/                     # LiteSVM program tests, API integration tests
+│  ├─ api/                    # Bun + Hono API: tasks, consensus, router, auth, payments, settlement
+│  │   ├─ src/app.ts          # all HTTP routes
+│  │   ├─ src/tasks.ts        # task lifecycle, consensus, router, levels, pet mechanics
+│  │   ├─ src/db.ts           # SQLite schema + migrations
+│  │   ├─ src/auth.ts         # worker Ed25519 sign-in, project API keys, rate limits
+│  │   ├─ src/payments.ts     # deposit/revive tx verification, signed webhooks, web push
+│  │   ├─ src/settle.ts       # claim-first settlement (payouts + refunds)
+│  │   └─ src/index.ts        # wiring: paywall, sweeps, settlement interval
+│  │   └─ scripts/            # deploy-guard.ts (agent demo), payout.ts, keys.ts, seed-gold.ts
+│  ├─ web/                    # Next.js 16 app: landing, /docs, /dev, /live, worker app /app, PWA
+│  ├─ android/                # Bubblewrap TWA project -> scrappy.apk (wraps the web app)
+│  └─ mcp/                    # MCP server: scrappy_ask_human, scrappy_consensus, scrappy_find_capacity
+├─ packages/sdk/              # @scrappy/sdk: Scrappy class (askHuman, consensus w/ escalation), verifyWebhook
+└─ deploy/                    # git-archive deploy to VPS: systemd + Caddy, kageai.me upstream
 ```
 
-## 3. Onchain program (`scrappy`)
+Empty/on-deck: `programs/scrappy/` (escrow program), `apps/indexer/`, `packages/idl/`.
 
-### Accounts
-| Account | Seeds | Fields |
+## 3. Deployment
+
+| Piece | Runs on | Address |
 |---|---|---|
-| `Config` | `["config"]` | admin, settler (API hot key), treasury, usdc_mint, fee_bps (1000), season, paused |
-| `Pet` | `["pet", owner]` | owner, name_hash, trade (u8 lang, u8 task), born_at, status (Alive/Dead), jobs_done, earned_total, earned_outside, reputation_bps, last_fed_at, died_at |
-| Pet vault | ATA of USDC owned by `Pet` PDA | pet's USDC balance |
-| `Job` | `["job", job_id]` | buyer, price, fee_bps, required_answers, status (Funded/Settled/Refunded/Expired), deadline, result_hash |
-| Job escrow | ATA of USDC owned by `Job` PDA | funds paid by the buyer via x402 |
-| `Season` | `["season", n]` | start, end, merkle_root, reward_pool |
-| `SeasonClaim` | `["claim", season, pet]` | claimed flag |
+| Web app | Vercel project `scrappy` | `https://scrappypet.vercel.app` |
+| API | VPS, systemd `kage-api`, Caddy port 8795 | `https://kageai.me` (internal upstream) |
+| API via web | Vercel rewrites `/v1/*`, `/health` | same-origin from the public domain |
+| Android | Bubblewrap TWA, packageId `app.scrappypet` | `scrappypet.vercel.app/scrappy.apk` |
 
-### Instructions
-| Instruction | Signer | Effect |
+Workers and agents only ever see `scrappypet.vercel.app`. `vercel.json` proxies
+`/v1/*` and `/health` to the VPS; CORS also allows direct calls.
+
+## 4. Data model (SQLite, `apps/api/src/db.ts`)
+
+Money is integer micro-USDC (`1 USDC = 1_000_000`). WAL mode, foreign keys on, single writer.
+
+- `organizations` / `projects` / `api_keys` — developer accounts; `balance_micro` prepaid credit, `funding_wallet` for deposit verification, `webhook_secret`.
+- `workers` — wallet, device `token_hash`, languages, reputation counters, `owed_micro` (unsettled earnings), `pending_micro` (claimed-but-in-flight settlement), pet fields (`pet_food`, `pet_hunger`, `pet_hunger_at`, `pet_starving_at`, `pet_dead`), `push_subscription`.
+- `worker_skills` + `reputation_events` — per-language-skill accuracy (Laplace-smoothed) from gold tasks and consensus agreement.
+- `tasks` — prompt, schema, language/skill, `min_accuracy`, seats, `reward_micro` per seat, `budget_micro`, deadline, status, `payment_tx`, `refund_*`, gold flag. Chained rounds share `root_id`.
+- `task_assignments` — claims: one per `(root_id, worker_id)`, 60s expiry.
+- `task_responses` — answers: normalized value, confidence, weight, latency, `paid_micro`.
+- `consensus_results` — final answer, agreement, confidence, tally, latency.
+- `payments` — every money movement: `payout`, `refund`, `deposit`, `revive`. `tx_sig` unique (real signature or a `claim:`/`revive:` placeholder) — doubles as an idempotency + double-claim guard.
+- `notifications`, `auth_nonces` — web push dedup, single-use sign-in nonces.
+
+## 5. Task lifecycle
+
+```
+pending_payment --x402 settle--> matching --first claim--> collecting
+matching/collecting --deadline or last seat--> completed | low_confidence | insufficient_capacity
+pending_payment --2 min unpaid--> cancelled
+```
+
+- `POST /v1/tasks` and `/v1/consensus` validate with zod, then check **capacity before payment** (409 `insufficient_capacity` — no charge for work that cannot run).
+- Billing: x402 402-challenge settled by the facilitator (`markFunded` restarts the deadline when money lands), or API-key prepaid balance, or `none` (gold/internal).
+- Consensus (`computeConsensus`): answer = most votes, agreement = vote share, confidence = accuracy-weighted share × mean self-confidence. `low_confidence` below the buyer's `quality_threshold`.
+- Escalation: `extends: <task_id>` creates a chained round that excludes every worker from the chain (`UNIQUE(root_id, worker_id)`) — this is how SDK `consensus()` reaches the threshold.
+- `sweep()` finalizes expired tasks and unpaid stragglers; runs inside `nextFor` and on an interval.
+
+## 6. Router (`nextFor`)
+
+Pull-based: workers poll `/v1/worker/next`. Priority order:
+
+1. An open unexpired claim for that worker.
+2. Gold qualification tasks (first 5 tasks, when gold templates exist for the language).
+3. Live tasks in the worker's languages where: one seat left per human, not already in the chain,
+   `eligible()` passes (language, Laplace-smoothed skill ≥ `min_accuracy`, probation cap ≤0.8
+   for unproven workers, level gates below), Lv20+ queues sort by reward.
+
+Dead pets cannot claim (`403 pet_dead`).
+
+## 7. Worker levels
+
+`levelOf(tasks_done)` = `1 + floor(done / 5)`, cap 30.
+
+| Level | Tasks | Unlock |
 |---|---|---|
-| `init_config` | admin | set fee, settler, mint |
-| `hatch_pet(name_hash, trade)` | owner | create `Pet` + vault |
-| `open_job(job_id, price, required_answers, deadline)` | settler | create `Job` + escrow ATA (buyer funds land here through x402) |
-| `settle_job(job_id, payees[pet, share_bps], inference_cost)` | settler | pay pets pro rata (minus inference cost), fee to treasury, emit `JobSettled` |
-| `refund_job(job_id)` | settler | return escrow to buyer on reject/expiry, emit `JobRefunded` |
-| `feed(amount)` | owner | owner tops up pet vault (optional; does not count as earnings) |
-| `withdraw(amount)` | owner | move USDC from pet vault to owner wallet |
-| `mark_dead(pet)` | settler | set Dead after starvation rule; vault stays withdrawable by owner |
-| `revive_pet(pet)` | owner | pay a tiny revive fee (~$0.05 USDC, configurable; SOL option) to the season reward pool; restores Alive with name, species, evolution stage, reputation and earnings intact; food reset to 50%; 24h cooldown per pet (`last_revived_at`) |
-| `publish_season(n, merkle_root)` | admin | store leaderboard root |
-| `claim_season(n, proof, amount)` | owner | claim reward against root |
+| Lv5 | 20 | Seats paying ≥ $0.25 (`HIGH_REWARD_MICRO`) |
+| Lv10 | 45 | Expert tasks (`min_accuracy ≥ 0.95`) |
+| Lv20 | 95 | First pick: queue sorts by pay, not urgency |
 
-Events: `PetHatched`, `JobOpened`, `JobSettled{job, pets[], amounts[], outside: bool}`, `JobRefunded`, `PetDied`, `SeasonPublished`, `Claimed`.
+Level gates apply in both `eligible()` and the capacity pre-check, so buyers are never
+quoted capacity that can't actually reach their seats.
 
-`outside` is set by the settler when the buyer wallet is not linked to any worker (see anti-sybil). Leaderboards read `earned_outside` only.
+## 8. Pet mechanics (PRD §7)
 
-Hackathon trust model: the settler key (API) decides acceptance and payees. It is a single hot key with narrow powers (can only move escrow to pets/treasury/buyer). After the hackathon: 3-worker consensus proofs + buyer co-sign for settlement.
+Server-owned, lazy-ticked on worker reads (`tickPet`):
 
-## 4. Payments: x402 flow
+- Hunger +10 per 8h **only while live tasks exist** ("hunger turns on when jobs are live"); pauses when the network is quiet.
+- Each completed answer earns +1 meal (`FOOD_MAX` 10).
+- `POST /v1/worker/feed` spends one meal, −40 hunger.
+- Hunger 100 = starving; >72h starving = dead. Dead workers can't claim tasks.
+- `POST /v1/worker/revive` costs $0.05: deducted from `owed_micro` when sufficient (recorded as a `revive` payment), otherwise the worker sends USDC to the platform wallet and `verifyRevive` confirms the transfer on-chain.
 
-```mermaid
-sequenceDiagram
-  participant Ag as Buyer agent
-  participant API as Scrappy API
-  participant F as x402 facilitator
-  participant P as Scrappy program
-  Ag->>API: POST /v1/jobs {type, lang, content, answers}
-  API->>P: open_job (Job PDA + escrow ATA)
-  API-->>Ag: 402 Payment Required {amount, asset USDC, payTo = escrow ATA, network solana}
-  Ag->>API: retry with X-PAYMENT (signed USDC transfer)
-  API->>F: verify + settle
-  F-->>API: tx signature
-  API->>API: mark job Funded, enqueue routing
-  API-->>Ag: 201 {job_id, status_url}
-```
+## 9. Money flows
 
-- Seller middleware: x402 server package with Solana (SVM) support **[verify package + facilitator: Coinbase x402 SVM support or PayAI facilitator]**.
-- If the facilitator cannot pay into a PDA-owned ATA, fall back: payTo = treasury ATA, then the settler moves funds into the job escrow in the same worker cycle.
-- Price = task base price x required_answers + 10% fee, quoted in USDC (6 decimals).
-
-## 5. MCP server (`ask_human`)
-
-Tool definition exposed to any MCP client:
-
-```ts
-ask_human({
-  task: "rate" | "verify_correct" | "record_audio",
-  language: "hi" | "ta" | "mr" | "bn" | "te" | "kn" | "gu" | "en-IN",
-  instructions: string,
-  items: Array<{ id: string; content: string; options?: string[] }>,
-  answers_per_item?: 1 | 3,       // default 3 for review tasks
-  max_price_usdc: number,         // agent-side spend cap
-  wait?: "none" | "until_done"    // until_done polls with timeout
-}) => { job_id, status, results?: Array<{ id, answer, confidence }> }
-```
-
-The MCP server holds a buyer-provided Solana keypair (or delegate with an SPL allowance) and pays the 402 challenge automatically within `max_price_usdc`.
-
-## 6. Job lifecycle
-
-```mermaid
-stateDiagram-v2
-  [*] --> Quoted
-  Quoted --> Funded: x402 paid
-  Funded --> Routing
-  Routing --> AutoAnswered: easy + pet AI confident
-  Routing --> Assigned: needs human
-  Assigned --> Answered: worker submits
-  Assigned --> Routing: timeout (reassign)
-  AutoAnswered --> Review
-  Answered --> Review: enough answers (1 or 3)
-  Review --> Accepted: consensus / gold pass / buyer window ends
-  Review --> Rejected: buyer rejects in window
-  Accepted --> Settled: settle_job
-  Rejected --> Refunded: refund_job
-  Funded --> Expired: deadline passed
-  Expired --> Refunded
-```
-
-### Router rules
-1. Filter pets: alive, language match, trade match, not already on this item.
-2. Score: `reputation * 0.6 + freshness * 0.2 + fairness * 0.2` (fairness = fewer jobs today scores higher).
-3. Push to top N candidates; first valid answer wins the slot; others get the next item.
-4. Easy jobs (classifier + confidence ≥ 0.9): pet auto-answers via LLM, inference cost is recorded and deducted at settlement.
-
-### Quality control
-- Gold questions with known answers: 10% of a new worker's first 50 jobs, then 3%.
-- 3-answer consensus for review tasks; minority answers do not get paid when consensus ≥ 2/3.
-- Reputation = EWMA of gold accuracy and consensus agreement, stored in DB, snapshotted into `Pet.reputation_bps` at settlement and issued as an SAS attestation daily (SHOULD).
-
-## 7. Pet game state (offchain, deterministic)
-
-```
-food = clamp(food - hours_since_last_tick * 4, 0, 100)
-on job accepted: food = min(100, food + 15)
-mood = f(food, earnings_today, streak)
-status: food < 40 hungry · < 10 starving (push) · 0 for 72h -> mark_dead
-```
-
-Tick runs in the API worker every 15 minutes; `mark_dead` is the only game rule written onchain.
-
-## 8. Data model (Postgres)
-
-| Table | Key columns |
+| Flow | Path |
 |---|---|
-| `users` | id, wallet, auth_provider (google/seeker), city, college, referred_by, created_at, first_wallet (bool: new to Solana) |
-| `pets` | id, owner_id, pet_pda, name, trade_lang, trade_task, food, mood, status, born_at, died_at |
-| `buyers` | id, wallet, name, webhook_url, api_key_hash, linked_to_user (bool) |
-| `jobs` | id, buyer_id, job_pda, type, lang, price, required_answers, status, deadline, funded_sig, settled_sig |
-| `items` | id, job_id, content, options, gold_answer (nullable) |
-| `answers` | id, item_id, pet_id, answer, audio_url, is_auto, latency_ms, correct (nullable), paid_amount |
-| `reputation` | pet_id, score, gold_seen, gold_correct, consensus_agree |
-| `events` | sig, type, payload (from indexer) |
-| `seasons` | n, start, end, merkle_root, published_sig |
-| `referrals` | inviter_pet, invitee_pet, bonus_paid |
+| Buyer pays | x402 → facilitator → platform wallet (`tasks.payment_tx`), or prepaid `balance_micro` |
+| Worker earns | `reward_micro × 0.8` → `owed_micro` on response |
+| Worker paid | Settlement daemon: claim `owed→pending` atomically (unique `claim:` tx_sig placeholder), transfer USDC, record `payout`, mark pending settled. Crash-safe, no double-pay across daemon/script/VPS timer. |
+| Seat refunds | Unfilled seats → `refund_micro`; prepaid refunded internally, x402 refunded on-chain to `payer`. |
+| Project deposits | `verifyDeposit`: confirmed tx moving USDC from `funding_wallet` → platform; credited once per sig. |
+| Pet revive | `revive` payment: internal owed deduction or verified on-chain transfer. |
+| Worker hold | First payout blocked for 48h after account creation. |
 
-## 9. API (Bun + Hono)
+## 10. Auth & abuse controls
 
-| Method | Path | Auth | Notes |
-|---|---|---|---|
-| POST | `/v1/jobs` | x402 | create + pay job |
-| GET | `/v1/jobs/:id` | buyer key | status + results |
-| POST | `/v1/jobs/:id/reject` | buyer key | within review window |
-| GET | `/v1/me/pet` | wallet session | pet state, balance, food |
-| POST | `/v1/pets` | wallet session | after `hatch_pet` tx confirmed |
-| GET | `/v1/tasks/next` | wallet session | next assigned item |
-| POST | `/v1/tasks/:itemId/answer` | wallet session | submit answer (audio via signed upload URL) |
-| GET | `/v1/leaderboards/:board` | public | `?city=&college=&season=` |
-| GET | `/v1/share/:petId.png` | public | share-card image |
-| GET | `/v1/stats` | public | dashboard metrics |
+- Workers: wallet proves identity by signing `Scrappy sign-in` (Ed25519 over the wallet pubkey, 5-min single-use nonce) → device `kw_` token (sha256 stored).
+- Developers: `scrappy_sk_` API keys (sha256 stored, revocable, per-key labels).
+- Rate limits: token-bucket per IP per route group (signup 10/min, signin 20, poll 120, respond 60, deposits 20).
+- Anti-farming: 2s answer latency floor; gold known-answer tasks gate skill claims; one seat per human per task; chain workers can't re-answer.
+- Webhooks: SSRF guard (public https only), HMAC `x-scrappy-signature: t=...,v1=...`.
 
-Wallet session = Sign In With Solana message signed by the embedded wallet or MWA, exchanged for a short-lived JWT.
+## 11. SDK & MCP
 
-## 10a. DECISION (2026-09-24): web first, one codebase
+- `@scrappy/sdk` (`Scrappy` class): `askHuman`, `consensus` with automatic `extends` escalation until agreement/budget/deadline limits, `findCapacity`, `verifyWebhook`. Defaults to `https://scrappypet.vercel.app`.
+- MCP server (stdio): `scrappy_ask_human`, `scrappy_consensus`, `scrappy_find_capacity` — pays x402 automatically from an agent wallet.
 
-`apps/web` (Next.js 16, React 19, Tailwind 4, Bun) is THE product: a responsive site for desktop and mobile browsers, installable as a PWA. The Android/Seeker app for CLOCK IN is the same site wrapped as a **Trusted Web Activity** (Bubblewrap), the route Solana Mobile supports for publishing PWAs to the dApp Store **[verify current dApp Store PWA/TWA guide]**.
+## 12. Testing
 
-| Concern | Web-first choice |
-|---|---|
-| Wallets on desktop | Solana wallet-standard adapters (Phantom, Solflare, Backpack) |
-| Wallets on Android/Seeker | Mobile Wallet Adapter from the browser/TWA (`@solana-mobile/wallet-standard-mobile`) with Seed Vault **[verify]** |
-| Non-crypto users | Embedded wallet with Google login (Privy or Phantom embedded, web SDK) **[verify]** |
-| Push | Web Push via service worker (works in TWA/Chrome Android) |
-| Audio jobs | MediaRecorder API |
-| Offline | Service worker + IndexedDB queue for answers |
-| APK | Bubblewrap TWA, `assetlinks.json` served from the site |
-
-Section 10 below (Expo) is superseded; keep it only as a fallback if TWA blocks MWA or push.
-
-## 10. Mobile app (Expo, Android) [SUPERSEDED by 10a]
-
-| Concern | Choice |
-|---|---|
-| Framework | Expo (React Native), Solana Mobile Expo template **[verify template name]** |
-| Seeker wallet | `@solana-mobile/mobile-wallet-adapter-protocol` + Seed Vault via MWA |
-| Non-Seeker wallet | Embedded wallet with Google login (Privy Expo SDK or Phantom embedded) **[verify Solana support in Expo]** |
-| Solana client | `@solana/kit` + generated Anchor client from `packages/idl` |
-| Push | Expo Notifications (FCM) |
-| Audio | expo-audio recording, upload to signed URL |
-| Animation | Rive or Lottie pet rig (commissioned art, not generic AI style) |
-| State | TanStack Query + Zustand |
-| Offline | queued answers in SQLite, sync on reconnect |
-
-Screens: Hatch · Home (pet, food, balance, rank chip) · Job card · Earnings feed · Leaderboards · Graveyard · Profile/withdraw · Invite.
-
-## 11. Indexer and leaderboards
-
-- Helius webhook on program ID, then `apps/indexer` parses Anchor events into `events` + updates aggregates.
-- Boards are SQL views over settled outside earnings, filtered by season/city/college.
-- Season end: build Merkle tree (pet, reward) from the final board, then `publish_season`; the app lets winners `claim_season`.
-- Anyone can recompute boards from chain events: the "provably fair" claim.
-
-## 12. Anti-sybil and fraud
-
-| Threat | Control |
-|---|---|
-| Owner pays own pet to top boards | `outside` flag false if the buyer wallet is linked to any user or funded from a user wallet within 2 hops (Helius transfer lookups) |
-| Multi-accounting workers | Ranked slot requires Seeker Genesis Token or SKR stake; Android Play Integrity check **[verify]**; payout hold 48h for accounts < 7 days old |
-| Bot answers | gold questions, latency floor per task type, audio liveness (random phrase) |
-| Settler key compromise | settler can only pay escrow to pets/treasury/buyer; per-job cap; key in KMS; `paused` switch |
-
-## 13. SKR integration (SHOULD)
-- Food and cosmetics purchasable with SKR (SPL transfer to treasury).
-- Stake SKR (program vault) to unlock ranked mode on non-Seeker Android and a second trade slot; unstake after the season ends.
-- Graveyard pool: a small % of platform fees in SKR distributed to stakers per season.
-
-## 14. Security checklist
-- Anchor constraints on every account (has_one owner/settler, seeds, mint checks); no `init_if_needed` on value accounts
-- Checked math, u64 USDC amounts, fee bps bounds
-- Settle payees must be `Alive` pets that answered the job (verified against an answers hash committed at settlement)
-- Rate limits on API; zod validation on all inputs; job content PII filter
-- LiteSVM tests: escrow happy path, refund, double-settle, wrong mint, wrong signer, dead pet payee
-
-## 15. Environments and config
-
-```
-SOLANA_CLUSTER=devnet|mainnet-beta
-HELIUS_API_KEY=...
-USDC_MINT=...
-SCRAPPY_PROGRAM_ID=...
-SETTLER_KEYPAIR=kms://...
-X402_FACILITATOR_URL=...
-DATABASE_URL=postgres://...
-LLM_API_KEY=...
-EXPO_PUSH_ACCESS_TOKEN=...
-```
-
-Deploy: program via Anchor to devnet (Sep 30) then mainnet (Oct 3) · API/MCP/indexer on a Bun host (Fly.io/Railway) · Postgres on Neon · web on Vercel · APK via EAS build.
-
-## 16. Build order (maps to PRD milestones)
-1. Program: `hatch_pet`, `open_job`, `settle_job`, `refund_job` + LiteSVM tests
-2. API: x402 `POST /v1/jobs` on devnet end to end with a script buyer
-3. MCP `ask_human` paying the 402 automatically
-4. Mobile: onboarding, pet home, job card, answer submit
-5. Router + gold questions + consensus + settlement worker
-6. Mainnet + first real buyer
-7. Indexer, leaderboards, share cards, referral, dashboard
-8. SKR + SAS + seasons (if time)
+- `bun:test`, `:memory:` DB, injected fake paywall + scripted RPC — 26 tests cover consensus math, escalation chains, capacity gating, auth/replay, gold warmup, level gates, deposits, settlement claiming, and the full pet loop (feed/starve/die/revive).
+- `setSystemTime` drives the clock for deadline/hunger assertions.
