@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.scrappypet",
+      "sha256_cert_fingerprints": [
+        "56:A7:8A:09:37:7D:E4:7E:44:F8:CE:B5:D6:38:89:46:84:03:64:9A:C7:E7:39:D6:B4:AC:EE:21:64:E1:F3:CF"
+      ]
+    }
+  }
+]
