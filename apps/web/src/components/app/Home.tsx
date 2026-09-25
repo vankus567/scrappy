@@ -1,143 +1,128 @@
 "use client";
 
-import { Heart, CalendarBlank, Briefcase } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Pet, type PetDance, type PetMood } from "@/components/Pet";
+import { LinkButton } from "@/components/ui/Button";
+import { pct, secs } from "@/lib/api";
+import { skillLabel, stageFor, stageName, usePet } from "@/lib/pet-store";
+import { EnablePush } from "./EnablePush";
+import { JoinPanel } from "./JoinPanel";
+import { useWorker } from "./useWorker";
 
 const TRICKS: { mood: PetMood; dance: PetDance }[] = [
-  { mood: "excited", dance: "bounce" },
-  { mood: "love", dance: "wiggle" },
-  { mood: "wink", dance: "wave" },
-  { mood: "happy", dance: "hop" },
-  { mood: "surprised", dance: "march" },
-  { mood: "excited", dance: "spin" },
-  { mood: "happy", dance: "cheer" },
-  { mood: "surprised", dance: "dizzy" },
-  { mood: "love", dance: "shake" },
-  { mood: "excited", dance: "twirl" },
-  { mood: "wink", dance: "peek" },
-  { mood: "sleepy", dance: "sway" },
+  { mood: "excited", dance: "bounce" }, { mood: "love", dance: "wiggle" }, { mood: "wink", dance: "wave" },
+  { mood: "happy", dance: "hop" }, { mood: "excited", dance: "spin" }, { mood: "happy", dance: "cheer" },
+  { mood: "excited", dance: "twirl" }, { mood: "wink", dance: "peek" },
 ];
-
-// Small things the pet does on its own while you look at it.
-const IDLES: { mood: PetMood; dance: PetDance }[] = [
-  { mood: "curious", dance: "peek" },
-  { mood: "happy", dance: "wave" },
-  { mood: "wink", dance: "none" },
-  { mood: "sleepy", dance: "sway" },
-  { mood: "curious", dance: "none" },
-  { mood: "happy", dance: "wiggle" },
-];
-import { JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
-import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
   const { pet } = usePet();
+  const { token, profile, offline } = useWorker();
   const [trick, setTrick] = useState<{ mood: PetMood; dance: PetDance } | null>(null);
-  const busy = useRef(false);
-
-  // idle life: every 7-12 s the pet does something small on its own
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let t = 0;
-    const tick = () => {
-      t = window.setTimeout(() => {
-        if (!busy.current) {
-          setTrick(IDLES[Math.floor(Math.random() * IDLES.length)]);
-          window.setTimeout(() => { if (!busy.current) setTrick(null); }, 1800);
-        }
-        tick();
-      }, 7000 + Math.random() * 5000);
-    };
-    tick();
-    return () => window.clearTimeout(t);
-  }, []);
-
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   if (!pet) return null;
+
+  const { current } = stageFor(pet);
   const play = () => {
-    busy.current = true;
     setTrick(TRICKS[Math.floor(Math.random() * TRICKS.length)]);
-    window.setTimeout(() => { busy.current = false; setTrick(null); }, 2600);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setTrick(null), 2400);
   };
-  const days = Math.max(0, Math.floor((Date.now() - pet.bornAt) / 86_400_000));
-  // Hunger only ticks once paid jobs are live; until then the bowl is honestly full.
-  const bowl = 100;
-  const { current, next } = stageFor(pet);
+  const available = profile?.available_tasks ?? 0;
+  const checks = profile?.qualification_checks ?? 0;
+  const headline = checks
+    ? `${checks} quick ${checks === 1 ? "check" : "checks"} to unlock paid tasks`
+    : available ? `${available} ${available === 1 ? "task" : "tasks"} for you` : "No tasks this minute";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-8">
-      {/* header card: pet + its numbers */}
-      <section className="min-w-0 space-y-5">
-        <div className="relative overflow-hidden rounded-[28px] bg-ground-deep p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <p className="flex items-center gap-2 text-[22px] font-semibold tabular-nums">
-              <Heart size={26} weight="fill" className="text-[#ff7a59]" /> {bowl}%
+    <div className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[1.35fr_1fr] lg:gap-5">
+      {/* earnings + work: the reason to open the app */}
+      <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[15px] text-ink-soft">Earned today</p>
+            <p className="money mt-1 font-display text-[clamp(3rem,9vw,4.4rem)] font-bold leading-none tabular-nums">
+              ${(profile?.earnings.today_usdc ?? 0).toFixed(2)}
             </p>
-            <p className="rounded-[12px] bg-leaf px-3 py-1.5 text-[14px] font-bold tabular-nums text-on-leaf">
-              ${(pet.earnedUsdc ?? 0).toFixed(2)} earned
+            <p className="mt-2 text-[14px] text-ink-faint">
+              ${(profile?.earnings.week_usdc ?? 0).toFixed(2)} this week · ${(profile?.earnings.total_usdc ?? pet.earnedUsdc ?? 0).toFixed(2)} all time
             </p>
           </div>
+          <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="kage-focus -mr-2 -mt-2 w-24 shrink-0 rounded-[20px] sm:w-28">
+            <Pet species={pet.species} stage={current.id} mood={trick?.mood ?? (available ? "excited" : "happy")} dance={trick?.dance ?? "none"} watchPointer />
+          </button>
+        </div>
 
-          <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
-            <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="group relative rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-leaf">
-              <Pet mood={trick?.mood ?? "happy"} dance={trick?.dance ?? "none"} stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
-              <span className="mt-1 block text-center text-[13px] font-medium text-ink-faint">Tap {pet.name} to play</span>
-            </button>
-            <div className="space-y-4">
-              <h1 className="font-display tracking-[-0.005em] text-[clamp(1.9rem,6vw,2.6rem)] font-bold leading-[1.1]">{pet.name}</h1>
-              <dl className="space-y-3 text-[15px]">
-                <div className="flex items-center gap-2.5">
-                  <CalendarBlank size={20} className="text-ink-soft" />
-                  <dt className="sr-only">Age</dt>
-                  <dd><span className="font-semibold tabular-nums">{days}</span> {days === 1 ? "day" : "days"} old</dd>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Briefcase size={20} className="text-ink-soft" />
-                  <dt className="sr-only">Jobs done</dt>
-                  <dd><span className="font-semibold tabular-nums">{pet.jobsDone}</span> {pet.jobsDone === 1 ? "job" : "jobs"} done</dd>
-                </div>
-              </dl>
-              <p className="text-[14px] text-ink-soft">
-                <span className="font-semibold text-ink">{stageName(pet.species, current.id)}</span>
-                {next ? `, evolves at ${next.jobs} jobs${next.days ? ` and ${next.days} days` : ""}` : ", fully grown"}
-              </p>
+        <div className="mt-8 rounded-[20px] bg-field p-5">
+          {!token ? (
+            <p className="text-ink-soft">Connect a payout wallet below and tasks start reaching you.</p>
+          ) : offline ? (
+            <p className="text-ink-soft">Can&apos;t reach Kage right now. We&apos;ll keep trying.</p>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-display text-[26px] font-bold leading-tight">{headline}</p>
+                <p className="mt-1 text-[14px] text-ink-soft">
+                  {checks ? "Known-answer questions that measure your skill per language." : available ? "First to claim a seat answers it." : "Agents call in bursts. Keep notifications on."}
+                </p>
+              </div>
+              <LinkButton href="/app/tasks">{checks ? "Start checks" : available ? "Start a task" : "Open tasks"}</LinkButton>
             </div>
-          </div>
+          )}
         </div>
-
-        <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
-          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">
-            {JOBS_LIVE ? "Jobs are open" : `${pet.name} is waiting for work`}
-          </h2>
-          <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
-            {JOBS_LIVE
-              ? `Answer a few and ${pet.name} eats.`
-              : `Paid jobs from AI teams open soon. Until then the bowl stays full, so ${pet.name} will not get hungry.`}
-          </p>
-        </div>
-        <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
-          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">Forms</h2>
-          <ol className="mt-4 grid grid-cols-4 gap-2">
-            {STAGES.map((st) => {
-              const reached = STAGES.indexOf(st) <= STAGES.indexOf(current);
-              return (
-                <li key={st.id} className="text-center">
-                  <div className={reached ? "" : "opacity-35 grayscale"}>
-                    <Pet mood={reached ? "happy" : "focused"} stage={st.id} species={pet.species} className="mx-auto w-full max-w-[96px]" title={stageName(pet.species, st.id)} />
-                  </div>
-                  <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{stageName(pet.species, st.id)}</p>
-                  <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} jobs`}</p>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+        {token && profile && !profile.push && <EnablePush className="mt-3" />}
       </section>
 
-      {/* the journey */}
-      <section className="mx-auto w-full min-w-0 max-w-[440px]">
-        <JourneyMap pet={pet} />
+      {/* identity + reputation */}
+      <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
+        <p className="text-[15px] text-ink-soft">Your Kage</p>
+        <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">{pet.name}</h1>
+        <p className="text-[14px] text-ink-faint">{stageName(pet.species, current.id)} · {pet.languages.length} {pet.languages.length === 1 ? "language" : "languages"}</p>
+
+        <dl className="mt-6 grid grid-cols-3 gap-3">
+          <Stat label="Accuracy" value={profile?.accuracy != null ? pct(profile.accuracy) : "–"} hint={profile && profile.accuracy == null ? `${Math.max(0, 3 - profile.checks)} checks to go` : undefined} />
+          <Stat label="Tasks" value={String(profile?.tasks_done ?? pet.jobsDone)} />
+          <Stat label="Avg answer" value={secs(profile?.avg_response_ms)} />
+        </dl>
+
+        {!!profile?.skills.length && (
+          <ul className="mt-6 space-y-3">
+            {profile.skills.slice(0, 3).map((s) => (
+              <li key={s.skill}>
+                <div className="flex justify-between text-[14px]">
+                  <span>{skillLabel(s.skill)}</span>
+                  <span className="font-semibold tabular-nums">{pct(s.accuracy)}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-field">
+                  <div className="h-full rounded-full bg-leaf" style={{ width: `${s.accuracy * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link href="/app/profile" className="kage-focus mt-6 inline-block rounded text-[14px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
+          Skills and history
+        </Link>
       </section>
+
+      {!token && (
+        <div className="lg:col-span-2">
+          <JoinPanel />
+        </div>
+      )}
     </div>
   );
 }
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-[16px] bg-field px-3 py-3">
+      <dt className="text-[12.5px] text-ink-soft">{label}</dt>
+      <dd className="mt-1 font-display text-[22px] font-bold leading-none tabular-nums">{value}</dd>
+      {hint && <dd className="mt-1 text-[11.5px] text-ink-faint">{hint}</dd>}
+    </div>
+  );
+}
+

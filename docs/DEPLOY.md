@@ -1,26 +1,41 @@
-# Deploy and go live (the last step)
+# Deploying Kage
 
-## 1. Fund devnet wallets (manual, captcha)
-- `cd apps/api && bun scripts/keys.ts` prints the platform and agent addresses (keys in `apps/api/.keys/`, gitignored).
-- Agent: devnet USDC at https://faucet.circle.com (Solana Devnet). Platform: devnet SOL at https://faucet.solana.com.
+Everything runs on one VPS behind Caddy: `https://kageai.me` serves the web app, and the API on the same origin under `/v1` and `/health`.
 
-## 2. Prove the loop on devnet
-1. `PAY_TO=<platform> ADMIN_TOKEN=... bun apps/api/src/index.ts`
-2. `bun --cwd apps/web dev`, hatch a pet, add a payout wallet on the Wallet screen.
-3. `bun apps/api/scripts/agent-pay.ts` (real x402 payment) and answer it on the Jobs screen.
-4. `bun apps/api/scripts/payout.ts` pays owed USDC (after the 48 h hold, or lower `PAYOUT_HOLD_MS` for testing).
-5. `ANTHROPIC_API_KEY=... bun apps/api/scripts/fallback-agent.ts` records the Human Fallback demo.
+## 1. Wallets (devnet while building)
+```
+cd apps/api && bun scripts/keys.ts         # creates .keys/platform.json + .keys/agent.json (gitignored)
+```
+Fund both with devnet SOL (https://faucet.solana.com) and the agent with devnet USDC (https://faucet.circle.com, network Solana Devnet).
+The platform wallet also needs devnet USDC to pay workers.
 
-## 3. Deploy
-- **API**: `docker build -f apps/api/Dockerfile .` → Fly.io / Railway; volume for `SCRAPPY_DB` (or move to Postgres/Neon). Set env from `.env.example`.
-- **Web**: Vercel, root `apps/web`, `NEXT_PUBLIC_SCRAPPY_API=https://<api-host>`.
-- Add `https://<web-host>` to `WEB_ORIGINS`.
+## 2. Deploy
+SSH on port 22 must be reachable from your network (some campus/office networks block it; use a phone hotspot).
+```
+git commit -am "..."                        # deploy ships HEAD
+SSH_KEY=~/.ssh/kage_vps HOST=root@187.127.137.136 bash deploy/deploy.sh
+```
+First run creates `/etc/kage/api.env` (PAY_TO from the platform key, random ADMIN_TOKEN, VAPID keys for push). It never overwrites it.
+Services: `kage-api` (:8787), `kage-web` (:3100), `kage-payout.timer` (USDC payouts + refunds every 15 min).
+If the Caddyfile already has a `kageai.me` block, the script stops at validation: remove that block (a backup is saved) and run again.
 
-## 4. Android / Seeker (CLOCK IN)
-- Add `public/icon-192.png` and `public/icon-512.png`.
-- Fill `apps/web/twa-manifest.json` host, then `bunx @bubblewrap/cli build` → APK.
-- Serve `/.well-known/assetlinks.json` with the keystore SHA-256 fingerprint (`bunx @bubblewrap/cli fingerprint`).
-- Submit via the Solana dApp Store publisher portal.
+Then seed qualification checks once:
+```
+ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps/api && KAGE_API=http://127.0.0.1:8787 ~/.bun/bin/bun scripts/seed-gold.ts'
+```
 
-## 5. Mainnet switch
-`SOLANA_NETWORK=solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`, `USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`, mainnet RPC, funded platform wallet.
+## 3. Android APK (Trusted Web Activity)
+Needs the site live on https (step 2).
+```
+cd apps/web
+bunx @bubblewrap/cli init --manifest https://kageai.me/manifest.webmanifest   # or reuse twa-manifest.json
+bunx @bubblewrap/cli build                                                        # creates android.keystore (gitignored) + app-release-signed.apk
+bunx @bubblewrap/cli fingerprint generateAssetLinks                              # writes assetlinks.json
+scp -i ~/.ssh/kage_vps app-release-signed.apk root@187.127.137.136:/opt/kage/shared/kage.apk
+scp -i ~/.ssh/kage_vps assetlinks.json       root@187.127.137.136:/opt/kage/shared/assetlinks.json
+bash ../../deploy/deploy.sh                                                       # re-deploy: publishes /kage.apk + /.well-known/assetlinks.json and shows the download link
+```
+Keep `android.keystore` safe and out of git: every future update must be signed with it.
+
+## 4. Mainnet
+Set `SOLANA_NETWORK=solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`, `SOLANA_RPC`, `USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` in `/etc/kage/api.env`, fund the platform wallet with real USDC, `systemctl restart kage-api`.

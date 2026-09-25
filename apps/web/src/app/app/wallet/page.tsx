@@ -1,5 +1,5 @@
-import { WalletPanel } from "@/components/app/WalletPanel";
+import { WalletView } from "@/components/app/WalletView";
 
 export default function WalletPage() {
-  return <WalletPanel />;
+  return <WalletView />;
 }

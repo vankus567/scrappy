@@ -32,7 +32,7 @@ export function RadialNav({ items }: { items: Item[] }) {
         {open && (
           <motion.button
             aria-label="Close menu"
-            className="fixed inset-0 z-30 bg-[#14213d]/25 backdrop-blur-[2px]"
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -63,7 +63,7 @@ export function RadialNav({ items }: { items: Item[] }) {
                       onClick={() => setOpen(false)}
                       aria-current={item.active ? "page" : undefined}
                       className={`flex size-14 flex-col items-center justify-center rounded-full border-2 text-[10px] font-semibold ${
-                        item.active ? "border-[#7cc0ff] bg-leaf text-on-leaf" : "border-white bg-ground-deep text-ink"
+                        item.active ? "border-leaf bg-leaf text-on-leaf" : "border-field bg-ground-deep text-ink"
                       }`}
                     >
                       <item.Icon size={20} weight={item.active ? "fill" : "bold"} />
@@ -80,7 +80,7 @@ export function RadialNav({ items }: { items: Item[] }) {
             aria-expanded={open}
             aria-label={open ? "Close menu" : `Menu, on ${current.label}`}
             whileTap={{ scale: 0.94 }}
-            className="relative z-10 grid size-16 place-items-center rounded-full border-4 border-ground bg-ink text-ground shadow-[0_8px_20px_-8px_rgba(20,33,61,0.6)]"
+            className="relative z-10 grid size-16 place-items-center rounded-full border-4 border-ground bg-ink text-ground"
           >
             <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
               {open ? <X size={28} weight="bold" /> : <current.Icon size={28} weight="fill" />}

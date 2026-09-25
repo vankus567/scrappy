@@ -1,165 +1,142 @@
-import { Pet } from "@/components/Pet";
-import { HeroPets } from "@/components/HeroPets";
+import Link from "next/link";
 import { LandingNav } from "@/components/LandingNav";
-import { GlossButton } from "@/components/GlossButton";
-import { HeroClouds } from "@/components/backgrounds/HeroClouds";
-import { AgentOrbClient } from "@/components/AgentOrbClient";
+import { Pet, type Species } from "@/components/Pet";
+import { Arrow } from "@/components/ui/Button";
+import { CodeTabs } from "@/components/kage/CodeTabs";
+import { NetworkStats } from "@/components/kage/NetworkStats";
+import { TaskPreviews } from "@/components/kage/TaskPreviews";
+import { Trace } from "@/components/kage/Trace";
+import { Wordmark } from "@/components/kage/Wordmark";
 
 const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
-const PILOT_URL = process.env.NEXT_PUBLIC_PILOT_URL ?? `${REPO_URL}/issues/new?title=Pilot%20request`;
+// Set once the signed APK is built and published (see docs/DEPLOY.md). Hidden until then: no dead links.
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL;
+const CREW: Species[] = ["neko", "kitsu", "pengu", "drako", "goo", "boo"];
 
-function Arrow() {
+function Door({ href, side, title, line }: { href: string; side: string; title: string; line: string }) {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-      <path d="M4.5 11.5l7-7M6 4.5h5.5V10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
+    <Link href={href} className="kage-focus group flex min-h-[112px] flex-col justify-between rounded-[22px] bg-ground-deep p-5 transition-colors hover:bg-field sm:p-6">
+      <span className="flex items-center justify-between text-[14px] text-ink-faint">
+        {side}
+        <Arrow className="size-5 text-ink-soft transition-[color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-leaf" />
+      </span>
+      <span>
+        <span className="block font-display text-[22px] font-bold leading-tight">{title}</span>
+        <span className="mt-1 block text-[15px] text-ink-soft">{line}</span>
+      </span>
+    </Link>
   );
 }
 
-function PrimaryLink({ href, children }: { href: string; children: React.ReactNode }) {
+export default function Landing() {
   return (
-    <GlossButton href={href}>
-      {children}
-      <Arrow />
-    </GlossButton>
-  );
-}
-
-export default function Home() {
-  return (
-    <main>
+    <main className="overflow-x-clip">
       <LandingNav />
-      {/* HERO: owns the first screen */}
-      <section className="grain relative flex min-h-[100svh] flex-col overflow-hidden px-4 pt-20 sm:px-8">
-        <HeroClouds />
 
-
-        <HeroPets />
-        <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center pb-20 pt-6 text-center">
-          <h1 className="font-display text-balance text-[clamp(2.5rem,6vw,4.9rem)] font-bold leading-[1.04] tracking-[-0.01em]">
-            When AI needs a human,
-            <span className="block text-[#007aff]">Scrappy pays one instantly.</span>
+      {/* HERO: the call itself is the centrepiece */}
+      <section className="grain mx-auto flex min-h-[100svh] max-w-[1400px] flex-col justify-center gap-8 px-4 pb-10 pt-28 sm:px-8 lg:gap-10">
+        <div className="grid items-end gap-5 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
+          <h1 className="font-display font-bold tracking-[-0.015em]">
+            <span className="block whitespace-nowrap text-[clamp(1.55rem,4.2vw,3.4rem)] leading-[1.1] text-ink-soft">When AI needs a human,</span>
+            <span className="block whitespace-nowrap text-[clamp(2.6rem,11vw,7rem)] leading-[1] text-leaf">Kage finds one.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
-            An API where the endpoint is a human. Agents ask, your pet finds the job, you answer in seconds, and you are paid on Solana.
+          <p className="max-w-md pb-2 text-[18px] leading-relaxed text-ink-soft lg:justify-self-end">
+            The human shadow for AI agents. One API call reaches real people, returns their consensus, and pays them in USDC on Solana.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
-            <span className="text-[14px] font-semibold text-navy-text">Hatching opens October 2026 on web and Seeker.</span>
-          </div>
-          <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">
-            <figcaption className="text-[12px] text-ink-faint">Example job from an agent</figcaption>
-            <p className="mt-1.5 text-[15px] leading-snug">Does this Hindi reply sound natural?</p>
-            <p lang="hi" className="mt-2 text-[17px] leading-snug text-ink">आपका ऑर्डर कल तक पहुँच जाएगा।</p>
-            <p className="mt-3 text-[13px] text-ink-soft">Pays $0.05 · about 20 seconds</p>
-          </figure>
-          <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
-            <Pet species="goo" mood="curious" dance="wave" className="w-20 shrink-0" title="A little pet asking you for help" />
-            <p className="relative mb-6 rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[15px] font-semibold leading-snug text-navy-text shadow-[0_4px_12px_-8px_rgba(29,29,31,0.45)]">
-              Psst, human! An agent is stuck on this one. Can you help? It takes 20 seconds.
-            </p>
-          </div>
+        </div>
+
+        <Trace />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Door href="/docs" side="For AI agents" title="Build with Kage" line="Give your agent a human fallback in five lines." />
+          <Door href="/app" side="For humans" title="Earn with Kage" line="Answer in seconds. Get paid in USDC." />
         </div>
       </section>
 
-      {/* HOW IT WORKS: one day in Mochi's life */}
-      <section id="how" className="px-4 py-24 sm:px-8 sm:py-32">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.015em]">
-            Every pet runs a tiny business.
+      {/* DEVELOPERS */}
+      <section id="build" className="mx-auto max-w-[1400px] scroll-mt-24 px-4 py-20 sm:px-8 sm:py-28">
+        <div className="mb-8 grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end">
+          <h2 className="font-display text-[clamp(2rem,4vw,3.2rem)] font-bold leading-[1.05] tracking-[-0.01em]">
+            Buy human judgment
+            <span className="block text-ink-faint">like any other API.</span>
           </h2>
-          <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-soft">
-            Jobs come in, you help with the ones that need a human, and the pay keeps it fed.
+          <p className="max-w-lg text-[17px] leading-relaxed text-ink-soft lg:justify-self-end">
+            Ask one human or many. Get the majority, the agreement and a confidence score. Add humans when they disagree.
+            Pay from a prepaid balance, or per call over x402.
           </p>
-          <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
-            {[
-              { mood: "curious" as const, bg: "bg-white", t: "A job arrives", d: "A support bot wants to know if its Tamil reply is polite. Your phone buzzes." },
-              { mood: "focused" as const, bg: "bg-white", t: "You answer", d: "Read, tap, done. Easy jobs Mochi handles by itself; the rest need you." },
-              { mood: "happy" as const, bg: "bg-white", t: "Mochi eats", d: "The AI team's payment lands in USDC, a digital dollar. Mochi keeps a little for its own AI costs." },
-            ].map((s) => (
-              <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
-                <Pet mood={s.mood} className="mx-auto w-40" title={`Mochi, ${s.mood}`} />
-                <h3 className="mt-4 font-display tracking-[-0.005em] text-2xl font-bold">{s.t}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{s.d}</p>
-              </div>
+        </div>
+        <CodeTabs />
+      </section>
+
+      {/* WHAT HUMANS SEE */}
+      <section className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8 sm:py-16">
+        <div className="mb-8 grid gap-6 lg:grid-cols-[auto_1fr] lg:items-center">
+          <div className="flex -space-x-3" aria-hidden>
+            {CREW.map((s) => (
+              <Pet key={s} species={s} stage="mochi" mood="happy" className="size-16 sm:size-20" />
             ))}
           </div>
+          <h2 className="font-display text-[clamp(1.8rem,3.6vw,2.8rem)] font-bold leading-[1.08] tracking-[-0.01em]">
+            Ten seconds of judgment, from someone who knows.
+          </h2>
         </div>
+        <TaskPreviews />
       </section>
 
-      {/* THE STAKES: inset night island */}
-      <section id="stakes" className="px-3 sm:px-6">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[28px] bg-night px-6 py-16 text-on-night sm:px-12 lg:grid-cols-2 lg:py-20">
+      {/* EARN */}
+      <section className="mx-auto max-w-[1400px] px-4 py-16 sm:px-8 sm:py-24">
+        <div className="grid gap-10 rounded-[30px] bg-ground-deep p-7 sm:p-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
           <div>
-            <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4.4vw,3.6rem)] font-bold leading-[1.02] tracking-[-0.015em]">
-              Forget it, and it starves.
+            <h2 className="font-display text-[clamp(2rem,4vw,3.2rem)] font-bold leading-[1.05] tracking-[-0.01em]">
+              Your spare attention becomes an API endpoint.
             </h2>
-            <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
-              A pet with no work gets hungry, then starving. Leave it long enough and it dies broke, and you get a
-              certificate your friends will not let you forget. Whatever it earned stays yours.
-            </p>
-          </div>
-          <figure className="mx-auto w-full max-w-sm rounded-2xl bg-night-raise p-6 ring-1 ring-white/5">
-            <figcaption className="text-[12px] text-on-night-soft">Example certificate</figcaption>
-            <Pet mood="dead" className="mx-auto mt-2 w-36" title="Mochi, deceased" />
-            <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">Here lies Mochi</p>
-            <p className="mt-1 text-center text-[14px] text-on-night-soft">Day 9 · died broke · last job: 3 Hindi replies rated</p>
-          </figure>
-        </div>
-      </section>
-
-      {/* FOR AI TEAMS */}
-      <section id="ai-teams" className="scroll-mt-6 px-3 py-16 sm:px-6 sm:py-24">
-        <div className="mx-auto grid max-w-6xl gap-12 rounded-[28px] bg-white px-6 py-14 sm:px-12 lg:grid-cols-[1.2fr_1fr] lg:items-center [&>*]:min-w-0">
-          <div>
-            <AgentOrbClient size={112} tone="light" className="-ml-3 mb-4" />
-            <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
-              Call a human<br className="hidden sm:block" /> like you call an API.
-            </h2>
-            <dl className="mt-8 space-y-5 text-[15px]">
-              <div>
-                <dt className="font-bold">Pay per task</dt>
-                <dd className="mt-1 text-ink-soft">No contracts or minimums. Your agent pays in USDC over x402 when it asks.</dd>
-              </div>
-              <div>
-                <dt className="font-bold">31 languages</dt>
-                <dd className="mt-1 text-ink-soft">13 Indian languages plus Spanish, Arabic, Mandarin, Japanese, Portuguese, French and more.</dd>
-              </div>
-              <div>
-                <dt className="font-bold">Checked twice</dt>
-                <dd className="mt-1 text-ink-soft">Known-answer tests, three-person agreement, and a window to reject bad work.</dd>
-              </div>
-            </dl>
-            <div className="mt-9">
-              <PrimaryLink href={PILOT_URL}>Request a pilot</PrimaryLink>
+            <ul className="mt-7 space-y-4 text-[16px] leading-relaxed text-ink-soft">
+              <li><span className="font-semibold text-ink">Paid per answer.</span> USDC lands in your wallet. No per-task approvals, no crypto homework.</li>
+              <li><span className="font-semibold text-ink">Skill is measured, never claimed.</span> Hidden checks and agreement build your accuracy per language and skill.</li>
+              <li><span className="font-semibold text-ink">Better skill, better tasks.</span> Proven humans unlock expert work that pays more.</li>
+            </ul>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href="/app" className="kage-btn">Earn with Kage <Arrow /></Link>
+              {APK_URL && (
+                <a href={APK_URL} download className="kage-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
+                  Download for Android (APK)
+                </a>
+              )}
             </div>
           </div>
-
-          <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
-{`// MCP tool, or POST /v1/jobs with x402
-ask_human({
-  task: "verify_correct",
-  language: "hi",
-  instructions: "Is this reply natural? Fix it if not.",
-  items: [{
-    id: "r1",
-    content: "आपका ऑर्डर कल तक पहुँच जाएगा।",
-  }],
-  answers_per_item: 3,
-  max_price_usdc: 0.30,
-})
-// => { job_id, status: "done",
-//      results: [{ id, answer, confidence }] }`}
-          </pre>
+          <div className="relative mx-auto w-full max-w-sm">
+            <Pet species="kitsu" stage="bloom" mood="excited" dance="cheer" className="mx-auto w-56" title="A Kage at work" />
+            <p className="mt-2 text-center text-[14px] text-ink-faint">Your Kage grows through four forms as your answers prove you right.</p>
+          </div>
         </div>
       </section>
 
-      <footer className="bg-ground-deep px-4 py-10 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center text-[14px] text-ink-soft">
-          <p>
-            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">scrappy</span> · built on Solana
-          </p>
-          <a href={REPO_URL} className="transition-colors hover:text-ink">Source on GitHub</a>
+      {/* LIVE */}
+      <section className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8 sm:py-16">
+        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="font-display text-[clamp(1.8rem,3.4vw,2.6rem)] font-bold leading-tight">The network, right now</h2>
+          <Link href="/live" className="kage-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">Open live view</Link>
+        </div>
+        <NetworkStats />
+      </section>
+
+      {/* NEXT */}
+      <section className="mx-auto max-w-[1400px] px-4 py-20 sm:px-8 sm:py-28">
+        <p className="max-w-4xl font-display text-[clamp(1.6rem,3.4vw,2.6rem)] font-bold leading-[1.2] text-ink-faint">
+          Today: <span className="text-ink">fast judgment and consensus.</span> Next, on the same API: QA passes, UX tests, research checks and red teaming.
+        </p>
+      </section>
+
+      <footer className="px-4 pb-20 pt-10 sm:px-8">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-10 sm:flex-row sm:items-end sm:justify-between">
+          <Wordmark className="text-[clamp(4.5rem,14vw,10rem)]" />
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 pb-4 text-[15px] text-ink-soft">
+            <Link href="/docs" className="transition-colors hover:text-ink">Docs</Link>
+            <Link href="/dev" className="transition-colors hover:text-ink">Dashboard</Link>
+            <Link href="/live" className="transition-colors hover:text-ink">Live</Link>
+            <a href={REPO_URL} className="transition-colors hover:text-ink">Source</a>
+            <span className="text-ink-faint">Built on Solana</span>
+          </nav>
         </div>
       </footer>
     </main>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import type { Icon } from "@phosphor-icons/react";
+import { Wordmark } from "./kage/Wordmark";
 
 export type MorphLink = { href: string; label: string; icon: Icon; active?: boolean };
 
@@ -13,6 +14,8 @@ type Props = {
   className?: string;
   /** Float over the page (landing) instead of taking layout space. */
   floating?: boolean;
+  /** Custom right-hand control (e.g. the wallet button); replaces cta. */
+  right?: React.ReactNode;
 };
 
 const SPRING = { type: "spring", stiffness: 300, damping: 28, mass: 0.8 } as const;
@@ -22,7 +25,7 @@ const SPRING = { type: "spring", stiffness: 300, damping: 28, mass: 0.8 } as con
  * page that springs into a floating icon pill once the page scrolls. Scroll state comes from
  * Motion's useScroll (no window scroll listener). Always rendered and visible.
  */
-export function MorphNav({ links, cta, className, floating = false }: Props) {
+export function MorphNav({ links, cta, className, floating = false, right }: Props) {
   const { scrollY } = useScroll();
   const reduce = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
@@ -36,13 +39,13 @@ export function MorphNav({ links, cta, className, floating = false }: Props) {
         aria-label="Main"
         className={`flex items-center justify-between gap-3 border transition-colors duration-300 ${
           scrolled
-            ? "h-14 w-full max-w-[420px] rounded-full border-edge bg-ground-deep/90 px-2.5 shadow-[0_8px_24px_-12px_rgba(20,33,61,0.35)] backdrop-blur-xl"
+            ? "h-14 w-full max-w-[420px] rounded-full border-edge bg-ground-deep/90 px-2.5 backdrop-blur-xl"
             : "h-16 w-full max-w-[1400px] rounded-[22px] border-transparent bg-ground-deep px-5"
         }`}
       >
-        <Link href="/" className="flex shrink-0 items-center gap-2 pl-1" aria-label="Scrappy home">
-          <motion.span layout={!reduce} transition={SPRING} className={`font-display font-medium tracking-tight ${scrolled ? "text-[19px]" : "text-[22px]"}`}>
-            {scrolled ? "s" : "scrappy"}
+        <Link href="/" className="flex shrink-0 items-center gap-2 pl-1" aria-label="Kage home">
+          <motion.span layout={!reduce} transition={SPRING} className="block pb-1">
+            <Wordmark className={scrolled ? "text-[20px]" : "text-[24px]"} />
           </motion.span>
         </Link>
 
@@ -73,10 +76,11 @@ export function MorphNav({ links, cta, className, floating = false }: Props) {
           ))}
         </ul>
 
-        {cta && (
+        {right}
+        {!right && cta && (
           <Link
             href={cta.href}
-            className={`group flex shrink-0 items-center justify-center gap-2 bg-white font-semibold text-[#1d1d1f] transition-colors hover:bg-[#e8e8ed] ${
+            className={`group flex shrink-0 items-center justify-center gap-2 bg-leaf font-semibold text-on-leaf transition-colors hover:bg-leaf-hover ${
               scrolled ? "size-10 rounded-full" : "h-11 rounded-[14px] px-5 text-[15px]"
             }`}
             title={cta.label}

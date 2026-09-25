@@ -1,6 +1,6 @@
-# Scrappy: project rules
+# Kage: project rules
 
-Product: Scrappy, the Human API. When AI needs a human, Scrappy pays one instantly. Human-in-the-loop infrastructure for AI agents; students are the first workers, the pet app is the worker front end. Source of truth: `docs/POSITIONING.md`. Specs: `docs/PRD.md`, `docs/ARCHITECTURE.md`. Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
+Product: Kage, the Human API. When AI needs a human, Kage finds one. The human shadow for AI agents. Human-in-the-loop infrastructure for AI agents; students are the first workers, the pet app is the worker front end. Source of truth: `docs/POSITIONING.md`. Specs: `docs/PRD.md`, `docs/ARCHITECTURE.md`. Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
 
 Deadlines: CLOCK IN (Solana Mobile) **Oct 8, 2026** · Colosseum + Superteam India **Oct 11** (hard deadline Oct 12).
 
@@ -24,7 +24,7 @@ Full text: `~/.claude/skills/hackathon-final-boss/references/judge-playbook.md`.
 
 ## Stack
 - Bun + TypeScript for all offchain code (never npm/npx, never Python)
-- Anchor (Rust) for the `scrappy` program
+- Anchor (Rust) for the `kage` program
 - Next.js responsive web app (apps/web) is the product; Android/Seeker APK = same site as a Trusted Web Activity (Bubblewrap)
 - Hono API, Postgres, Helius webhooks, x402 for buyer payments, MCP TypeScript SDK for `ask_human`
 - UI follows the global anti-slop design law; commissioned/distinct pet art, no generic AI look

@@ -3,9 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /**
- * Local pet state. Everything here is real user input or real elapsed time.
- * Earnings, jobs and ranks come from the API once it is live; until then they are
- * honestly zero / empty, never invented.
+ * Local Kage identity: the pet, its name and languages (real user input) plus the device token.
+ * Earnings, tasks, accuracy and ranks always come from the Kage API; nothing here is invented.
  */
 export type Language =
   | "hi" | "en" | "ta" | "mr" | "bn" | "te" | "kn" | "gu" | "ml" | "pa" | "or" | "ur" | "as"
@@ -49,10 +48,11 @@ export const LANGUAGES: LanguageInfo[] = [
 
 export type PetRecord = {
   species?: import("@/components/Pet").Species;
-  /** set once the owner registers a payout wallet with the Human API */
-  workerId?: string;
-  payoutAddress?: string;
-  /** real earnings from the API (owed + paid), in USDC */
+  /** device token from the Kage API, issued when the owner connects a payout wallet */
+  workerToken?: string;
+  /** the Solana wallet that receives USDC */
+  wallet?: string;
+  /** lifetime earnings from the API, in USDC */
   earnedUsdc?: number;
   name: string;
   languages: Language[];
@@ -63,10 +63,7 @@ export type PetRecord = {
   jobsDone: number;
 };
 
-/** Paid jobs are not live until the API ships. While false, hunger does not tick. */
-export const JOBS_LIVE = process.env.NEXT_PUBLIC_JOBS_LIVE === "true";
-
-const KEY = "scrappy.pet.v1";
+const KEY = "kage.pet.v1";
 
 type Store = {
   ready: boolean;
@@ -101,6 +98,8 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // hydrate from localStorage after mount (server render has no storage)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPet(read());
     setReady(true);
   }, []);
@@ -181,4 +180,11 @@ export const EVOLUTION: Record<import("@/components/Pet").Species, [string, stri
 export function stageName(species: import("@/components/Pet").Species | undefined, stage: PetStage) {
   const idx = STAGES.findIndex((s) => s.id === stage);
   return EVOLUTION[species ?? "mochi"][Math.max(0, idx)];
+}
+
+/** "te:translation" -> "Telugu · translation" */
+export function skillLabel(key: string) {
+  const [lang, skill] = key.split(":");
+  const l = LANGUAGES.find((x) => x.id === lang)?.label ?? lang.toUpperCase();
+  return skill && skill !== "general" ? `${l} · ${skill.replace(/[-_]/g, " ")}` : l;
 }

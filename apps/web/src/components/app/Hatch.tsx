@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Egg } from "@/components/Egg";
-import { GlossButton } from "@/components/GlossButton";
+import { Button } from "@/components/ui/Button";
+import { LanguagePicker } from "./LanguagePicker";
+import { ReturningSignIn } from "./ReturningSignIn";
 import { Pet, SPECIES, type Species } from "@/components/Pet";
-import { EVOLUTION, LANGUAGES, usePet, type Language } from "@/lib/pet-store";
+import { EVOLUTION, usePet, type Language } from "@/lib/pet-store";
 
 const ALL = Object.keys(SPECIES) as Species[];
 
@@ -20,7 +22,6 @@ export function Hatch() {
   const [error, setError] = useState("");
   const sp = SPECIES[species];
 
-  const toggle = (id: Language) => setLangs((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +38,9 @@ export function Hatch() {
       <div className="space-y-6 pb-28">
         <div>
           <p className="text-[14px] font-semibold text-ink-soft">Step 1 of 2</p>
-          <h1 className="mt-1 font-display text-[clamp(2rem,4vw,2.9rem)] font-bold leading-[1.08]">Choose your first companion</h1>
-          <p className="mt-2 text-ink-soft">Every buddy grows through its own four forms as you do real work together.</p>
+          <h1 className="mt-1 font-display text-[clamp(2rem,4vw,2.9rem)] font-bold leading-[1.08]">Choose your Kage</h1>
+          <p className="mt-2 text-ink-soft">Your Kage is your identity on the network. It grows through four forms as your answers prove you right.</p>
+          <ReturningSignIn />
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -70,11 +72,11 @@ export function Hatch() {
 
         {/* choose bar: stays reachable while scrolling the grid */}
         <div className="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom))] z-20 flex justify-center px-4 md:bottom-6">
-          <div className="flex items-center gap-3 rounded-full bg-ground-deep py-2 pl-2 pr-2 shadow-[0_10px_24px_-12px_rgba(29,29,31,0.6)]">
+          <div className="flex items-center gap-3 rounded-[20px] bg-ground-deep py-2 pl-2 pr-2 ring-1 ring-edge">
             <Pet species={species} stage="mochi" mood="happy" className="size-12" title={sp.name} />
-            <GlossButton type="button" onClick={() => setStep("details")}>
+            <Button type="button" onClick={() => setStep("details")} arrow>
               Choose {sp.name}
-            </GlossButton>
+            </Button>
           </div>
         </div>
       </div>
@@ -97,8 +99,8 @@ export function Hatch() {
           />
         </div>
         <p className="text-[15px] text-ink-soft">
-          Your companion: <span className="font-bold text-ink">{sp.name}</span>, the {sp.blurb.toLowerCase()}.{" "}
-          <button type="button" onClick={() => setStep("pick")} className="font-semibold text-[#5aa9ff] underline-offset-4 hover:underline">
+          Your Kage: <span className="font-bold text-ink">{sp.name}</span>, the {sp.blurb.toLowerCase()}.{" "}
+          <button type="button" onClick={() => setStep("pick")} className="font-semibold text-leaf transition-colors hover:text-leaf-hover">
             Change
           </button>
         </p>
@@ -108,7 +110,7 @@ export function Hatch() {
         <div>
           <p className="text-[14px] font-semibold text-ink-soft">Step 2 of 2</p>
           <h1 className="mt-1 font-display text-[clamp(2rem,4vw,2.8rem)] font-bold leading-[1.1]">Name your {sp.name}</h1>
-          <p className="mt-2 text-ink-soft">Then tell it which languages you can check.</p>
+          <p className="mt-2 text-ink-soft">Then pick the languages you can judge. Tasks come in these.</p>
         </div>
 
         <div className="space-y-2">
@@ -125,28 +127,7 @@ export function Hatch() {
 
         <fieldset className="space-y-3">
           <legend className="text-[15px] font-medium">Languages you can check</legend>
-          {(["india", "world"] as const).map((grp) => (
-            <div key={grp} className="space-y-2">
-              <p className="text-[13px] font-semibold text-ink-soft">{grp === "india" ? "India" : "World"}</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {LANGUAGES.filter((l) => l.group === grp).map((l) => {
-                  const on = langs.includes(l.id);
-                  return (
-                    <button
-                      type="button"
-                      key={l.id}
-                      onClick={() => toggle(l.id)}
-                      aria-pressed={on}
-                      className={`min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors active:scale-[0.98] ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
-                    >
-                      <span lang={l.id} className="block text-[16px] leading-tight">{l.native}</span>
-                      {l.native !== l.label && <span className={`block text-[12px] ${on ? "opacity-80" : "text-ink-soft"}`}>{l.label}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <LanguagePicker value={langs} onChange={setLangs} />
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -167,8 +148,8 @@ export function Hatch() {
         {error && <p role="alert" className="text-[15px] text-[#ffb4a3]">{error}</p>}
 
         <div className="space-y-2">
-          <GlossButton type="submit" disabled={cracking}>Hatch {sp.name}</GlossButton>
-          <p className="text-[13px] text-ink-faint">Saved on this device for now. Wallet sign-in comes with paid jobs.</p>
+          <Button type="submit" disabled={cracking}>Hatch {sp.name}</Button>
+          <p className="text-[13px] text-ink-faint">Next you connect the wallet that gets paid.</p>
         </div>
       </form>
     </div>

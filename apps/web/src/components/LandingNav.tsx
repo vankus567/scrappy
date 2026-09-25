@@ -1,6 +1,6 @@
 "use client";
 
-import { Robot, GithubLogo, ArrowUpRight } from "@phosphor-icons/react";
+import { BookOpen, ChartLineUp, SquaresFour, ArrowUpRight } from "@phosphor-icons/react";
 import { MorphNav } from "./MorphNav";
 
 export function LandingNav() {
@@ -8,10 +8,11 @@ export function LandingNav() {
     <MorphNav
       floating
       links={[
-        { href: "#ai-teams", label: "For AI teams", icon: Robot },
-        { href: "https://github.com/Venkat5599/solana_coloseum", label: "GitHub", icon: GithubLogo },
+        { href: "/docs", label: "Docs", icon: BookOpen },
+        { href: "/live", label: "Live", icon: ChartLineUp },
+        { href: "/dev", label: "Dashboard", icon: SquaresFour },
       ]}
-      cta={{ href: "/app", label: "Hatch a pet", icon: ArrowUpRight }}
+      cta={{ href: "/app", label: "Earn with Kage", icon: ArrowUpRight }}
     />
   );
 }

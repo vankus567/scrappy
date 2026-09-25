@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Pet, SPECIES, type Species } from "@/components/Pet";
-import { API_URL } from "@/lib/api";
+import { getLeaderboard } from "@/lib/api";
 import { usePet } from "@/lib/pet-store";
 
-type Entry = { id: string; pet_name: string | null; species: string | null; city: string | null; jobs_done: number; owed_usdc: number };
+type Entry = { rank: number; pet_name: string | null; species: string | null; city: string | null; tasks_done: number; earned_usdc: number; you: boolean };
 
 export function RanksBoard() {
   const { pet } = usePet();
@@ -16,15 +16,13 @@ export function RanksBoard() {
 
   useEffect(() => {
     let alive = true;
-    const q = scope === "city" && city ? `?city=${encodeURIComponent(city)}` : "";
-    fetch(`${API_URL}/v1/leaderboard${q}`)
-      .then((r) => r.json())
-      .then((d) => alive && (setEntries(d.entries ?? []), setError(false)))
+    getLeaderboard(scope === "city" && city ? city : undefined, pet?.workerToken)
+      .then((d) => alive && (setEntries(d.entries), setError(false)))
       .catch(() => alive && setError(true));
     return () => {
       alive = false;
     };
-  }, [scope, city]);
+  }, [scope, city, pet?.workerToken]);
 
   return (
     <div className="space-y-5">
@@ -47,25 +45,25 @@ export function RanksBoard() {
       </div>
 
       <div className="rounded-[28px] bg-ground-deep p-3 sm:p-5">
-        {error && <p className="p-6 text-ink-soft">Can't reach Scrappy right now.</p>}
+        {error && <p className="p-6 text-ink-soft">Can&apos;t reach Kage right now.</p>}
         {!error && entries === null && <div aria-busy="true" className="h-40 animate-pulse rounded-[20px] bg-field" />}
         {!error && entries?.length === 0 && (
-          <p className="p-6 text-ink-soft">No ranks yet. The first paid human answer puts someone on the board.</p>
+          <p className="p-6 text-ink-soft">No ranks yet. The first paid answer puts someone on the board.</p>
         )}
         {!error && !!entries?.length && (
           <ol className="divide-y divide-edge">
-            {entries.map((e, i) => {
+            {entries.map((e) => {
               const species = (e.species && e.species in SPECIES ? e.species : "mochi") as Species;
-              const mine = pet?.workerId === e.id;
+              const mine = e.you;
               return (
-                <li key={e.id} className={`flex items-center gap-4 rounded-[16px] px-3 py-3 ${mine ? "bg-field" : ""}`}>
-                  <span className="w-8 text-center font-display text-[20px] font-bold tabular-nums">{i + 1}</span>
-                  <Pet species={species} stage="mochi" mood={i === 0 ? "excited" : "happy"} className="size-12 shrink-0" title={e.pet_name ?? "pet"} />
+                <li key={e.rank} className={`flex items-center gap-4 rounded-[16px] px-3 py-3 ${mine ? "bg-field" : ""}`}>
+                  <span className="w-8 text-center font-display text-[20px] font-bold tabular-nums">{e.rank}</span>
+                  <Pet species={species} stage="mochi" mood={e.rank === 1 ? "excited" : "happy"} className="size-12 shrink-0" title={e.pet_name ?? "pet"} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{e.pet_name ?? "Unnamed pet"}{mine && " (you)"}</p>
-                    <p className="truncate text-[13px] text-ink-soft">{e.city || "Somewhere"} · {e.jobs_done} jobs</p>
+                    <p className="truncate text-[13px] text-ink-soft">{e.city || "Somewhere"} · {e.tasks_done} tasks</p>
                   </div>
-                  <span className="font-display text-[18px] font-bold tabular-nums">${e.owed_usdc.toFixed(2)}</span>
+                  <span className="font-display text-[18px] font-bold tabular-nums">${e.earned_usdc.toFixed(2)}</span>
                 </li>
               );
             })}

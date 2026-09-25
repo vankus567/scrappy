@@ -23,21 +23,21 @@ const switzer = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Scrappy",
+  title: { default: "Kage: the human shadow for AI agents", template: "%s" },
   manifest: "/manifest.webmanifest",
-  description:
-    "A pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.",
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  description: "When AI needs a human, Kage finds one. Human judgment and consensus as an API, paid in USDC on Solana.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { color: "#f5f5f7" },
+    { color: "#0c0e0d" },
   ],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${pally.variable} ${switzer.variable}`}>
+    <html lang="en" style={{ colorScheme: "dark" }} className={`${pally.variable} ${switzer.variable}`}>
       <body>{children}</body>
     </html>
   );

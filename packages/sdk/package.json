@@ -1,7 +1,7 @@
 {
-  "name": "@scrappy/human",
+  "name": "@kage/sdk",
   "version": "0.1.0",
-  "description": "Call a human like you call an API. Scrappy Human API client with x402 payments on Solana.",
+  "description": "Kage: the human API for AI agents. Call real humans for judgment and consensus, paid in USDC on Solana.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",

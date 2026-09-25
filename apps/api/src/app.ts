@@ -1,167 +1,412 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import { decodePaymentResponseHeader } from "@x402/core/http";
 import { z } from "zod";
-import type { Store } from "./store";
+import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
+import { type Db, toUsdc } from "./db";
+import { type Rpc, verifyDeposit } from "./payments";
+import { isFinal, responseSchema, type TaskInput, taskInput, type TaskService, type TaskStatus, WORKER_SHARE } from "./tasks";
 
-export const VERIFY_PRICE_USDC = 0.05;
-export const WORKER_SHARE = 0.8;
+type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
+type Env = { Variables: { input: TaskInput; billing: Billing; taskId?: string } };
 
-const verifyBody = z.object({
-  task: z.string().min(3).max(500),
-  content: z.string().max(4000).optional(),
-  options: z.array(z.string().max(500)).min(2).max(6).optional(),
-  requirements: z
-    .object({
-      language: z.string().min(2).max(5).default("en"),
-      domain: z.string().min(2).max(40).default("general"),
-      max_latency: z.number().int().min(5).max(600).default(60), // seconds
-      min_accuracy: z.number().min(0).max(1).default(0.8),
-    })
-    .prefault({}),
+export type AppDeps = {
+  db: Db;
+  tasks: TaskService;
+  auth: Auth;
+  /** x402 payment middleware in production; tests inject a stand-in. */
+  paywall: MiddlewareHandler;
+  rpc?: Rpc;
+  platformWallet?: string;
+  network?: string;
+  pushPublicKey?: string;
+};
+
+const lang = z.string().trim().toLowerCase().min(2).max(5);
+const workerBody = z.object({
+  wallet: z.string().regex(SOLANA_ADDRESS),
+  languages: z.array(lang).min(1).max(40),
+  pet_name: z.string().trim().min(1).max(20).optional(),
+  species: z.string().trim().regex(/^[a-z]{2,12}$/).optional(),
+  city: z.string().trim().max(40).optional(),
 });
-
+const profilePatch = workerBody.omit({ wallet: true }).partial();
+const signInBody = z.object({ wallet: z.string().regex(SOLANA_ADDRESS), nonce: z.string(), issued_at: z.string(), signature: z.string().max(120) });
+const respondBody = z.object({ answer: z.string().min(1).max(2000), confidence: z.number().min(0).max(100).default(80) });
+const pushBody = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
+const projectBody = z.object({ name: z.string().trim().min(2).max(60), funding_wallet: z.string().regex(SOLANA_ADDRESS).optional() });
 const goldBody = z.object({
   task: z.string().min(3).max(500),
   content: z.string().max(4000).optional(),
-  options: z.array(z.string().max(500)).min(2).max(6).optional(),
-  language: z.string().min(2).max(5),
-  domain: z.string().min(2).max(40).default("general"),
-  answer: z.string().min(1).max(500),
+  response_schema: responseSchema,
+  language: lang,
+  skill: z.string().regex(/^[a-z0-9_-]{2,40}$/).default("general"),
+  answer: z.string().min(1).max(300),
 });
 
-const answerBody = z.object({
-  worker_id: z.string().uuid(),
-  answer: z.string().min(1).max(2000),
-  confidence: z.number().min(0).max(100),
-});
+const DAY = 86_400_000;
+const bad = (c: Context, err: z.ZodError) => c.json({ error: "invalid_request", issues: z.flattenError(err).fieldErrors }, 400);
+const body = async (c: Context) => c.req.json().catch(() => null);
 
-const workerBody = z.object({
-  wallet: z.string().min(32).max(44),
-  languages: z.array(z.string().min(2).max(5)).min(1).max(40),
-  pet_name: z.string().min(1).max(20).optional(),
-  species: z.string().min(2).max(12).optional(),
-  city: z.string().max(40).optional(),
-});
+export function createApp(deps: AppDeps) {
+  const { db, tasks, auth } = deps;
+  const app = new Hono<Env>();
 
-function publicResult(job: NonNullable<ReturnType<Store["getJob"]>>) {
-  const answered = job.status === "answered";
-  return {
-    job_id: job.id,
-    status: job.status,
-    ...(answered && {
-      answer: job.answer,
-      confidence: (job.confidence ?? 0) / 100,
-      human_id: job.assigned_to,
-      latency_ms: (job.answered_at ?? 0) - job.created_at,
-    }),
-  };
-}
-
-/**
- * The Human API. `paywall` guards the paid endpoint (x402 in production).
- * Tests pass a pass-through paywall; production always wires the real x402 middleware.
- */
-export function createApp(store: Store, paywall: MiddlewareHandler) {
-  const app = new Hono();
-  app.use("*", cors({ origin: (process.env.WEB_ORIGINS ?? "http://localhost:3000").split(","), exposeHeaders: ["x-payment-response"] }));
+  app.use("*", cors({
+    origin: (process.env.WEB_ORIGINS ?? "http://localhost:3000").split(","),
+    allowHeaders: ["content-type", "authorization", "payment-signature", "x-payment", "x-admin-token"],
+    exposeHeaders: ["payment-response", "payment-required", "x-payment-response"],
+  }));
+  app.onError((err, c) => {
+    console.error(err);
+    return c.json({ error: "internal_error" }, 500);
+  });
 
   app.get("/health", (c) => c.json({ ok: true }));
+  app.get("/v1/config", (c) =>
+    c.json({ network: deps.network ?? null, platform_wallet: deps.platformWallet ?? null, push_public_key: deps.pushPublicKey ?? null, worker_share: WORKER_SHARE }),
+  );
 
-  // ---- agents ----
-  app.post("/v1/human/verify", paywall, async (c) => {
-    const parsed = verifyBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-    const b = parsed.data;
-    const job = store.createJob({
-      task: b.task,
-      content: b.content ?? null,
-      options: b.options ?? null,
-      language: b.requirements.language,
-      domain: b.requirements.domain,
-      max_latency_ms: b.requirements.max_latency * 1000,
-      min_accuracy: b.requirements.min_accuracy,
-      price_usdc: VERIFY_PRICE_USDC,
-      payment_tx: c.res.headers.get("x-payment-response") ?? null,
-    });
+  // ================= agents: paid human tasks =================
 
-    // wait for a human, up to the agent's latency budget (capped at 30 s per request)
-    const deadline = Date.now() + Math.min(job.max_latency_ms, 30_000);
-    while (Date.now() < deadline) {
-      const cur = store.getJob(job.id)!;
-      if (cur.status === "answered") return c.json(publicResult(cur));
+  /** Validate, pick billing (API key balance or x402), check capacity before anyone is asked to pay. */
+  const billing: MiddlewareHandler<Env> = async (c, next) => {
+    const parsed = taskInput.safeParse(await body(c));
+    if (!parsed.success) return bad(c, parsed.error);
+    c.set("input", parsed.data);
+
+    const key = bearer(c.req.header("authorization"));
+    if (key) {
+      const project = auth.projectForKey(key);
+      if (!project) return c.json({ error: "invalid_api_key" }, 401);
+      c.set("billing", { mode: "balance", projectId: project.id });
+      return next();
+    }
+
+    c.set("billing", { mode: "x402" });
+    const i = parsed.data;
+    if (!i.extends) {
+      const cap = tasks.capacity({ language: i.language, skill: i.skill, min_accuracy: i.min_accuracy });
+      if (cap.available < i.humans) {
+        return c.json({ status: "insufficient_capacity", reason: "Not enough qualified humans are online for this task right now", available: cap.available, required: i.humans }, 409);
+      }
+    }
+    // x402: the handler runs inside the paywall; settlement happens after it returns
+    const challenge = await deps.paywall(c, next);
+    if (challenge) return challenge; // 402 payment required / payment error: handler never ran
+    const taskId = c.get("taskId");
+    if (!taskId) return;
+    const header = c.res.headers.get("payment-response");
+    const settle = header ? safeDecode(header) : null;
+    if (c.res.status < 300 && settle?.success && settle.transaction) tasks.markFunded(taskId, settle.transaction, settle.payer);
+    else tasks.cancelUnpaid(taskId);
+  };
+
+  const create = (c: Context<Env>) => {
+    const r = tasks.createTask(c.get("input"), c.get("billing"));
+    if (!r.ok) return c.json(r.detail ?? { error: r.error }, r.status as 400);
+    c.set("taskId", r.task.id);
+    return c.json(
+      {
+        task_id: r.task.id,
+        status: r.task.status === "pending_payment" ? "matching" : r.task.status,
+        humans_requested: r.task.humans_required,
+        price_usdc: toUsdc(r.task.budget_micro),
+        deadline_at: new Date(r.task.deadline_at).toISOString(),
+        poll: `/v1/tasks/${r.task.id}?wait=20`,
+      },
+      201,
+    );
+  };
+
+  const paidLimit = rateLimit("paid", 120);
+  app.post("/v1/tasks", paidLimit, billing, create);
+  app.post("/v1/consensus", paidLimit, billing, create);
+
+  /** Result. `?wait=N` long-polls up to N (<=25) seconds for the task to finish. */
+  app.get("/v1/tasks/:id", rateLimit("read", 600), async (c) => {
+    const id = c.req.param("id");
+    const t = tasks.getTask(id);
+    if (!t || t.is_gold) return c.json({ error: "not found" }, 404);
+    if (t.project_id) {
+      const p = auth.projectForKey(bearer(c.req.header("authorization")));
+      if (p?.id !== t.project_id) return c.json({ error: "not found" }, 404);
+    }
+    const until = Date.now() + Math.min(Math.max(Number(c.req.query("wait") ?? 0), 0), 25) * 1000;
+    for (;;) {
+      tasks.sweep();
+      const cur = tasks.getTask(id)!;
+      if (isFinal(cur.status as TaskStatus) || Date.now() >= until) return c.json(tasks.publicResult(id));
       await Bun.sleep(250);
     }
-    return c.json({ ...publicResult(store.getJob(job.id)!), poll: `/v1/jobs/${job.id}` }, 202);
   });
 
-  app.get("/v1/jobs/:id", (c) => {
-    const job = store.getJob(c.req.param("id"));
-    return job && !job.is_gold ? c.json(publicResult(job)) : c.json({ error: "not found" }, 404);
+  /** Free: how many qualified humans are online right now. */
+  app.get("/v1/capacity", rateLimit("read", 600), (c) => {
+    const q = z.object({ language: lang.default("en"), skill: z.string().default("general"), min_accuracy: z.coerce.number().min(0).max(1).default(0.8) }).safeParse(c.req.query());
+    if (!q.success) return bad(c, q.error);
+    return c.json(tasks.capacity(q.data));
   });
 
-  // ---- admin: gold tasks (hidden known-answer checks) ----
+  // ================= workers =================
+
+  const worker = (c: Context) => auth.workerForToken(bearer(c.req.header("authorization")));
+
+  app.post("/v1/workers", rateLimit("signup", 10), async (c) => {
+    const p = workerBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const { wallet, languages, ...profile } = p.data;
+    const r = auth.registerWorker(wallet, languages, profile);
+    if (!r.ok) return c.json({ error: "wallet_registered", message: r.error }, 409);
+    return c.json({ worker_token: r.token, tasks_done: 0 }, 201);
+  });
+
+  app.post("/v1/workers/session", rateLimit("signin", 20), async (c) => {
+    const p = signInBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = await auth.signIn(p.data.wallet, p.data.nonce, p.data.issued_at, p.data.signature);
+    if (!r.ok) return c.json({ error: r.error }, 401);
+    const w = r.worker;
+    return c.json({ worker_token: r.token, profile: { pet_name: w.pet_name, species: w.species, city: w.city, languages: JSON.parse(w.languages) } });
+  });
+
+  app.get("/v1/worker/me", (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const now = Date.now();
+    const tz = Number(c.req.query("tz_offset") ?? 0) * 60_000; // client's getTimezoneOffset(), minutes
+    const dayStart = Math.floor((now - tz) / DAY) * DAY + tz;
+    const sum = (since: number) =>
+      (db.query("SELECT COALESCE(SUM(paid_micro), 0) AS s FROM task_responses WHERE worker_id = ? AND created_at >= ?").get(w.id, since) as any).s;
+    const rep = db.query("SELECT COUNT(*) AS n, COALESCE(SUM(correct), 0) AS k FROM reputation_events WHERE worker_id = ?").get(w.id) as any;
+    const lat = db.query("SELECT AVG(latency_ms) AS a FROM task_responses WHERE worker_id = ?").get(w.id) as any;
+    const paid = db.query("SELECT COALESCE(SUM(amount_micro), 0) AS s FROM payments WHERE kind = 'payout' AND worker_id = ?").get(w.id) as any;
+    return c.json({
+      wallet: w.wallet,
+      pet_name: w.pet_name,
+      species: w.species,
+      city: w.city,
+      languages: JSON.parse(w.languages),
+      tasks_done: w.tasks_done,
+      accuracy: rep.n >= 3 ? rep.k / rep.n : null,
+      checks: rep.n,
+      avg_response_ms: lat.a === null ? null : Math.round(lat.a),
+      skills: tasks.skillsOf(w.id).filter((s) => s.samples > 0).sort((a, b) => b.samples - a.samples),
+      earnings: { today_usdc: toUsdc(sum(dayStart)), week_usdc: toUsdc(sum(now - 7 * DAY)), total_usdc: toUsdc(w.earned_micro), owed_usdc: toUsdc(w.owed_micro), paid_usdc: toUsdc(paid.s) },
+      payout_hold_until: new Date(w.created_at + 48 * 3_600_000).toISOString(),
+      payout_held: now < w.created_at + 48 * 3_600_000,
+      available_tasks: tasks.availableFor(w, now),
+      qualification_checks: tasks.qualificationFor(w),
+      push: !!w.push_subscription,
+    });
+  });
+
+  app.patch("/v1/worker/me", async (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = profilePatch.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const d = p.data;
+    db.query("UPDATE workers SET languages = COALESCE(?, languages), pet_name = COALESCE(?, pet_name), species = COALESCE(?, species), city = COALESCE(?, city) WHERE id = ?").run(
+      d.languages ? JSON.stringify(d.languages) : null, d.pet_name ?? null, d.species ?? null, d.city ?? null, w.id,
+    );
+    return c.json({ ok: true });
+  });
+
+  app.put("/v1/worker/push", async (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = pushBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    db.query("UPDATE workers SET push_subscription = ? WHERE id = ?").run(JSON.stringify(p.data), w.id);
+    return c.json({ ok: true });
+  });
+
+  app.get("/v1/worker/next", rateLimit("poll", 120), (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const t = tasks.nextFor(w);
+    return t ? c.json(tasks.workerView(t, w)) : c.body(null, 204);
+  });
+
+  app.post("/v1/tasks/:id/respond", rateLimit("respond", 60), async (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = respondBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = tasks.respond(c.req.param("id"), w, p.data.answer, p.data.confidence);
+    return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 400);
+  });
+
+  app.get("/v1/worker/history", (c) => {
+    const w = worker(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const answers = db.query(
+      `SELECT r.task_id, t.prompt, r.answer, r.paid_micro, r.created_at, t.status, t.is_gold, cr.answer AS consensus
+       FROM task_responses r JOIN tasks t ON t.id = r.task_id LEFT JOIN consensus_results cr ON cr.task_id = r.task_id
+       WHERE r.worker_id = ? ORDER BY r.created_at DESC LIMIT 50`,
+    ).all(w.id) as any[];
+    const payouts = db.query("SELECT amount_micro, tx_sig, created_at FROM payments WHERE kind = 'payout' AND worker_id = ? ORDER BY created_at DESC LIMIT 50").all(w.id) as any[];
+    return c.json({
+      answers: answers.map((a) => ({
+        prompt: a.prompt, answer: a.answer, earned_usdc: toUsdc(a.paid_micro), at: new Date(a.created_at).toISOString(),
+        qualification: !!a.is_gold, matched_consensus: a.consensus == null || a.is_gold ? null : a.consensus.toLowerCase() === a.answer.toLowerCase(),
+      })),
+      payouts: payouts.map((p) => ({ amount_usdc: toUsdc(p.amount_micro), tx_sig: p.tx_sig, at: new Date(p.created_at).toISOString() })),
+    });
+  });
+
+  // ================= developers =================
+
+  const project = (c: Context) => auth.projectForKey(bearer(c.req.header("authorization")));
+
+  app.post("/v1/projects", rateLimit("projects", 5), async (c) => {
+    const p = projectBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = auth.createProject(p.data.name, p.data.funding_wallet ?? null);
+    return c.json({ project_id: r.projectId, api_key: r.apiKey, webhook_secret: r.webhookSecret, note: "Store the API key and webhook secret now; they are shown once." }, 201);
+  });
+
+  app.get("/v1/project", (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const now = Date.now();
+    const agg = db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS today,
+         SUM(CASE WHEN status IN ('matching','collecting') THEN 1 ELSE 0 END) AS active,
+         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+         SUM(CASE WHEN status IN ('completed','low_confidence','insufficient_capacity') THEN 1 ELSE 0 END) AS finished,
+         COALESCE(SUM(budget_micro - refund_micro), 0) AS spend
+       FROM tasks WHERE project_id = ?`,
+    ).get(now - DAY, p.id) as any;
+    const q = db.query(
+      "SELECT AVG(cr.latency_ms) AS lat, AVG(cr.agreement) AS agr FROM consensus_results cr JOIN tasks t ON t.id = cr.task_id WHERE t.project_id = ? AND cr.responses > 0",
+    ).get(p.id) as any;
+    return c.json({
+      project: { id: p.id, name: p.name, funding_wallet: p.funding_wallet, created_at: new Date(p.created_at).toISOString() },
+      balance_usdc: toUsdc(p.balance_micro),
+      tasks: { total: agg.total, today: agg.today ?? 0, active: agg.active ?? 0, completed: agg.completed ?? 0 },
+      avg_latency_ms: q.lat === null ? null : Math.round(q.lat),
+      avg_agreement: q.agr,
+      consensus_rate: agg.finished ? (agg.completed ?? 0) / agg.finished : null,
+      human_spend_usdc: toUsdc(agg.spend),
+    });
+  });
+
+  app.patch("/v1/project", async (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const b = projectBody.partial().safeParse(await body(c));
+    if (!b.success) return bad(c, b.error);
+    db.query("UPDATE projects SET name = COALESCE(?, name), funding_wallet = COALESCE(?, funding_wallet) WHERE id = ?").run(b.data.name ?? null, b.data.funding_wallet ?? null, p.id);
+    return c.json({ ok: true });
+  });
+
+  app.get("/v1/project/tasks", (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const rows = db.query("SELECT id FROM tasks WHERE project_id = ? ORDER BY created_at DESC LIMIT 100").all(p.id) as { id: string }[];
+    return c.json({ tasks: rows.map((r) => ({ ...tasks.publicResult(r.id), prompt: tasks.getTask(r.id)!.prompt })) });
+  });
+
+  app.get("/v1/project/keys", (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const keys = db.query("SELECT id, prefix, label, created_at, last_used_at, revoked_at FROM api_keys WHERE project_id = ? ORDER BY created_at").all(p.id) as any[];
+    return c.json({ keys: keys.map((k) => ({ ...k, current: k.id === p.key_id })) });
+  });
+
+  app.post("/v1/project/keys", async (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const b = z.object({ label: z.string().trim().min(1).max(40).default("key") }).safeParse((await body(c)) ?? {});
+    if (!b.success) return bad(c, b.error);
+    const k = auth.createKey(p.id, b.data.label);
+    return c.json({ id: k.id, api_key: k.apiKey }, 201);
+  });
+
+  app.delete("/v1/project/keys/:id", (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    if (c.req.param("id") === p.key_id) return c.json({ error: "you cannot revoke the key you are signed in with" }, 409);
+    const r = db.query("UPDATE api_keys SET revoked_at = ? WHERE id = ? AND project_id = ? AND revoked_at IS NULL").run(Date.now(), c.req.param("id"), p.id);
+    return r.changes ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+  });
+
+  app.post("/v1/project/deposits", rateLimit("deposit", 20), async (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    if (!deps.rpc || !deps.platformWallet) return c.json({ error: "deposits are not configured" }, 503);
+    const b = z.object({ tx_sig: z.string().max(100) }).safeParse(await body(c));
+    if (!b.success) return bad(c, b.error);
+    const r = await verifyDeposit(db, deps.rpc, p, b.data.tx_sig, deps.platformWallet);
+    return r.ok ? c.json({ credited_usdc: toUsdc(r.amount_micro) }) : c.json({ error: r.error }, 400);
+  });
+
+  app.get("/v1/project/payments", (c) => {
+    const p = project(c);
+    if (!p) return c.json({ error: "unauthorized" }, 401);
+    const deposits = db.query("SELECT amount_micro, tx_sig, created_at FROM payments WHERE kind = 'deposit' AND project_id = ? ORDER BY created_at DESC LIMIT 100").all(p.id) as any[];
+    return c.json({ deposits: deposits.map((d) => ({ amount_usdc: toUsdc(d.amount_micro), tx_sig: d.tx_sig, at: new Date(d.created_at).toISOString() })) });
+  });
+
+  // ================= admin: gold tasks =================
   app.post("/v1/admin/gold", async (c) => {
     const token = process.env.ADMIN_TOKEN;
     if (!token || c.req.header("x-admin-token") !== token) return c.json({ error: "forbidden" }, 403);
-    const parsed = goldBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-    const g = parsed.data;
-    const job = store.createJob({
-      task: g.task, content: g.content ?? null, options: g.options ?? null, language: g.language, domain: g.domain,
-      max_latency_ms: 3_600_000, min_accuracy: 0, price_usdc: VERIFY_PRICE_USDC, payment_tx: null, gold_answer: g.answer,
-    });
-    return c.json({ gold_id: job.id });
+    const p = goldBody.safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    try {
+      return c.json({ gold_id: tasks.addGold({ ...p.data, schema: p.data.response_schema }) }, 201);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400);
+    }
   });
 
-  // ---- workers ----
-  app.post("/v1/workers", async (c) => {
-    const parsed = workerBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-    const { wallet, languages, ...profile } = parsed.data;
-    const w = store.createWorker(wallet, languages, profile);
-    return c.json({ worker_id: w.id, jobs_done: w.jobs_done, owed_usdc: w.owed_usdc });
-  });
-
-  app.get("/v1/workers/:id", (c) => {
-    const w = store.getWorker(c.req.param("id"));
-    if (!w) return c.json({ error: "not found" }, 404);
+  // ================= public network data =================
+  app.get("/v1/stats", (c) => {
+    const now = Date.now();
+    const answers = db.query("SELECT COUNT(*) AS n FROM task_responses r JOIN tasks t ON t.id = r.task_id WHERE t.is_gold = 0").get() as any;
+    const done = db.query(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(t.budget_micro - t.refund_micro), 0) AS spend FROM tasks t
+       WHERE t.is_gold = 0 AND t.status IN ('completed','low_confidence','insufficient_capacity') AND (t.billing = 'balance' OR t.payment_tx IS NOT NULL)`,
+    ).get() as any;
+    const lats = (db.query("SELECT cr.latency_ms AS l FROM consensus_results cr JOIN tasks t ON t.id = cr.task_id WHERE t.is_gold = 0 AND cr.responses > 0 ORDER BY l").all() as any[]).map((r) => r.l);
+    const agr = db.query("SELECT AVG(cr.agreement) AS a FROM consensus_results cr JOIN tasks t ON t.id = cr.task_id WHERE t.is_gold = 0 AND cr.responses >= 2").get() as any;
+    const paidOut = db.query("SELECT COALESCE(SUM(amount_micro), 0) AS s FROM payments WHERE kind = 'payout'").get() as any;
+    const workers = db.query("SELECT COUNT(*) AS n, SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS online FROM workers").get(now - 45_000) as any;
     return c.json({
-      worker_id: w.id,
-      languages: w.languages,
-      jobs_done: w.jobs_done,
-      owed_usdc: w.owed_usdc,
-      payout_held: store.payoutHeld(w),
-      skills: store.skillsOf(w.id),
+      human_answers: answers.n,
+      tasks_finished: done.n,
+      agent_spend_usdc: toUsdc(done.spend),
+      paid_to_humans_usdc: toUsdc(paidOut.s),
+      median_latency_ms: lats.length ? lats[Math.floor(lats.length / 2)] : null,
+      avg_agreement: agr.a,
+      workers: workers.n,
+      workers_online: workers.online ?? 0,
     });
   });
 
-  app.get("/v1/workers/:id/next", (c) => {
-    const w = store.getWorker(c.req.param("id"));
-    if (!w) return c.json({ error: "worker not found" }, 404);
-    const job = store.nextJobFor(w);
-    if (!job) return c.body(null, 204);
+  app.get("/v1/leaderboard", (c) => {
+    const me = worker(c);
+    const city = c.req.query("city")?.slice(0, 40);
+    const rows = (city
+      ? db.query("SELECT id, pet_name, species, city, tasks_done, earned_micro FROM workers WHERE city = ? AND tasks_done > 0 ORDER BY earned_micro DESC, tasks_done DESC LIMIT 50").all(city)
+      : db.query("SELECT id, pet_name, species, city, tasks_done, earned_micro FROM workers WHERE tasks_done > 0 ORDER BY earned_micro DESC, tasks_done DESC LIMIT 50").all()) as any[];
     return c.json({
-      job_id: job.id,
-      task: job.task,
-      content: job.content,
-      options: job.options,
-      language: job.language,
-      domain: job.domain,
-      pays_usdc: Math.round(job.price_usdc * WORKER_SHARE * 1e6) / 1e6,
-      answer_within_ms: 60_000,
+      entries: rows.map((r, i) => ({ rank: i + 1, pet_name: r.pet_name, species: r.species, city: r.city, tasks_done: r.tasks_done, earned_usdc: toUsdc(r.earned_micro), you: r.id === me?.id })),
     });
   });
-
-  app.post("/v1/jobs/:id/answer", async (c) => {
-    const parsed = answerBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-    const r = store.answer(c.req.param("id"), parsed.data.worker_id, parsed.data.answer, parsed.data.confidence, WORKER_SHARE);
-    return r.ok ? c.json(r) : c.json({ error: r.error }, 409);
-  });
-
-  // ---- public network data ----
-  app.get("/v1/leaderboard", (c) => c.json({ entries: store.leaderboard(50, c.req.query("city") || undefined) }));
-  app.get("/v1/stats", (c) => c.json(store.stats()));
 
   return app;
+}
+
+function safeDecode(h: string) {
+  try {
+    return decodePaymentResponseHeader(h);
+  } catch {
+    return null;
+  }
 }

@@ -1,5 +1,5 @@
-import { PetGate } from "@/components/app/PetGate";
+import { Home } from "@/components/app/Home";
 
 export default function AppHome() {
-  return <PetGate />;
+  return <Home />;
 }

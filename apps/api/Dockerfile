@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY packages/sdk/package.json packages/sdk/
-RUN bun install --frozen-lockfile --filter @scrappy/api
+RUN bun install --frozen-lockfile --filter @kage/api
 COPY apps/api apps/api
 WORKDIR /app/apps/api
 ENV PORT=8787

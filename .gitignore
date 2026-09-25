@@ -16,3 +16,8 @@ New Text Document.*
 
 # private strategy notes
 ideas/
+
+# Android signing (never commit)
+*.keystore
+*.jks
+android-twa/

@@ -1,4 +1,4 @@
-# Scrappy: Architecture
+# Kage: Architecture
 
 Companion to `PRD.md`. Stack rules: TypeScript everywhere offchain, Bun runtime, Anchor (Rust) onchain.
 Items marked **[verify]** are library/API details to confirm on day 1 before building on them.
@@ -13,7 +13,7 @@ flowchart LR
     A1[AI agent<br/>MCP client] -->|ask_human| MCP[MCP server]
     A2[AI agent / backend<br/>HTTP] -->|POST /v1/jobs| API
   end
-  MCP -->|x402 pay + create job| API[Scrappy API<br/>Bun + Hono]
+  MCP -->|x402 pay + create job| API[Kage API<br/>Bun + Hono]
   API -->|verify/settle x402| FAC[x402 facilitator<br/>Solana]
   FAC -->|USDC transfer| ESC[(Job escrow<br/>program PDA)]
   API --> DB[(Postgres)]
@@ -22,7 +22,7 @@ flowchart LR
   PUSH --> APP[Mobile app<br/>Expo / React Native]
   APP -->|answers| API
   Q -->|easy jobs| LLM[LLM provider<br/>pet auto-answer]
-  API -->|settle_job / refund| PROG[Scrappy Anchor program]
+  API -->|settle_job / refund| PROG[Kage Anchor program]
   PROG --> ESC
   PROG --> PV[(Pet vault<br/>USDC ATA)]
   HEL[Helius webhooks] -->|program events| IDX[Indexer]
@@ -37,8 +37,8 @@ Principle: **money and final state onchain, fast game state offchain.** Balances
 ## 2. Repo layout (Bun workspaces monorepo)
 
 ```
-scrappy/
-├─ programs/scrappy/          # Anchor program (Rust)
+kage/
+├─ programs/kage/          # Anchor program (Rust)
 ├─ apps/
 │  ├─ mobile/                 # Expo React Native app (Android)
 │  ├─ api/                    # Bun + Hono API, x402 seller, router, settlement worker
@@ -52,7 +52,7 @@ scrappy/
 └─ tests/                     # LiteSVM program tests, API integration tests
 ```
 
-## 3. Onchain program (`scrappy`)
+## 3. Onchain program (`kage`)
 
 ### Accounts
 | Account | Seeds | Fields |
@@ -91,9 +91,9 @@ Hackathon trust model: the settler key (API) decides acceptance and payees. It i
 ```mermaid
 sequenceDiagram
   participant Ag as Buyer agent
-  participant API as Scrappy API
+  participant API as Kage API
   participant F as x402 facilitator
-  participant P as Scrappy program
+  participant P as Kage program
   Ag->>API: POST /v1/jobs {type, lang, content, answers}
   API->>P: open_job (Job PDA + escrow ATA)
   API-->>Ag: 402 Payment Required {amount, asset USDC, payTo = escrow ATA, network solana}
@@ -267,7 +267,7 @@ Screens: Hatch · Home (pet, food, balance, rank chip) · Job card · Earnings f
 SOLANA_CLUSTER=devnet|mainnet-beta
 HELIUS_API_KEY=...
 USDC_MINT=...
-SCRAPPY_PROGRAM_ID=...
+KAGE_PROGRAM_ID=...
 SETTLER_KEYPAIR=kms://...
 X402_FACILITATOR_URL=...
 DATABASE_URL=postgres://...

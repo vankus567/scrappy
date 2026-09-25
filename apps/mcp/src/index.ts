@@ -1,52 +1,101 @@
-// Scrappy MCP server: gives any MCP client (Claude Code, Cursor, agents) an `ask_human` tool.
-// Each call pays a real human through the Human API (x402, USDC on Solana) from the agent wallet.
+// Kage MCP server: gives any MCP client (Claude Code, Cursor, agents) human judgment as tools.
+// Every call pays real humans in USDC on Solana: from a project balance (KAGE_API_KEY) or an agent wallet via x402 (KAGE_AGENT_SECRET).
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createHuman } from "../../../packages/sdk/src/index";
+import { Kage } from "../../../packages/sdk/src/index";
 
-const secretKey = process.env.SCRAPPY_AGENT_SECRET;
-if (!secretKey) {
-  console.error("SCRAPPY_AGENT_SECRET (base58 64-byte agent wallet key) is required.");
+const apiKey = process.env.KAGE_API_KEY;
+const walletSecretKey = process.env.KAGE_AGENT_SECRET;
+if (!apiKey && !walletSecretKey) {
+  console.error("Set KAGE_API_KEY (project key) or KAGE_AGENT_SECRET (base58 64-byte agent wallet key).");
   process.exit(1);
 }
-const human = await createHuman({ apiUrl: process.env.SCRAPPY_API ?? "http://localhost:8787", secretKey });
+const kage = new Kage({ baseUrl: process.env.KAGE_API ?? "https://kageai.me", apiKey, walletSecretKey });
 
-const server = new McpServer({ name: "scrappy", version: "0.1.0" });
+const server = new McpServer({ name: "kage", version: "0.2.0" });
+
+const taskFields = {
+  task: z.string().describe("What the humans should decide, as a question"),
+  content: z.string().optional().describe("Material to judge: a reply, a translation, a code diff"),
+  options: z.array(z.string()).optional().describe("Choices; omit for a yes/no question"),
+  response_schema: z
+    .object({ type: z.enum(["binary", "choice", "rating", "text"]), options: z.array(z.string()).optional(), scale: z.number().optional() })
+    .optional()
+    .describe("Answer shape; default yes/no, or choice when options are given"),
+  language: z.string().optional().describe("ISO language code, default en"),
+  skill: z.string().optional().describe("Routing skill, e.g. translation, security, support"),
+  budget: z.number().optional().describe("Total USDC for this round; default $0.05 per human"),
+  deadline: z.number().optional().describe("Seconds you can wait (10-600), default 60"),
+};
+
+const text = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(v, null, 2) }] });
+const fail = (err: unknown) => ({ isError: true, content: [{ type: "text" as const, text: err instanceof Error ? err.message : String(err) }] });
+const summary = (r: Awaited<ReturnType<Kage["consensus"]>>) => ({
+  status: r.status, answer: r.answer, agreement: r.agreement, confidence: r.confidence, humans: r.humans, votes: r.votes,
+  latency_ms: r.latency_ms, spent_usdc: r.spent_usdc, task_id: r.task_id,
+  ...(r.status === "insufficient_capacity" && { reason: r.reason, available: r.available, required: r.required }),
+});
 
 server.registerTool(
-  "ask_human",
+  "kage_ask_human",
   {
     title: "Ask a human",
     description:
-      "Pay a real human (USDC on Solana) for a quick judgment when you are unsure: fact checks, which answer is right, " +
-      "whether text in a language sounds natural. Returns the answer and the human's confidence. Applies a confidence policy: " +
-      "a second human below 90%, an expert below 70% or on disagreement.",
+      "Pay one real human (USDC on Solana) for a quick judgment when you are unsure: is this correct, is this safe, does this " +
+      "sound natural in a language. Returns the answer and the human's confidence, or status insufficient_capacity if nobody qualified is online.",
+    inputSchema: taskFields,
+  },
+  async (a) => {
+    try {
+      return text(summary(await kage.askHuman({ ...a, responseSchema: a.response_schema as never })));
+    } catch (e) {
+      return fail(e);
+    }
+  },
+);
+
+server.registerTool(
+  "kage_consensus",
+  {
+    title: "Get human consensus",
+    description:
+      "Ask several independent humans the same question and get the majority answer with agreement (0-1). Use before " +
+      "irreversible actions (deploying, sending, refunding). If agreement is below quality_threshold, Kage can add more humans up to max_humans.",
     inputSchema: {
-      task: z.string().describe("What the human should decide"),
-      content: z.string().optional().describe("Text to judge"),
-      options: z.array(z.string()).optional().describe("Choices, if any"),
-      language: z.string().optional().describe("ISO code, default en"),
-      domain: z.string().optional().describe("e.g. crypto, math, support"),
-      deadline: z.number().optional().describe("Seconds you can wait, default 60"),
+      ...taskFields,
+      humans: z.number().int().min(1).max(15).optional().describe("Independent humans, default 3"),
+      quality_threshold: z.number().optional().describe("Agreement you need, default 0.8"),
+      max_humans: z.number().int().optional().describe("Escalate up to this many humans in total when agreement is low"),
+      max_budget: z.number().optional().describe("Hard cap on total USDC across rounds"),
     },
   },
-  async (args) => {
+  async (a) => {
     try {
-      const r = await human.askWithPolicy(args);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ answer: r.answer, confidence: Number(r.confidence.toFixed(3)), decision: r.decision, humans: r.trail.length }, null, 2),
-          },
-        ],
-      };
-    } catch (err) {
-      return { isError: true, content: [{ type: "text", text: err instanceof Error ? err.message : String(err) }] };
+      return text(summary(await kage.consensus({
+        ...a, responseSchema: a.response_schema as never, qualityThreshold: a.quality_threshold, maxHumans: a.max_humans, maxBudget: a.max_budget,
+      })));
+    } catch (e) {
+      return fail(e);
+    }
+  },
+);
+
+server.registerTool(
+  "kage_find_capacity",
+  {
+    title: "Find human capacity",
+    description: "Free. How many qualified humans are online right now for a language and skill. Check before asking many humans.",
+    inputSchema: { language: z.string().optional(), skill: z.string().optional(), min_accuracy: z.number().optional() },
+  },
+  async (a) => {
+    try {
+      return text(await kage.findCapacity({ language: a.language, skill: a.skill, minAccuracy: a.min_accuracy }));
+    } catch (e) {
+      return fail(e);
     }
   },
 );
 
 await server.connect(new StdioServerTransport());
-console.error(`Scrappy MCP ready. Agent wallet ${human.address}`);
+console.error("Kage MCP ready.");

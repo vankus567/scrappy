@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0c0e0d"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="54">
+    <!-- cast shadow: the k lying on the ground behind it -->
+    <path d="M200 120v230M200 270l104-100M240 240l74 110" stroke="#dfe8b8" opacity="0.16"
+          transform="translate(0 350) skewX(40) scale(1 -0.3) translate(0 -350)"/>
+    <path d="M200 120v230M200 270l104-100M240 240l74 110" stroke="#dfe8b8"/>
+  </g>
+</svg>

@@ -1,5 +1,5 @@
 {
-  "name": "@scrappy/api",
+  "name": "@kage/api",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,10 +17,12 @@
     "@x402/hono": "^2.27.0",
     "@x402/svm": "^2.27.0",
     "hono": "^4.13.9",
+    "web-push": "^3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "@types/web-push": "^3.6.4",
     "typescript": "^7.0.2"
   }
 }
