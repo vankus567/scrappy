@@ -1,19 +1,19 @@
-// Kage MCP server: gives any MCP client (Claude Code, Cursor, agents) human judgment as tools.
-// Every call pays real humans in USDC on Solana: from a project balance (KAGE_API_KEY) or an agent wallet via x402 (KAGE_AGENT_SECRET).
+// Scrappy MCP server: gives any MCP client (Claude Code, Cursor, agents) human judgment as tools.
+// Every call pays real humans in USDC on Solana: from a project balance (SCRAPPY_API_KEY) or an agent wallet via x402 (SCRAPPY_AGENT_SECRET).
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { Kage } from "../../../packages/sdk/src/index";
+import { Scrappy } from "../../../packages/sdk/src/index";
 
-const apiKey = process.env.KAGE_API_KEY;
-const walletSecretKey = process.env.KAGE_AGENT_SECRET;
+const apiKey = process.env.SCRAPPY_API_KEY ?? process.env.KAGE_API_KEY;
+const walletSecretKey = process.env.SCRAPPY_AGENT_SECRET ?? process.env.KAGE_AGENT_SECRET;
 if (!apiKey && !walletSecretKey) {
-  console.error("Set KAGE_API_KEY (project key) or KAGE_AGENT_SECRET (base58 64-byte agent wallet key).");
+  console.error("Set SCRAPPY_API_KEY (project key) or SCRAPPY_AGENT_SECRET (base58 64-byte agent wallet key).");
   process.exit(1);
 }
-const kage = new Kage({ baseUrl: process.env.KAGE_API ?? "https://kageai.me", apiKey, walletSecretKey });
+const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? process.env.KAGE_API ?? "https://kageai.me", apiKey, walletSecretKey });
 
-const server = new McpServer({ name: "kage", version: "0.2.0" });
+const server = new McpServer({ name: "scrappy", version: "0.2.0" });
 
 const taskFields = {
   task: z.string().describe("What the humans should decide, as a question"),
@@ -31,14 +31,14 @@ const taskFields = {
 
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(v, null, 2) }] });
 const fail = (err: unknown) => ({ isError: true, content: [{ type: "text" as const, text: err instanceof Error ? err.message : String(err) }] });
-const summary = (r: Awaited<ReturnType<Kage["consensus"]>>) => ({
+const summary = (r: Awaited<ReturnType<Scrappy["consensus"]>>) => ({
   status: r.status, answer: r.answer, agreement: r.agreement, confidence: r.confidence, humans: r.humans, votes: r.votes,
   latency_ms: r.latency_ms, spent_usdc: r.spent_usdc, task_id: r.task_id,
   ...(r.status === "insufficient_capacity" && { reason: r.reason, available: r.available, required: r.required }),
 });
 
 server.registerTool(
-  "kage_ask_human",
+  "scrappy_ask_human",
   {
     title: "Ask a human",
     description:
@@ -48,7 +48,7 @@ server.registerTool(
   },
   async (a) => {
     try {
-      return text(summary(await kage.askHuman({ ...a, responseSchema: a.response_schema as never })));
+      return text(summary(await scrappy.askHuman({ ...a, responseSchema: a.response_schema as never })));
     } catch (e) {
       return fail(e);
     }
@@ -56,12 +56,12 @@ server.registerTool(
 );
 
 server.registerTool(
-  "kage_consensus",
+  "scrappy_consensus",
   {
     title: "Get human consensus",
     description:
       "Ask several independent humans the same question and get the majority answer with agreement (0-1). Use before " +
-      "irreversible actions (deploying, sending, refunding). If agreement is below quality_threshold, Kage can add more humans up to max_humans.",
+      "irreversible actions (deploying, sending, refunding). If agreement is below quality_threshold, Scrappy can add more humans up to max_humans.",
     inputSchema: {
       ...taskFields,
       humans: z.number().int().min(1).max(15).optional().describe("Independent humans, default 3"),
@@ -72,7 +72,7 @@ server.registerTool(
   },
   async (a) => {
     try {
-      return text(summary(await kage.consensus({
+      return text(summary(await scrappy.consensus({
         ...a, responseSchema: a.response_schema as never, qualityThreshold: a.quality_threshold, maxHumans: a.max_humans, maxBudget: a.max_budget,
       })));
     } catch (e) {
@@ -82,7 +82,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "kage_find_capacity",
+  "scrappy_find_capacity",
   {
     title: "Find human capacity",
     description: "Free. How many qualified humans are online right now for a language and skill. Check before asking many humans.",
@@ -90,7 +90,7 @@ server.registerTool(
   },
   async (a) => {
     try {
-      return text(await kage.findCapacity({ language: a.language, skill: a.skill, minAccuracy: a.min_accuracy }));
+      return text(await scrappy.findCapacity({ language: a.language, skill: a.skill, minAccuracy: a.min_accuracy }));
     } catch (e) {
       return fail(e);
     }
@@ -98,4 +98,4 @@ server.registerTool(
 );
 
 await server.connect(new StdioServerTransport());
-console.error("Kage MCP ready.");
+console.error("Scrappy MCP ready.");

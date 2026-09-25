@@ -81,7 +81,7 @@ export function TaskCard({
                 disabled={busy}
                 onClick={() => choose(c.value)}
                 aria-pressed={picked === c.value}
-                className={`kage-focus min-h-14 rounded-[16px] px-4 py-3 text-[17px] font-semibold transition-colors disabled:opacity-60 ${
+                className={`scrappy-focus min-h-14 rounded-[16px] px-4 py-3 text-[17px] font-semibold transition-colors disabled:opacity-60 ${
                   picked === c.value ? "bg-leaf text-on-leaf" : "bg-field hover:bg-field-hover"
                 } ${s.type === "binary" ? "text-center" : "text-left"}`}
               >
@@ -100,7 +100,7 @@ export function TaskCard({
                 disabled={busy}
                 onClick={() => choose(n)}
                 aria-pressed={picked === n}
-                className={`kage-focus min-h-14 flex-1 rounded-[14px] text-[18px] font-bold tabular-nums transition-colors ${picked === n ? "bg-leaf text-on-leaf" : "bg-field hover:bg-field-hover"}`}
+                className={`scrappy-focus min-h-14 flex-1 rounded-[14px] text-[18px] font-bold tabular-nums transition-colors ${picked === n ? "bg-leaf text-on-leaf" : "bg-field hover:bg-field-hover"}`}
               >
                 {n}
               </button>

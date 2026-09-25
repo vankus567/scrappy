@@ -23,10 +23,10 @@ const switzer = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Kage: the human shadow for AI agents", template: "%s" },
+  title: { default: "Scrappy: the human shadow for AI agents", template: "%s" },
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
-  description: "When AI needs a human, Kage finds one. Human judgment and consensus as an API, paid in USDC on Solana.",
+  description: "When AI needs a human, Scrappy finds one. Human judgment and consensus as an API, paid in USDC on Solana.",
 };
 
 export const viewport: Viewport = {

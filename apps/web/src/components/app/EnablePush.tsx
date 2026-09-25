@@ -24,7 +24,7 @@ export function EnablePush({ className = "" }: { className?: string }) {
             setState(e instanceof Error ? e.message : "Could not turn on notifications.");
           }
         }}
-        className="kage-focus rounded-[10px] px-3 py-1.5 font-semibold text-leaf transition-colors hover:bg-field-hover"
+        className="scrappy-focus rounded-[10px] px-3 py-1.5 font-semibold text-leaf transition-colors hover:bg-field-hover"
       >
         {state === "busy" ? "Turning on…" : "Notify me"}
       </button>

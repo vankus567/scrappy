@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Wordmark } from "@/components/kage/Wordmark";
+import { Wordmark } from "@/components/scrappy/Wordmark";
 
-export const metadata = { title: "Kage docs", description: "Call real humans from your AI agent: API, SDK, MCP, consensus, payments." };
+export const metadata = { title: "Scrappy docs", description: "Call real humans from your AI agent: API, SDK, MCP, consensus, payments." };
 
-const API = "https://kageai.me";
+const API = "https://scrappypet.vercel.app";
 
 const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
   {
@@ -12,10 +12,10 @@ const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <P>Create a project in the <A href="/dev">dashboard</A>. You get an API key (shown once) and a webhook secret. Fund it with USDC, or skip keys entirely and pay per call over x402.</P>
-        <Code>{`import { Kage } from "@kage/sdk"; // packages/sdk in the repo
+        <Code>{`import { Scrappy } from "@scrappy/sdk"; // packages/sdk in the repo
 
-const kage = new Kage({ apiKey: process.env.KAGE_API_KEY });
-const r = await kage.askHuman({ task: "Is this reply safe to send?", content: reply });
+const scrappy = new Scrappy({ apiKey: process.env.SCRAPPY_API_KEY });
+const r = await scrappy.askHuman({ task: "Is this reply safe to send?", content: reply });
 // { status: "completed", answer: "no", agreement: 1, confidence: 0.9, humans: 1, ... }`}</Code>
       </>
     ),
@@ -25,8 +25,8 @@ const r = await kage.askHuman({ task: "Is this reply safe to send?", content: re
     title: "Consensus",
     body: (
       <>
-        <P>Ask several independent humans. Nobody sees another person&apos;s answer. Kage returns the majority, the share who agreed, and a confidence weighted by each human&apos;s measured accuracy.</P>
-        <Code>{`const r = await kage.consensus({
+        <P>Ask several independent humans. Nobody sees another person&apos;s answer. Scrappy returns the majority, the share who agreed, and a confidence weighted by each human&apos;s measured accuracy.</P>
+        <Code>{`const r = await scrappy.consensus({
   task: "Which Telugu reply sounds natural?",
   options: ["A", "B"],
   language: "te",
@@ -72,8 +72,8 @@ const r = await kage.askHuman({ task: "Is this reply safe to send?", content: re
     title: "Capacity, before you pay",
     body: (
       <>
-        <P>Kage never hangs and never pretends. If not enough qualified humans are online, the create call answers <C>409</C> before any payment is taken. Check first for free:</P>
-        <Code>{`await kage.findCapacity({ language: "hi", skill: "support" });
+        <P>Scrappy never hangs and never pretends. If not enough qualified humans are online, the create call answers <C>409</C> before any payment is taken. Check first for free:</P>
+        <Code>{`await scrappy.findCapacity({ language: "hi", skill: "support" });
 // { online: 41, available: 12 }
 
 // POST /v1/consensus when short:
@@ -87,9 +87,9 @@ const r = await kage.askHuman({ task: "Is this reply safe to send?", content: re
     title: "Payments",
     body: (
       <>
-        <P><b className="text-ink">Prepaid balance.</b> Send USDC on Solana from your project&apos;s funding wallet to the Kage platform wallet, then paste the transaction signature in the dashboard. Kage verifies the transfer on-chain and credits it once. Tasks debit the balance; unfilled seats go straight back.</P>
+        <P><b className="text-ink">Prepaid balance.</b> Send USDC on Solana from your project&apos;s funding wallet to the Scrappy platform wallet, then paste the transaction signature in the dashboard. Scrappy verifies the transfer on-chain and credits it once. Tasks debit the balance; unfilled seats go straight back.</P>
         <P><b className="text-ink">Per call, no account (x402).</b> Call without an API key. The endpoint answers <C>402</C>; an x402 client signs a USDC payment for exactly <C>humans × reward</C> and retries. The task only goes live after settlement.</P>
-        <Code>{`const kage = new Kage({ walletSecretKey: process.env.AGENT_SECRET }); // base58, 64 bytes`}</Code>
+        <Code>{`const scrappy = new Scrappy({ walletSecretKey: process.env.AGENT_SECRET }); // base58, 64 bytes`}</Code>
         <P>Humans receive 80% of each seat. Payouts to their wallets are real USDC transfers with public signatures.</P>
       </>
     ),
@@ -99,10 +99,10 @@ const r = await kage.askHuman({ task: "Is this reply safe to send?", content: re
     title: "Webhooks",
     body: (
       <>
-        <P>Pass <C>webhookUrl</C> (public https) on a project task and Kage posts <C>task.finished</C> with the result. Every request is signed: <C>x-kage-signature: t=&lt;ms&gt;,v1=&lt;hex hmac-sha256(&quot;t.body&quot;)&gt;</C>.</P>
-        <Code>{`import { verifyWebhook } from "@kage/sdk";
+        <P>Pass <C>webhookUrl</C> (public https) on a project task and Scrappy posts <C>task.finished</C> with the result. Every request is signed: <C>x-scrappy-signature: t=&lt;ms&gt;,v1=&lt;hex hmac-sha256(&quot;t.body&quot;)&gt;</C>.</P>
+        <Code>{`import { verifyWebhook } from "@scrappy/sdk";
 
-const ok = await verifyWebhook(process.env.KAGE_WEBHOOK_SECRET!, rawBody, req.headers["x-kage-signature"]);
+const ok = await verifyWebhook(process.env.SCRAPPY_WEBHOOK_SECRET!, rawBody, req.headers["x-scrappy-signature"]);
 if (!ok) return res.status(401).end(); // wrong secret, tampered, or older than 5 minutes`}</Code>
       </>
     ),
@@ -112,13 +112,13 @@ if (!ok) return res.status(401).end(); // wrong secret, tampered, or older than 
     title: "MCP",
     body: (
       <>
-        <P>Any MCP client gets three tools: <C>kage_ask_human</C>, <C>kage_consensus</C>, <C>kage_find_capacity</C>.</P>
+        <P>Any MCP client gets three tools: <C>scrappy_ask_human</C>, <C>scrappy_consensus</C>, <C>scrappy_find_capacity</C>.</P>
         <Code>{`{
   "mcpServers": {
-    "kage": {
+    "scrappy": {
       "command": "bun",
       "args": ["<repo>/apps/mcp/src/index.ts"],
-      "env": { "KAGE_API_KEY": "kage_sk_..." }
+      "env": { "SCRAPPY_API_KEY": "scrappy_sk_..." }
     }
   }
 }`}</Code>
@@ -146,7 +146,7 @@ export default function Docs() {
   return (
     <main className="mx-auto grid max-w-[1200px] gap-10 px-4 py-10 sm:px-8 lg:grid-cols-[220px_1fr] lg:py-16">
       <aside className="lg:sticky lg:top-10 lg:self-start">
-        <Link href="/" aria-label="Kage home" className="kage-focus inline-block rounded pb-3"><Wordmark /></Link>
+        <Link href="/" aria-label="Scrappy home" className="scrappy-focus inline-block rounded pb-3"><Wordmark /></Link>
         <nav aria-label="Docs" className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-[15px] lg:flex-col">
           {SECTIONS.map((s) => (
             <a key={s.id} href={`#${s.id}`} className="text-ink-soft transition-colors hover:text-ink">{s.title}</a>

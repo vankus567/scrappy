@@ -1,4 +1,4 @@
-# Design System: Kage
+# Design System: Scrappy
 
 ## 1. Visual Theme & Atmosphere
 A cozy, tactile pocket world: a small living room for one pet, seen on a phone. It should feel like a handheld toy you want to check on (Tamagotchi warmth), built with the restraint of a good fintech app, because real money moves here. Soft, rounded, friendly shapes; generous air; one character that carries all the colour.

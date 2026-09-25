@@ -48,7 +48,7 @@ export type ConsensusOptions = TaskOptions & {
 
 export type TaskStatus = "matching" | "collecting" | "completed" | "low_confidence" | "insufficient_capacity" | "cancelled";
 
-export type KageResult = {
+export type ScrappyResult = {
   status: TaskStatus;
   /** Majority answer, or null if nobody answered. */
   answer: string | null;
@@ -69,16 +69,16 @@ export type KageResult = {
   required?: number;
 };
 
-export class KageError extends Error {
+export class ScrappyError extends Error {
   constructor(message: string, readonly status: number, readonly body: unknown) {
     super(message);
   }
 }
 
-export type KageConfig = {
-  /** Kage API base URL. */
+export type ScrappyConfig = {
+  /** Scrappy API base URL. */
   baseUrl?: string;
-  /** Project API key (kage_sk_...): tasks are paid from your prepaid USDC balance. */
+  /** Project API key (scrappy_sk_...): tasks are paid from your prepaid USDC balance. */
   apiKey?: string;
   /** Or: agent wallet (base58 64-byte secret). Each task is paid per call in USDC via x402. */
   walletSecretKey?: string;
@@ -103,20 +103,20 @@ const toBody = (o: TaskOptions & { humans?: number; qualityThreshold?: number; e
 });
 
 /**
- * Kage: call humans like you call an API.
+ * Scrappy: call humans like you call an API.
  *
- *   const kage = new Kage({ apiKey: process.env.KAGE_API_KEY });
- *   const r = await kage.consensus({ task: "Is this code vulnerable?", content: diff, humans: 3, budget: 0.3, deadline: 20 });
+ *   const scrappy = new Scrappy({ apiKey: process.env.SCRAPPY_API_KEY });
+ *   const r = await scrappy.consensus({ task: "Is this code vulnerable?", content: diff, humans: 3, budget: 0.3, deadline: 20 });
  *   if (r.answer === "yes") cancelDeploy();
  */
-export class Kage {
+export class Scrappy {
   private readonly baseUrl: string;
   private readonly apiKey?: string;
   private readonly plainFetch: typeof fetch;
   private payingFetch?: Promise<typeof fetch>;
 
-  constructor(config: KageConfig) {
-    if (!config.apiKey && !config.walletSecretKey) throw new Error("Kage needs an apiKey or a walletSecretKey");
+  constructor(config: ScrappyConfig) {
+    if (!config.apiKey && !config.walletSecretKey) throw new Error("Scrappy needs an apiKey or a walletSecretKey");
     this.baseUrl = (config.baseUrl ?? "https://kageai.me").replace(/\/$/, "");
     this.apiKey = config.apiKey;
     this.plainFetch = config.fetch ?? fetch;
@@ -147,7 +147,7 @@ export class Kage {
   async getTask(taskId: string, wait = 0): Promise<any> {
     const res = await this.plainFetch(`${this.baseUrl}/v1/tasks/${taskId}?wait=${wait}`, { headers: this.headers() });
     const json: any = await res.json().catch(() => ({}));
-    if (!res.ok) throw new KageError(json.error ?? `Kage error ${res.status}`, res.status, json);
+    if (!res.ok) throw new ScrappyError(json.error ?? `Scrappy error ${res.status}`, res.status, json);
     return json;
   }
 
@@ -161,14 +161,14 @@ export class Kage {
   private async round(path: string, body: unknown, deadline: number): Promise<{ result: any } | { refused: any }> {
     const { status, json } = await this.post(path, body);
     if (status === 409 && json.status === "insufficient_capacity") return { refused: json };
-    if (status !== 201) throw new KageError(json.error ?? `Kage error ${status}`, status, json);
+    if (status !== 201) throw new ScrappyError(json.error ?? `Scrappy error ${status}`, status, json);
     let r = await this.getTask(json.task_id, 25);
     const until = Date.now() + (deadline + 15) * 1000;
     while (["matching", "collecting"].includes(r.status) && Date.now() < until) r = await this.getTask(json.task_id, 25);
     return { result: r };
   }
 
-  private shape(r: any, rounds: string[], spent: number): KageResult {
+  private shape(r: any, rounds: string[], spent: number): ScrappyResult {
     return {
       status: r.status, answer: r.answer ?? null, agreement: r.agreement ?? 0, confidence: r.confidence ?? 0, humans: r.humans ?? 0,
       votes: r.votes ?? [], latency_ms: r.latency_ms ?? null, task_id: r.task_id, rounds, spent_usdc: Math.round(spent * 1e6) / 1e6,
@@ -177,7 +177,7 @@ export class Kage {
   }
 
   /** One human, one judgment. */
-  async askHuman(o: TaskOptions): Promise<KageResult> {
+  async askHuman(o: TaskOptions): Promise<ScrappyResult> {
     return this.consensus({ ...o, humans: 1, qualityThreshold: 0.5 });
   }
 
@@ -186,7 +186,7 @@ export class Kage {
    * With `maxHumans`, a result below `qualityThreshold` recruits `escalateBy` more humans (never the same people)
    * until the threshold or the cap is reached. Never throws for capacity: returns status "insufficient_capacity".
    */
-  async consensus(o: ConsensusOptions): Promise<KageResult> {
+  async consensus(o: ConsensusOptions): Promise<ScrappyResult> {
     const humans = o.humans ?? 3;
     const threshold = o.qualityThreshold ?? 0.8;
     const deadline = o.deadline ?? 60;
@@ -216,7 +216,7 @@ export class Kage {
   }
 }
 
-/** Verify a Kage webhook: header `x-kage-signature: t=<ms>,v1=<hex>`; rejects anything older than `toleranceMs`. */
+/** Verify a Scrappy webhook: header `x-scrappy-signature: t=<ms>,v1=<hex>`; rejects anything older than `toleranceMs`. */
 export async function verifyWebhook(secret: string, rawBody: string, header: string, toleranceMs = 5 * 60_000, now = Date.now()) {
   const parts = Object.fromEntries(header.split(",").map((p) => p.split("=") as [string, string]));
   const t = Number(parts.t);

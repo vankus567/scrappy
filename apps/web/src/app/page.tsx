@@ -2,11 +2,11 @@ import Link from "next/link";
 import { LandingNav } from "@/components/LandingNav";
 import { Pet, type Species } from "@/components/Pet";
 import { Arrow } from "@/components/ui/Button";
-import { CodeTabs } from "@/components/kage/CodeTabs";
-import { NetworkStats } from "@/components/kage/NetworkStats";
-import { TaskPreviews } from "@/components/kage/TaskPreviews";
-import { Trace } from "@/components/kage/Trace";
-import { Wordmark } from "@/components/kage/Wordmark";
+import { CodeTabs } from "@/components/scrappy/CodeTabs";
+import { NetworkStats } from "@/components/scrappy/NetworkStats";
+import { TaskPreviews } from "@/components/scrappy/TaskPreviews";
+import { Trace } from "@/components/scrappy/Trace";
+import { Wordmark } from "@/components/scrappy/Wordmark";
 
 const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
 // Set once the signed APK is built and published (see docs/DEPLOY.md). Hidden until then: no dead links.
@@ -15,7 +15,7 @@ const CREW: Species[] = ["neko", "kitsu", "pengu", "drako", "goo", "boo"];
 
 function Door({ href, side, title, line }: { href: string; side: string; title: string; line: string }) {
   return (
-    <Link href={href} className="kage-focus group flex min-h-[112px] flex-col justify-between rounded-[22px] bg-ground-deep p-5 transition-colors hover:bg-field sm:p-6">
+    <Link href={href} className="scrappy-focus group flex min-h-[112px] flex-col justify-between rounded-[22px] bg-ground-deep p-5 transition-colors hover:bg-field sm:p-6">
       <span className="flex items-center justify-between text-[14px] text-ink-faint">
         {side}
         <Arrow className="size-5 text-ink-soft transition-[color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-leaf" />
@@ -38,7 +38,7 @@ export default function Landing() {
         <div className="grid items-end gap-5 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
           <h1 className="font-display font-bold tracking-[-0.015em]">
             <span className="block whitespace-nowrap text-[clamp(1.55rem,4.2vw,3.4rem)] leading-[1.1] text-ink-soft">When AI needs a human,</span>
-            <span className="block whitespace-nowrap text-[clamp(2.6rem,11vw,7rem)] leading-[1] text-leaf">Kage finds one.</span>
+            <span className="block whitespace-nowrap text-[clamp(2.6rem,11vw,7rem)] leading-[1] text-leaf">Scrappy finds one.</span>
           </h1>
           <p className="max-w-md pb-2 text-[18px] leading-relaxed text-ink-soft lg:justify-self-end">
             The human shadow for AI agents. One API call reaches real people, returns their consensus, and pays them in USDC on Solana.
@@ -48,8 +48,8 @@ export default function Landing() {
         <Trace />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Door href="/docs" side="For AI agents" title="Build with Kage" line="Give your agent a human fallback in five lines." />
-          <Door href="/app" side="For humans" title="Earn with Kage" line="Answer in seconds. Get paid in USDC." />
+          <Door href="/docs" side="For AI agents" title="Build with Scrappy" line="Give your agent a human fallback in five lines." />
+          <Door href="/app" side="For humans" title="Earn with Scrappy" line="Answer in seconds. Get paid in USDC." />
         </div>
       </section>
 
@@ -96,17 +96,17 @@ export default function Landing() {
               <li><span className="font-semibold text-ink">Better skill, better tasks.</span> Proven humans unlock expert work that pays more.</li>
             </ul>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <Link href="/app" className="kage-btn">Earn with Kage <Arrow /></Link>
+              <Link href="/app" className="scrappy-btn">Earn with Scrappy <Arrow /></Link>
               {APK_URL && (
-                <a href={APK_URL} download className="kage-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
+                <a href={APK_URL} download className="scrappy-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
                   Download for Android (APK)
                 </a>
               )}
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-sm">
-            <Pet species="kitsu" stage="bloom" mood="excited" dance="cheer" className="mx-auto w-56" title="A Kage at work" />
-            <p className="mt-2 text-center text-[14px] text-ink-faint">Your Kage grows through four forms as your answers prove you right.</p>
+            <Pet species="kitsu" stage="bloom" mood="excited" dance="cheer" className="mx-auto w-56" title="A Scrappy at work" />
+            <p className="mt-2 text-center text-[14px] text-ink-faint">Your Scrappy grows through four forms as your answers prove you right.</p>
           </div>
         </div>
       </section>
@@ -115,7 +115,7 @@ export default function Landing() {
       <section className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8 sm:py-16">
         <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="font-display text-[clamp(1.8rem,3.4vw,2.6rem)] font-bold leading-tight">The network, right now</h2>
-          <Link href="/live" className="kage-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">Open live view</Link>
+          <Link href="/live" className="scrappy-focus rounded text-[15px] font-semibold text-leaf transition-colors hover:text-leaf-hover">Open live view</Link>
         </div>
         <NetworkStats />
       </section>

@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 
 /**
- * Kage relational schema (SQLite; one file on the API host).
+ * Scrappy relational schema (SQLite; one file on the API host).
  * Money is stored in micro-USDC integers (1 USDC = 1_000_000) so sums are exact.
  */
-export function openDb(path = process.env.KAGE_DB ?? "kage.db") {
+export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "scrappy.db") {
   const db = new Database(path, { create: true, strict: true });
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -45,7 +45,8 @@ export function openDb(path = process.env.KAGE_DB ?? "kage.db") {
       tasks_done INTEGER NOT NULL DEFAULT 0,
       earned_micro INTEGER NOT NULL DEFAULT 0,
       owed_micro INTEGER NOT NULL DEFAULT 0 CHECK (owed_micro >= 0),
-      push_subscription TEXT
+      push_subscription TEXT,
+      pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0)
     );
     CREATE TABLE IF NOT EXISTS worker_skills (
       worker_id TEXT NOT NULL REFERENCES workers(id),
@@ -158,6 +159,9 @@ export function openDb(path = process.env.KAGE_DB ?? "kage.db") {
       created_at INTEGER NOT NULL
     );
   `);
+  // migrations for databases created before a column existed
+  const wcols = (db.query("PRAGMA table_info(workers)").all() as { name: string }[]).map((c) => c.name);
+  if (!wcols.includes("pending_micro")) db.exec("ALTER TABLE workers ADD COLUMN pending_micro INTEGER NOT NULL DEFAULT 0 CHECK (pending_micro >= 0)");
   return db;
 }
 

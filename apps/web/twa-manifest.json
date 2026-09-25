@@ -1,20 +1,20 @@
 {
-  "packageId": "me.kageai.app",
-  "host": "kageai.me",
-  "name": "Kage",
-  "launcherName": "Kage",
+  "packageId": "app.scrappypet",
+  "host": "scrappypet.vercel.app",
+  "name": "Scrappy",
+  "launcherName": "Scrappy",
   "display": "standalone",
   "themeColor": "#0c0e0d",
   "navigationColor": "#0c0e0d",
   "backgroundColor": "#0c0e0d",
   "startUrl": "/app",
-  "iconUrl": "https://kageai.me/icon-512.png",
-  "maskableIconUrl": "https://kageai.me/icon-512.png",
-  "webManifestUrl": "https://kageai.me/manifest.webmanifest",
+  "iconUrl": "https://scrappypet.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://scrappypet.vercel.app/icon-512.png",
+  "webManifestUrl": "https://scrappypet.vercel.app/manifest.webmanifest",
   "enableNotifications": true,
   "signingKey": {
     "path": "./android.keystore",
-    "alias": "kage"
+    "alias": "scrappy"
   },
   "appVersionName": "0.1.0",
   "appVersionCode": 1,

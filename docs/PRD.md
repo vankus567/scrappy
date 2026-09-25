@@ -1,8 +1,8 @@
-# Kage: Product Requirements Document
+# Scrappy: Product Requirements Document
 
 > **Superseded positioning:** see `docs/POSITIONING.md` (Human API, router, capability graph, confidence, payment channels, human fallback). Sections below remain valid for the worker app.
 
-**One-liner (consumer):** Kage is a pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.
+**One-liner (consumer):** Scrappy is a pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.
 **One-liner (business):** AI companies pay Indian students instantly to check AI answers. Think Scale AI for Indian languages, callable by any AI agent.
 
 | | |
@@ -51,7 +51,7 @@ Hackathon traction targets (these decide the "early traction" score):
 | Pets hatched | 150+ |
 | Paid jobs completed | 1,000+ |
 | Share of pet earnings from outside buyers | 70%+ |
-| Workers new to Solana (first wallet via Kage) | 80%+ |
+| Workers new to Solana (first wallet via Scrappy) | 80%+ |
 | D7 retention of workers | 30%+ |
 | Job answer acceptance rate | 85%+ |
 
@@ -143,7 +143,7 @@ Product goals after the hackathon: buyers retained month over month, worker earn
 ### 8.1 Positioning
 - **10-word line (business, Colosseum):** "AI companies pay Indian students instantly to check AI answers." (10 words)
 - **10-word line (consumer, CLOCK IN):** "A phone pet that earns real money checking AI answers."
-- **Web2 anchor:** "Think of Kage as Scale AI for Indian languages, where AI agents can hire humans by API and workers are paid in seconds."
+- **Web2 anchor:** "Think of Scrappy as Scale AI for Indian languages, where AI agents can hire humans by API and workers are paid in seconds."
 - **Web2 comparables:** Scale AI, Toloka, Appen, and in India, **Karya** (pays Indians for Indian-language AI data). Market: AI training data and human evaluation [verify size with Grok / deep research before pitching].
 - **Web3 comparables:** RentAHuman.ai (agents hire humans for physical errands, general), x402 infra (MCPay, Corbits). None do on-demand Indic human feedback with instant payouts.
 - **Moat vs web2 (Scale/Toloka/Karya):** buyable per task from code (x402 + `ask_human`), no contracts or minimums; workers paid in seconds in USD, not weeks later; portable onchain reputation; a game loop that keeps workers active (their cost is recruiting and churn).
@@ -184,7 +184,7 @@ In a year this is "the Indic human-feedback network AI agents call by default", 
 1. Tweet the idea and the 10-word line; watch replies.
 2. Run Grok: "What does Crypto Twitter and AI Twitter say about paying humans for AI feedback via crypto, RentAHuman, Karya, Scale AI in India?"
 3. Message 20 AI teams; get 3 paid pilots.
-4. Read all Colosseum blog posts; answer the YC, Alliance and Solana Incubator application questions for Kage.
+4. Read all Colosseum blog posts; answer the YC, Alliance and Solana Incubator application questions for Scrappy.
 5. Open-source the repo from day 1.
 
 ## 9. Risks and mitigations

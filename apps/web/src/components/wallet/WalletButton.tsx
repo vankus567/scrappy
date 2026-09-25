@@ -37,7 +37,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         type="button"
         onClick={() => start("join")}
         disabled={status.state === "working"}
-        className={`kage-focus shrink-0 rounded-[14px] bg-leaf font-semibold text-on-leaf transition-colors hover:bg-leaf-hover disabled:opacity-60 ${compact ? "h-10 px-3.5 text-[14px]" : "h-11 px-5 text-[15px]"}`}
+        className={`scrappy-focus shrink-0 rounded-[14px] bg-leaf font-semibold text-on-leaf transition-colors hover:bg-leaf-hover disabled:opacity-60 ${compact ? "h-10 px-3.5 text-[14px]" : "h-11 px-5 text-[15px]"}`}
       >
         {status.state === "working" ? "Check your wallet…" : "Connect wallet"}
       </button>
@@ -51,7 +51,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         aria-haspopup="menu"
         aria-expanded={menu}
         onClick={() => setMenu((m) => !m)}
-        className={`kage-focus flex items-center gap-2 rounded-[14px] bg-field font-semibold transition-colors hover:bg-field-hover ${compact ? "h-10 px-3 text-[14px]" : "h-11 px-4 text-[15px]"}`}
+        className={`scrappy-focus flex items-center gap-2 rounded-[14px] bg-field font-semibold transition-colors hover:bg-field-hover ${compact ? "h-10 px-3 text-[14px]" : "h-11 px-4 text-[15px]"}`}
       >
         {wallet?.adapter.icon && connected ? (
           // wallet icons are data URIs supplied by the wallet itself
@@ -69,15 +69,15 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
             role="menuitem"
             type="button"
             onClick={() => navigator.clipboard.writeText(pet.wallet!).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1400); })}
-            className="kage-focus w-full rounded-[12px] px-3 py-2.5 text-left text-[14px] font-semibold hover:bg-field"
+            className="scrappy-focus w-full rounded-[12px] px-3 py-2.5 text-left text-[14px] font-semibold hover:bg-field"
           >
             {copied ? "Copied" : "Copy address"}
           </button>
-          <a role="menuitem" href={addressUrl(pet.wallet)} target="_blank" rel="noreferrer" className="kage-focus block rounded-[12px] px-3 py-2.5 text-[14px] font-semibold hover:bg-field">
+          <a role="menuitem" href={addressUrl(pet.wallet)} target="_blank" rel="noreferrer" className="scrappy-focus block rounded-[12px] px-3 py-2.5 text-[14px] font-semibold hover:bg-field">
             View on Solana Explorer
           </a>
           {connected && (
-            <button role="menuitem" type="button" onClick={() => { disconnect().catch(() => {}); setMenu(false); }} className="kage-focus w-full rounded-[12px] px-3 py-2.5 text-left text-[14px] font-semibold text-ink-soft hover:bg-field">
+            <button role="menuitem" type="button" onClick={() => { disconnect().catch(() => {}); setMenu(false); }} className="scrappy-focus w-full rounded-[12px] px-3 py-2.5 text-left text-[14px] font-semibold text-ink-soft hover:bg-field">
               Disconnect wallet app
             </button>
           )}

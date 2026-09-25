@@ -19,7 +19,7 @@ export function LanguagePicker({ value, onChange }: { value: Language[]; onChang
                   key={l.id}
                   onClick={() => toggle(l.id)}
                   aria-pressed={on}
-                  className={`kage-focus min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
+                  className={`scrappy-focus min-h-[52px] rounded-[14px] px-3 py-2 text-left transition-colors ${on ? "bg-leaf text-on-leaf" : "bg-field text-ink hover:bg-field-hover"}`}
                 >
                   <span lang={l.id} className="block text-[16px] leading-tight">{l.native}</span>
                   {l.native !== l.label && <span className={`block text-[12px] ${on ? "opacity-80" : "text-ink-soft"}`}>{l.label}</span>}

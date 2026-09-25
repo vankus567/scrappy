@@ -38,7 +38,7 @@ export async function verifyDeposit(db: Db, rpc: Rpc, project: { id: string; fun
   const received = delta(platform);
   const sent = -delta(project.funding_wallet);
   const amount = Math.min(received, sent);
-  if (amount <= 0) return { ok: false as const, error: "no USDC moved from your funding wallet to Kage in this transaction" };
+  if (amount <= 0) return { ok: false as const, error: "no USDC moved from your funding wallet to Scrappy in this transaction" };
 
   db.transaction(() => {
     db.query("INSERT INTO payments (id, kind, project_id, wallet, amount_micro, tx_sig, created_at) VALUES (?, 'deposit', ?, ?, ?, ?, ?)").run(
@@ -49,7 +49,7 @@ export async function verifyDeposit(db: Db, rpc: Rpc, project: { id: string; fun
   return { ok: true as const, amount_micro: amount };
 }
 
-/** Signed webhook: X-Kage-Signature: t=<unix ms>,v1=<hex hmac-sha256("t.body", secret)>. */
+/** Signed webhook: X-Scrappy-Signature: t=<unix ms>,v1=<hex hmac-sha256("t.body", secret)>. */
 export function signWebhook(secret: string, body: string, t = Date.now()) {
   const mac = new Bun.CryptoHasher("sha256", secret).update(`${t}.${body}`).digest("hex");
   return `t=${t},v1=${mac}`;
@@ -65,7 +65,7 @@ export function webhookSender(db: Db) {
       method: "POST",
       redirect: "error",
       signal: AbortSignal.timeout(5_000),
-      headers: { "content-type": "application/json", "x-kage-signature": signWebhook(p.webhook_secret, body) },
+      headers: { "content-type": "application/json", "x-scrappy-signature": signWebhook(p.webhook_secret, body) },
       body,
     }).catch(() => {});
   };
@@ -87,7 +87,7 @@ export function pushNotifier(db: Db) {
       "SELECT id, push_subscription FROM workers WHERE push_subscription IS NOT NULL AND languages LIKE ? LIMIT 200",
     ).all(`%"${task.language}"%`) as { id: string; push_subscription: string }[];
     const reward = Math.floor(task.reward_micro * 0.8) / 1e6;
-    const body = JSON.stringify({ title: "Kage task available", body: `${task.prompt.slice(0, 80)} · $${reward.toFixed(2)}`, url: "/app/tasks", tag: task.id });
+    const body = JSON.stringify({ title: "Scrappy task available", body: `${task.prompt.slice(0, 80)} · $${reward.toFixed(2)}`, url: "/app/tasks", tag: task.id });
     for (const w of workers) {
       db.query("INSERT INTO notifications (id, worker_id, task_id, channel, status, created_at) VALUES (?, ?, ?, 'webpush', 'sent', ?)").run(uid(), w.id, task.id, Date.now());
       webpush.sendNotification(JSON.parse(w.push_subscription), body, { TTL: 60 }).catch((err: any) => {

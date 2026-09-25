@@ -3,8 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 /**
- * Local Kage identity: the pet, its name and languages (real user input) plus the device token.
- * Earnings, tasks, accuracy and ranks always come from the Kage API; nothing here is invented.
+ * Local Scrappy identity: the pet, its name and languages (real user input) plus the device token.
+ * Earnings, tasks, accuracy and ranks always come from the Scrappy API; nothing here is invented.
  */
 export type Language =
   | "hi" | "en" | "ta" | "mr" | "bn" | "te" | "kn" | "gu" | "ml" | "pa" | "or" | "ur" | "as"
@@ -48,7 +48,7 @@ export const LANGUAGES: LanguageInfo[] = [
 
 export type PetRecord = {
   species?: import("@/components/Pet").Species;
-  /** device token from the Kage API, issued when the owner connects a payout wallet */
+  /** device token from the Scrappy API, issued when the owner connects a payout wallet */
   workerToken?: string;
   /** the Solana wallet that receives USDC */
   wallet?: string;
@@ -63,7 +63,7 @@ export type PetRecord = {
   jobsDone: number;
 };
 
-const KEY = "kage.pet.v1";
+const KEY = "scrappy.pet.v1";
 
 type Store = {
   ready: boolean;

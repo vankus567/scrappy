@@ -60,7 +60,7 @@ const DROP = "M120 34c30 34 90 62 90 112 0 46-36 72-90 72s-90-26-90-72c0-50 60-7
  * A squishy chibi creature. Big sparkly eyes, glossy body, blush, one signature detail per species.
  * Each evolution adds arms and a bud/flower. Always visible; motion only animates what is on screen.
  */
-export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance = "none", watchPointer = false, className, title = "A Kage pet" }: PetProps) {
+export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance = "none", watchPointer = false, className, title = "A Scrappy pet" }: PetProps) {
   const ref = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   const [look, setLook] = useState({ x: 0, y: 0 });

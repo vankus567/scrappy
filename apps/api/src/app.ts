@@ -5,7 +5,7 @@ import { z } from "zod";
 import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
 import { type Db, toUsdc } from "./db";
 import { type Rpc, verifyDeposit } from "./payments";
-import { isFinal, responseSchema, type TaskInput, taskInput, type TaskService, type TaskStatus, WORKER_SHARE } from "./tasks";
+import { EXPERT_LEVEL, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, PRIORITY_LEVEL, responseSchema, type TaskInput, taskInput, type TaskService, type TaskStatus, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
 type Env = { Variables: { input: TaskInput; billing: Billing; taskId?: string } };
@@ -86,7 +86,7 @@ export function createApp(deps: AppDeps) {
     c.set("billing", { mode: "x402" });
     const i = parsed.data;
     if (!i.extends) {
-      const cap = tasks.capacity({ language: i.language, skill: i.skill, min_accuracy: i.min_accuracy });
+      const cap = tasks.capacity({ language: i.language, skill: i.skill, min_accuracy: i.min_accuracy, reward_micro: i.reward_micro });
       if (cap.available < i.humans) {
         return c.json({ status: "insufficient_capacity", reason: "Not enough qualified humans are online for this task right now", available: cap.available, required: i.humans }, 409);
       }
@@ -192,6 +192,13 @@ export function createApp(deps: AppDeps) {
       checks: rep.n,
       avg_response_ms: lat.a === null ? null : Math.round(lat.a),
       skills: tasks.skillsOf(w.id).filter((s) => s.samples > 0).sort((a, b) => b.samples - a.samples),
+      level: levelOf(w.tasks_done),
+      next_level_at: nextLevelAt(levelOf(w.tasks_done)),
+      unlocks: {
+        better_pay: levelOf(w.tasks_done) >= HIGH_REWARD_LEVEL,
+        expert_tasks: levelOf(w.tasks_done) >= EXPERT_LEVEL,
+        first_pick: levelOf(w.tasks_done) >= PRIORITY_LEVEL,
+      },
       earnings: { today_usdc: toUsdc(sum(dayStart)), week_usdc: toUsdc(sum(now - 7 * DAY)), total_usdc: toUsdc(w.earned_micro), owed_usdc: toUsdc(w.owed_micro), paid_usdc: toUsdc(paid.s) },
       payout_hold_until: new Date(w.created_at + 48 * 3_600_000).toISOString(),
       payout_held: now < w.created_at + 48 * 3_600_000,

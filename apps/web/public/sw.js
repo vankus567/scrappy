@@ -1,11 +1,11 @@
-// Kage service worker: task notifications only. No caching of API data.
+// Scrappy service worker: task notifications only. No caching of API data.
 self.addEventListener("push", (event) => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "Kage task available" }; }
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "Scrappy task available" }; }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Kage task available", {
+    self.registration.showNotification(data.title || "Scrappy task available", {
       body: data.body || "An AI agent needs a human.",
-      tag: data.tag || "kage-task",
+      tag: data.tag || "scrappy-task",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       data: { url: data.url || "/app/tasks" },

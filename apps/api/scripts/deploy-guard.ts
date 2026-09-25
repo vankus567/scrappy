@@ -1,7 +1,7 @@
-// The Kage demo: an AI coding agent changed an auth check and wants human security verification before it deploys.
-// Its own model reviews first; before an irreversible deploy it asks 3 humans through Kage and obeys the consensus.
-//   KAGE_API_KEY=kage_sk_... ANTHROPIC_API_KEY=... bun scripts/deploy-guard.ts
-import { Kage } from "../../../packages/sdk/src/index";
+// The Scrappy demo: an AI coding agent changed an auth check and wants human security verification before it deploys.
+// Its own model reviews first; before an irreversible deploy it asks 3 humans through Scrappy and obeys the consensus.
+//   SCRAPPY_API_KEY=scrappy_sk_... ANTHROPIC_API_KEY=... bun scripts/deploy-guard.ts
+import { Scrappy } from "../../../packages/sdk/src/index";
 
 const DIFF = `--- a/src/auth/session.ts
 +++ b/src/auth/session.ts
@@ -14,10 +14,10 @@ const DIFF = `--- a/src/auth/session.ts
  }`;
 
 const QUESTION = "Does this change let one user act as another user?";
-const kage = new Kage({
-  baseUrl: process.env.KAGE_API ?? "https://kageai.me",
-  apiKey: process.env.KAGE_API_KEY,
-  walletSecretKey: process.env.KAGE_AGENT_SECRET,
+const scrappy = new Scrappy({
+  baseUrl: process.env.SCRAPPY_API ?? "https://kageai.me",
+  apiKey: process.env.SCRAPPY_API_KEY,
+  walletSecretKey: process.env.SCRAPPY_AGENT_SECRET,
 });
 
 async function ownReview(): Promise<{ answer: "yes" | "no"; confidence: number }> {
@@ -42,12 +42,12 @@ const log = (s: string) => console.log(`[agent] ${s}`);
 log("Patched src/auth/session.ts. Tests pass. Preparing deploy...");
 const own = await ownReview();
 log(`My own review: "${own.answer}" at ${(own.confidence * 100).toFixed(0)}% confidence.`);
-log("Auth changes are irreversible in production. Asking 3 humans through Kage before deploying.");
+log("Auth changes are irreversible in production. Asking 3 humans through Scrappy before deploying.");
 
-const cap = await kage.findCapacity({ skill: "security" });
-log(`Kage: ${cap.available} qualified humans online.`);
+const cap = await scrappy.findCapacity({ skill: "security" });
+log(`Scrappy: ${cap.available} qualified humans online.`);
 
-const r = await kage.consensus({
+const r = await scrappy.consensus({
   task: QUESTION,
   content: DIFF,
   skill: "security",

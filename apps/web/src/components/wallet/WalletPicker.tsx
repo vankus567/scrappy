@@ -9,7 +9,7 @@ type Ctx = { open: () => void };
 const PickerCtx = createContext<Ctx>({ open: () => {} });
 export const useWalletPicker = () => useContext(PickerCtx);
 
-/** Kage's wallet picker: a bottom sheet on phones, a centred panel on desktop. Replaces the stock adapter modal. */
+/** Scrappy's wallet picker: a bottom sheet on phones, a centred panel on desktop. Replaces the stock adapter modal. */
 export function WalletPickerProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const open = useCallback(() => setOpen(true), []);
@@ -71,7 +71,7 @@ function Sheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                       type="button"
                       disabled={connecting}
                       onClick={() => choose(w.adapter.name)}
-                      className="kage-focus flex min-h-14 w-full items-center gap-3 rounded-[16px] bg-field px-4 text-left font-semibold transition-colors hover:bg-field-hover disabled:opacity-60"
+                      className="scrappy-focus flex min-h-14 w-full items-center gap-3 rounded-[16px] bg-field px-4 text-left font-semibold transition-colors hover:bg-field-hover disabled:opacity-60"
                     >
                       {/* wallet icons are data URIs supplied by the wallet itself */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -88,10 +88,10 @@ function Sheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               <div className="mt-5 rounded-[16px] bg-field p-4 text-[15px] text-ink-soft">
                 No wallet found in this browser. Install{" "}
                 <a className="font-semibold text-leaf hover:text-leaf-hover" href="https://phantom.com/download" target="_blank" rel="noreferrer">Phantom</a> or{" "}
-                <a className="font-semibold text-leaf hover:text-leaf-hover" href="https://solflare.com/download" target="_blank" rel="noreferrer">Solflare</a>, or open Kage inside your wallet app. You can also paste an address instead.
+                <a className="font-semibold text-leaf hover:text-leaf-hover" href="https://solflare.com/download" target="_blank" rel="noreferrer">Solflare</a>, or open Scrappy inside your wallet app. You can also paste an address instead.
               </div>
             )}
-            <button type="button" onClick={onClose} className="kage-focus mt-4 w-full rounded-[14px] py-3 text-[15px] font-semibold text-ink-soft hover:text-ink">
+            <button type="button" onClick={onClose} className="scrappy-focus mt-4 w-full rounded-[14px] py-3 text-[15px] font-semibold text-ink-soft hover:text-ink">
               Not now
             </button>
           </motion.div>

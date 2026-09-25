@@ -65,7 +65,7 @@ async function answer(req: ReturnType<typeof setup>["req"], token: string, value
   return { job: job.body, r: r.body };
 }
 
-describe("Kage consensus", () => {
+describe("Scrappy consensus", () => {
   test("3 humans answer independently, agent gets majority + agreement; extending with 2 more reaches the threshold", async () => {
     tick(0);
     const s = setup();
@@ -201,6 +201,32 @@ describe("workers: auth, quality, privacy", () => {
     const r = await s.req("POST", "/v1/tasks", { task: "Security review", min_accuracy: 0.95, skill: "security" });
     expect(r.status).toBe(409);
   });
+
+  test("levels: Lv5 unlocks better-paid seats, Lv20 sees new tasks first", async () => {
+    tick(0);
+    const s = setup();
+    const low = await s.worker(0);
+    const pro = await s.worker(1);
+    s.db.query("UPDATE workers SET tasks_done = 20 WHERE wallet = ?").run(wallets[1]); // Lv5
+
+    const rich = await s.req("POST", "/v1/tasks", { task: "Long code review", humans: 1, budget: 0.5 });
+    expect(rich.status).toBe(201);
+    expect((await s.req("GET", "/v1/worker/next", undefined, low)).status).toBe(204);
+    expect((await s.req("GET", "/v1/worker/next", undefined, pro)).status).toBe(200);
+
+    const vip = await s.worker(2);
+    s.db.query("UPDATE workers SET tasks_done = 95 WHERE wallet = ?").run(wallets[2]); // Lv20
+    await s.req("POST", "/v1/tasks", { task: "Urgent cheap", humans: 1, budget: 0.05, deadline: 20 });
+    await s.req("POST", "/v1/tasks", { task: "Better paid", humans: 1, budget: 0.2, deadline: 60 });
+    const jLow = await s.req("GET", "/v1/worker/next", undefined, low);
+    expect(jLow.body.prompt).toBe("Urgent cheap"); // most urgent first
+    const jVip = await s.req("GET", "/v1/worker/next", undefined, vip);
+    expect(jVip.body.prompt).toBe("Better paid"); // first pick goes to the best seat
+
+    const me = await s.req("GET", "/v1/worker/me", undefined, pro);
+    expect(me.body).toMatchObject({ level: 5, next_level_at: 25 });
+    expect(me.body.unlocks).toMatchObject({ better_pay: true, expert_tasks: false, first_pick: false });
+  });
 });
 
 describe("developers: API keys, balance, deposits", () => {
@@ -255,7 +281,7 @@ describe("pure pieces", () => {
   });
 
   test("webhooks cannot target private networks", () => {
-    expect(safeWebhookUrl("https://hooks.acme.ai/kage")).toBe(true);
+    expect(safeWebhookUrl("https://hooks.acme.ai/scrappy")).toBe(true);
     for (const u of ["http://acme.ai", "https://localhost/x", "https://127.0.0.1", "https://10.0.0.5", "https://192.168.1.1"]) expect(safeWebhookUrl(u)).toBe(false);
   });
 });

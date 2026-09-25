@@ -11,9 +11,19 @@ export const MIN_ANSWER_MS = 2_000; // anti-farming latency floor
 export const PENDING_PAYMENT_MS = 120_000;
 export const GOLD_WARMUP = 5; // qualification tasks before paid work (when gold exists for the language)
 export const EXPERT_ACCURACY = 0.95;
-export const EXPERT_MIN_TASKS = 50;
 const PROBATION_MAX_ACCURACY = 0.8; // unproven workers only see tasks asking <= 80%
 const PROVEN_SAMPLES = 3;
+
+// ---- worker levels: progress that unlocks better work (POSITIONING item 9) ----
+export const TASKS_PER_LEVEL = 5; // Lv N needs (N-1)*5 tasks done
+export const HIGH_REWARD_LEVEL = 5; // Lv5 sees better-paid tasks
+export const HIGH_REWARD_MICRO = 250_000; // a seat paying >= $0.25 counts as better-paid
+export const EXPERT_LEVEL = 10; // Lv10 sees expert tasks
+export const PRIORITY_LEVEL = 20; // Lv20 gets first pick: their queue sorts by pay, not urgency
+
+/** Work level from real answers only: Lv1 at 0-4 tasks, Lv5 at 20, Lv10 at 45, Lv20 at 95, Lv30 at 145. */
+export const levelOf = (tasksDone: number) => Math.min(30, 1 + Math.floor(tasksDone / TASKS_PER_LEVEL));
+export const nextLevelAt = (level: number) => (level >= 30 ? null : level * TASKS_PER_LEVEL);
 
 /** Laplace-smoothed accuracy so one lucky answer is not "100%". */
 export const smoothAccuracy = (correct: number, seen: number) => (correct + 1) / (seen + 2);
@@ -100,7 +110,7 @@ export type TaskRow = {
 
 export type WorkerRow = {
   id: string; wallet: string; token_hash: string; languages: string; pet_name: string | null; species: string | null; city: string | null;
-  created_at: number; last_seen_at: number | null; tasks_done: number; earned_micro: number; owed_micro: number; push_subscription: string | null;
+  created_at: number; last_seen_at: number | null; tasks_done: number; earned_micro: number; owed_micro: number; pending_micro: number; push_subscription: string | null;
 };
 
 type Skill = { skill: string; accuracy: number; samples: number };
@@ -185,10 +195,11 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   const skillFor = (skills: Map<string, Skill>, language: string, skill: string) =>
     skills.get(`${language}:${skill}`) ?? skills.get(`${language}:general`);
 
-  /** Can this worker take this task? Language, proven skill, probation, expert level. */
-  const eligible = (w: WorkerRow, skills: Map<string, Skill>, t: Pick<TaskRow, "language" | "skill" | "min_accuracy">) => {
+  /** Can this worker take this task? Language, proven skill, probation, work level. */
+  const eligible = (w: WorkerRow, skills: Map<string, Skill>, t: Pick<TaskRow, "language" | "skill" | "min_accuracy"> & { reward_micro?: number }) => {
     if (!parseLangs(w).includes(t.language)) return false;
-    if (t.min_accuracy >= EXPERT_ACCURACY && w.tasks_done < EXPERT_MIN_TASKS) return false;
+    if (t.min_accuracy >= EXPERT_ACCURACY && levelOf(w.tasks_done) < EXPERT_LEVEL) return false;
+    if (t.reward_micro !== undefined && t.reward_micro >= HIGH_REWARD_MICRO && levelOf(w.tasks_done) < HIGH_REWARD_LEVEL) return false;
     const s = skillFor(skills, t.language, t.skill);
     if (!s || s.samples < PROVEN_SAMPLES) return t.min_accuracy <= PROBATION_MAX_ACCURACY;
     return s.accuracy >= t.min_accuracy;
@@ -261,7 +272,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   };
 
   /** Workers online now who qualify for a task with these requirements. */
-  const capacity = (req: { language: string; skill: string; min_accuracy: number }, now = Date.now(), exclude: Set<string> = new Set()) => {
+  const capacity = (req: { language: string; skill: string; min_accuracy: number; reward_micro?: number }, now = Date.now(), exclude: Set<string> = new Set()) => {
     const online = db.query("SELECT * FROM workers WHERE last_seen_at >= ?").all(now - AVAILABLE_MS) as WorkerRow[];
     const qualified = online.filter((w) => !exclude.has(w.id) && eligible(w, new Map(skillsOf(w.id).map((s) => [s.skill, s])), req));
     return { online: online.length, available: qualified.length };
@@ -292,7 +303,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       parentId = parent.id;
     }
 
-    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy }, now, rootId ? chainWorkers(rootId) : new Set());
+    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy, reward_micro: input.reward_micro }, now, rootId ? chainWorkers(rootId) : new Set());
     if (cap.available < input.humans) {
       return {
         ok: false, status: 409, error: "insufficient_capacity",
@@ -409,8 +420,8 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
          WHERE t.is_gold = 0 AND t.status IN ('matching', 'collecting') AND t.deadline_at > ? AND t.language IN (${marks})
            AND NOT EXISTS (SELECT 1 FROM task_assignments a WHERE a.root_id = t.root_id AND a.worker_id = ?)
            AND (SELECT COUNT(*) FROM task_assignments a WHERE a.task_id = t.id AND a.status IN ('assigned', 'responded')) < t.humans_required
-         ORDER BY t.deadline_at ASC LIMIT 50`,
-      ).all(now + MIN_ANSWER_MS + 1_000, ...langs, w.id) as TaskRow[];
+         ORDER BY CASE WHEN ? >= ? THEN t.reward_micro ELSE -t.deadline_at END DESC LIMIT 50`,
+      ).all(now + MIN_ANSWER_MS + 1_000, ...langs, w.id, levelOf(w.tasks_done), PRIORITY_LEVEL) as TaskRow[];
       const t = candidates.find((c) => eligible(w, skills, c));
       if (!t) return null;
       claim(t, w.id, now);

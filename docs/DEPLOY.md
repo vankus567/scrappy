@@ -1,4 +1,4 @@
-# Deploying Kage
+# Deploying Scrappy
 
 Everything runs on one VPS behind Caddy: `https://kageai.me` serves the web app, and the API on the same origin under `/v1` and `/health`.
 
@@ -21,7 +21,7 @@ If the Caddyfile already has a `kageai.me` block, the script stops at validation
 
 Then seed qualification checks once:
 ```
-ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps/api && KAGE_API=http://127.0.0.1:8795 ~/.bun/bin/bun scripts/seed-gold.ts'
+ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps/api && SCRAPPY_API=http://127.0.0.1:8795 ~/.bun/bin/bun scripts/seed-gold.ts'
 ```
 
 ## 3. Android APK (Trusted Web Activity)

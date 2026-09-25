@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, getMe, type WorkerProfile } from "@/lib/api";
 import { usePet } from "@/lib/pet-store";
 
-/** The worker's live profile from the Kage API (the source of truth for tasks, accuracy and earnings). */
+/** The worker's live profile from the Scrappy API (the source of truth for tasks, accuracy and earnings). */
 export function useWorker(intervalMs = 15_000) {
   const { pet, update } = usePet();
   const token = pet?.workerToken;

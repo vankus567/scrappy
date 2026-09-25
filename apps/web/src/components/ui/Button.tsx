@@ -2,7 +2,7 @@ import Link from "next/link";
 
 type Common = { children: React.ReactNode; className?: string; arrow?: boolean };
 
-/** Up-and-out arrow: the one arrow Kage uses everywhere. */
+/** Up-and-out arrow: the one arrow Scrappy uses everywhere. */
 export function Arrow({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" aria-hidden className={`arrow ${className}`}>
@@ -13,7 +13,7 @@ export function Arrow({ className = "size-4" }: { className?: string }) {
 
 export function Button({ children, className = "", arrow, ...rest }: Common & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...rest} className={`kage-btn ${className}`}>
+    <button {...rest} className={`scrappy-btn ${className}`}>
       {children}
       {arrow && <Arrow />}
     </button>
@@ -22,7 +22,7 @@ export function Button({ children, className = "", arrow, ...rest }: Common & Re
 
 export function LinkButton({ href, children, className = "", arrow = true }: Common & { href: string }) {
   return (
-    <Link href={href} className={`kage-btn ${className}`}>
+    <Link href={href} className={`scrappy-btn ${className}`}>
       {children}
       {arrow && <Arrow />}
     </Link>

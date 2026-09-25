@@ -1,5 +1,5 @@
 {
-  "name": "@kage/api",
+  "name": "@scrappy/api",
   "private": true,
   "type": "module",
   "scripts": {

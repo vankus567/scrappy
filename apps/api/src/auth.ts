@@ -11,14 +11,14 @@ export const SIGN_IN_MAX_AGE_MS = 5 * 60_000;
 
 /** The exact message a worker's wallet signs to prove it owns the address. */
 export const signInMessage = (wallet: string, nonce: string, issuedAt: string) =>
-  `Kage sign-in\nwallet: ${wallet}\nnonce: ${nonce}\nissued: ${issuedAt}`;
+  `Scrappy sign-in\nwallet: ${wallet}\nnonce: ${nonce}\nissued: ${issuedAt}`;
 
 export function createAuth(db: Db) {
   // ---- projects + API keys (developers) ----
   const createProject = (name: string, fundingWallet: string | null, now = Date.now()) => {
     const orgId = uid();
     const projectId = uid();
-    const apiKey = randomToken("kage_sk_");
+    const apiKey = randomToken("scrappy_sk_");
     const webhookSecret = randomToken("whsec_");
     db.transaction(() => {
       db.query("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)").run(orgId, name, now);
@@ -33,7 +33,7 @@ export function createAuth(db: Db) {
   };
 
   const createKey = (projectId: string, label: string, now = Date.now()) => {
-    const apiKey = randomToken("kage_sk_");
+    const apiKey = randomToken("scrappy_sk_");
     const id = uid();
     db.query("INSERT INTO api_keys (id, project_id, prefix, hash, label, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(
       id, projectId, apiKey.slice(0, 14), sha256(apiKey), label, now,
@@ -42,7 +42,7 @@ export function createAuth(db: Db) {
   };
 
   const projectForKey = (key: string | undefined, now = Date.now()) => {
-    if (!key?.startsWith("kage_sk_")) return null;
+    if (!key?.startsWith("scrappy_sk_")) return null;
     const row = db.query(
       "SELECT k.id AS key_id, p.* FROM api_keys k JOIN projects p ON p.id = k.project_id WHERE k.hash = ? AND k.revoked_at IS NULL",
     ).get(sha256(key)) as any;
@@ -59,13 +59,13 @@ export function createAuth(db: Db) {
     now = Date.now(),
   ): { ok: true; worker: WorkerRow; token: string } | { ok: false; error: string } => {
     if (db.query("SELECT 1 FROM workers WHERE wallet = ?").get(wallet)) {
-      return { ok: false, error: "This wallet already has a Kage. Sign in with the wallet to continue on this device." };
+      return { ok: false, error: "This wallet already has a Scrappy. Sign in with the wallet to continue on this device." };
     }
     const token = randomToken("kw_");
     const w: WorkerRow = {
       id: uid(), wallet, token_hash: sha256(token), languages: JSON.stringify(languages), pet_name: profile.pet_name ?? null,
       species: profile.species ?? null, city: profile.city ?? null, created_at: now, last_seen_at: now, tasks_done: 0,
-      earned_micro: 0, owed_micro: 0, push_subscription: null,
+      earned_micro: 0, owed_micro: 0, pending_micro: 0, push_subscription: null,
     };
     db.query(
       "INSERT INTO workers (id, wallet, token_hash, languages, pet_name, species, city, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -84,7 +84,7 @@ export function createAuth(db: Db) {
    */
   const signIn = async (wallet: string, nonce: string, issuedAt: string, signatureB58: string, now = Date.now()) => {
     const worker = db.query("SELECT * FROM workers WHERE wallet = ?").get(wallet) as WorkerRow | null;
-    if (!worker) return { ok: false as const, error: "no Kage for this wallet" };
+    if (!worker) return { ok: false as const, error: "no Scrappy for this wallet" };
     const issued = Date.parse(issuedAt);
     if (!Number.isFinite(issued) || Math.abs(now - issued) > SIGN_IN_MAX_AGE_MS) return { ok: false as const, error: "sign-in message expired" };
     if (!/^[A-Za-z0-9]{16,64}$/.test(nonce)) return { ok: false as const, error: "bad nonce" };

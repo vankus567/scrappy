@@ -10,7 +10,7 @@ const SOLANA_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 /**
  * Link a payout wallet. Primary: connect a wallet app through the Solana wallet adapter (new wallet registers;
- * an existing Kage signs in with one signature). Fallback: paste an address (register only).
+ * an existing Scrappy signs in with one signature). Fallback: paste an address (register only).
  */
 export function JoinPanel({ title = "Connect your payout wallet", compact = false }: { title?: string; compact?: boolean }) {
   const { pet, update } = usePet();
@@ -34,8 +34,8 @@ export function JoinPanel({ title = "Connect your payout wallet", compact = fals
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? "This wallet already has a Kage. Use Connect wallet above to sign in with it."
-          : err instanceof Error ? err.message : "Could not reach Kage.",
+          ? "This wallet already has a Scrappy. Use Connect wallet above to sign in with it."
+          : err instanceof Error ? err.message : "Could not reach Scrappy.",
       );
     } finally {
       setBusy(false);
@@ -63,7 +63,7 @@ export function JoinPanel({ title = "Connect your payout wallet", compact = fals
             autoComplete="off"
             className="h-12 min-w-0 flex-1 rounded-[14px] bg-field px-4 font-mono text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-leaf"
           />
-          <button type="submit" disabled={busy} className="kage-focus h-12 shrink-0 rounded-[14px] bg-field px-5 font-semibold transition-colors hover:bg-field-hover disabled:opacity-60">
+          <button type="submit" disabled={busy} className="scrappy-focus h-12 shrink-0 rounded-[14px] bg-field px-5 font-semibold transition-colors hover:bg-field-hover disabled:opacity-60">
             {busy ? "Saving…" : "Use this address"}
           </button>
         </div>

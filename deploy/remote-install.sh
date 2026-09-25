@@ -21,7 +21,7 @@ USDC_MINT=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
 X402_FACILITATOR_URL=https://x402.org/facilitator
 ADMIN_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)
 WEB_ORIGINS=https://kageai.me,https://www.kageai.me
-KAGE_DB=/var/lib/kage/kage.db
+SCRAPPY_DB=/var/lib/kage/kage.db
 PLATFORM_KEY_FILE=/etc/kage/platform.json
 VAPID_PUBLIC_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).publicKey)')
 VAPID_PRIVATE_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).privateKey)')
@@ -33,7 +33,7 @@ fi
 
 # ---- build ----
 cd "$APP" && "$BUN" install
-cd "$APP/apps/web" && NEXT_PUBLIC_KAGE_API=https://kageai.me NEXT_PUBLIC_SOLANA_CLUSTER=devnet \
+cd "$APP/apps/web" && NEXT_PUBLIC_SCRAPPY_API=https://kageai.me NEXT_PUBLIC_SOLANA_CLUSTER=devnet \
   NEXT_PUBLIC_APK_URL="$( [ -f /opt/kage/shared/kage.apk ] && echo /kage.apk )" "$BUN" run build
 [ -f /opt/kage/shared/kage.apk ] && cp /opt/kage/shared/kage.apk "$APP/apps/web/public/kage.apk" || true
 [ -f /opt/kage/shared/assetlinks.json ] && mkdir -p "$APP/apps/web/public/.well-known" && cp /opt/kage/shared/assetlinks.json "$APP/apps/web/public/.well-known/" || true
@@ -42,7 +42,7 @@ ln -sfn "$APP" /opt/kage/current
 # ---- services ----
 cat > /etc/systemd/system/kage-api.service <<UNIT
 [Unit]
-Description=Kage Human API
+Description=Scrappy Human API
 After=network-online.target
 [Service]
 WorkingDirectory=/opt/kage/current/apps/api
@@ -56,7 +56,7 @@ WantedBy=multi-user.target
 UNIT
 cat > /etc/systemd/system/kage-web.service <<UNIT
 [Unit]
-Description=Kage web
+Description=Scrappy web
 After=network-online.target
 [Service]
 WorkingDirectory=/opt/kage/current/apps/web
@@ -71,7 +71,7 @@ WantedBy=multi-user.target
 UNIT
 cat > /etc/systemd/system/kage-payout.service <<UNIT
 [Unit]
-Description=Kage settlement: USDC payouts to workers, refunds to agents
+Description=Scrappy settlement: USDC payouts to workers, refunds to agents
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/kage/current/apps/api
@@ -80,7 +80,7 @@ ExecStart=$BUN scripts/payout.ts
 UNIT
 cat > /etc/systemd/system/kage-payout.timer <<UNIT
 [Unit]
-Description=Run Kage settlement every 15 minutes
+Description=Run Scrappy settlement every 15 minutes
 [Timer]
 OnBootSec=5min
 OnUnitActiveSec=15min
@@ -91,7 +91,7 @@ systemctl daemon-reload
 systemctl enable --now kage-api kage-web kage-payout.timer >/dev/null
 systemctl restart kage-api kage-web
 
-# ---- Caddy: kageai.me serves Kage (API under /v1 on the same origin) ----
+# ---- Caddy: kageai.me serves Scrappy (API under /v1 on the same origin) ----
 # The Caddyfile is shared with other sites: replace only the kageai.me block, with a backup and auto-restore.
 cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak-kage-$REL"
 "$BUN" "$APP/deploy/caddy-kage.ts" /etc/caddy/Caddyfile 8795 3100

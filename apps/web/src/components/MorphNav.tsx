@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import type { Icon } from "@phosphor-icons/react";
-import { Wordmark } from "./kage/Wordmark";
+import { Wordmark } from "./scrappy/Wordmark";
 
 export type MorphLink = { href: string; label: string; icon: Icon; active?: boolean };
 
@@ -43,7 +43,7 @@ export function MorphNav({ links, cta, className, floating = false, right }: Pro
             : "h-16 w-full max-w-[1400px] rounded-[22px] border-transparent bg-ground-deep px-5"
         }`}
       >
-        <Link href="/" className="flex shrink-0 items-center gap-2 pl-1" aria-label="Kage home">
+        <Link href="/" className="flex shrink-0 items-center gap-2 pl-1" aria-label="Scrappy home">
           <motion.span layout={!reduce} transition={SPRING} className="block pb-1">
             <Wordmark className={scrolled ? "text-[20px]" : "text-[24px]"} />
           </motion.span>

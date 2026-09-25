@@ -1,4 +1,4 @@
-# Kage: what's left, in layers
+# Scrappy: what's left, in layers
 
 Each layer sits on the one below, ends in something **real and testable**, and can be demoed on its own.
 Build bottom-up. Do not start a layer before the one below passes its **done when** check.
@@ -9,7 +9,7 @@ L7  SHIP            APK · decks · videos · submissions (Oct 7-11)
 L6  NETWORK         consensus · arbitration · leaderboards · live dashboard · SKR stake
 L5  THE DEMO        Human Fallback agent (61% → human → 96%)
 L4  WORKER APP LIVE jobs screen · confidence slider · reward moment · push · levels · revive
-L3  AGENT SURFACE   @kage/human SDK · MCP ask_human · Payment Channels (x402 upto / MPP)
+L3  AGENT SURFACE   @scrappy/human SDK · MCP ask_human · Payment Channels (x402 upto / MPP)
 L2  QUALITY         router v1 · capability graph · gold tasks · anti-farming
 L1  MONEY           devnet paid call · real USDC payouts · wallets (Google + Seeker)
 L0  CORE (done)     Human API v1 (x402 exact) · router v0 · worker endpoints · tests
@@ -41,7 +41,7 @@ L0  CORE (done)     Human API v1 (x402 exact) · router v0 · worker endpoints �
 ## L3 Agent surface (developers can use it)
 | Task | Done when |
 |---|---|
-| `@kage/human` SDK: `human.ask({ task, budget, deadline, language })` handles 402, payment, polling | 5-line example returns a real human answer on devnet |
+| `@scrappy/human` SDK: `human.ask({ task, budget, deadline, language })` handles 402, payment, polling | 5-line example returns a real human answer on devnet |
 | MCP server `ask_human` (TypeScript MCP SDK) paying automatically within `max_price_usdc` | Claude Code / any MCP client gets a human answer via the tool |
 | **Payment Channels**: agent authorizes a budget once (x402 `upto` or MPP session via `@solana/pay-kit`), streams per-answer vouchers, settles once | 10 answers paid from one channel with one open + one settle tx |
 | Confidence policy helper in SDK (>0.9 accept, 0.7-0.9 second human, <0.7 expert) | SDK automatically asks a second human below 0.9 |
@@ -60,7 +60,7 @@ L0  CORE (done)     Human API v1 (x402 exact) · router v0 · worker endpoints �
 ## L5 The demo (the 90-second story)
 | Task | Done when |
 |---|---|
-| **Human Fallback agent**: an AI agent whose own confidence drops (e.g. 61%) calls Kage, gets a human answer, continues at 96% | Recorded end to end on mainnet with a real payout |
+| **Human Fallback agent**: an AI agent whose own confidence drops (e.g. 61%) calls Scrappy, gets a human answer, continues at 96% | Recorded end to end on mainnet with a real payout |
 | "That wasn't a demo transaction": trigger 10 live jobs; live counters (answers, $ paid, median latency, agreement) computed from chain + DB | Numbers on screen match Explorer |
 
 ## L6 Network (should, time permitting)

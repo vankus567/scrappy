@@ -8,7 +8,7 @@ import { LANGUAGES, skillLabel, STAGES, stageFor, stageName, usePet } from "@/li
 import { JoinPanel } from "./JoinPanel";
 import { useWorker } from "./useWorker";
 
-/** The worker's Kage: identity, measured skill (never self-declared), forms earned by real tasks, and history. */
+/** The worker's Scrappy: identity, measured skill (never self-declared), forms earned by real tasks, and history. */
 export function ProfilePanel() {
   const { pet } = usePet();
   const { token, profile } = useWorker();
@@ -50,6 +50,17 @@ export function ProfilePanel() {
           <div className="rounded-[14px] bg-field py-3"><dt className="text-[12px] text-ink-soft">Accuracy</dt><dd className="font-display text-[20px] font-bold tabular-nums">{pct(profile?.accuracy)}</dd></div>
           <div className="rounded-[14px] bg-field py-3"><dt className="text-[12px] text-ink-soft">Avg answer</dt><dd className="font-display text-[20px] font-bold tabular-nums">{secs(profile?.avg_response_ms)}</dd></div>
         </dl>
+        {profile && (
+          <p className="mt-4 text-[13px] leading-relaxed text-ink-faint">
+            Level {profile.level}
+            {profile.next_level_at != null && ` · ${profile.next_level_at - profile.tasks_done} ${profile.next_level_at - profile.tasks_done === 1 ? "task" : "tasks"} to Lv ${profile.level + 1}`}
+            {" — "}
+            {!profile.unlocks.better_pay && "Lv 5 unlocks better-paid tasks"}
+            {profile.unlocks.better_pay && !profile.unlocks.expert_tasks && "Lv 10 unlocks expert tasks"}
+            {profile.unlocks.expert_tasks && !profile.unlocks.first_pick && "Lv 20 gives you first pick of new tasks"}
+            {profile.unlocks.first_pick && "all unlocks earned"}
+          </p>
+        )}
         <p className="mt-5 text-[13px] leading-relaxed text-ink-faint">
           Languages: {pet.languages.map((l) => LANGUAGES.find((x) => x.id === l)?.label ?? l).join(", ")}
         </p>
@@ -104,7 +115,7 @@ export function ProfilePanel() {
           </section>
         )}
 
-        <Link href="/app/settings" className="kage-focus inline-block rounded px-1 text-[14px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
+        <Link href="/app/settings" className="scrappy-focus inline-block rounded px-1 text-[14px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
           Settings: name, languages, notifications
         </Link>
       </div>

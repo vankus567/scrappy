@@ -12,7 +12,7 @@ export function LandingNav() {
         { href: "/live", label: "Live", icon: ChartLineUp },
         { href: "/dev", label: "Dashboard", icon: SquaresFour },
       ]}
-      cta={{ href: "/app", label: "Earn with Kage", icon: ArrowUpRight }}
+      cta={{ href: "/app", label: "Earn with Scrappy", icon: ArrowUpRight }}
     />
   );
 }

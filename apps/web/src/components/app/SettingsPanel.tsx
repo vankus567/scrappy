@@ -14,7 +14,7 @@ import { useWorker } from "./useWorker";
 /** Everything a worker can change: identity, languages (routing), notifications, wallet, device sign-out. */
 export function SettingsPanel() {
   const { ready, pet } = usePet();
-  // mount the form only once the saved Kage is loaded, so its fields start from real values
+  // mount the form only once the saved Scrappy is loaded, so its fields start from real values
   if (!ready || !pet) return null;
   return <SettingsForm key={pet.bornAt} />;
 }
@@ -33,7 +33,7 @@ function SettingsForm() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return setState({ busy: false, msg: "Your Kage needs a name.", err: true });
+    if (!name.trim()) return setState({ busy: false, msg: "Your Scrappy needs a name.", err: true });
     if (!langs.length) return setState({ busy: false, msg: "Keep at least one language: tasks are routed by language.", err: true });
     setState({ busy: true, msg: "", err: false });
     try {
@@ -74,7 +74,7 @@ function SettingsForm() {
       <section className="space-y-3 rounded-[26px] bg-ground-deep p-6 sm:p-8">
         <h2 className="font-display text-[22px] font-bold">Notifications</h2>
         {!pushSupported() ? (
-          <p className="text-ink-soft">This browser can&apos;t receive task notifications. Install the Kage app on Android to get them.</p>
+          <p className="text-ink-soft">This browser can&apos;t receive task notifications. Install the Scrappy app on Android to get them.</p>
         ) : profile?.push ? (
           <p className="text-ink-soft">On for this device. You get a buzz when an agent needs one of your languages.</p>
         ) : token ? (
@@ -86,7 +86,7 @@ function SettingsForm() {
 
       <section className="space-y-3 rounded-[26px] bg-ground-deep p-6 sm:p-8">
         <h2 className="font-display text-[22px] font-bold">Payout wallet</h2>
-        <p className="text-ink-soft">Your Kage is tied to this wallet. To use another wallet, sign out and create a Kage with it.</p>
+        <p className="text-ink-soft">Your Scrappy is tied to this wallet. To use another wallet, sign out and create a Scrappy with it.</p>
         <WalletButton />
       </section>
 
@@ -101,7 +101,7 @@ function SettingsForm() {
               release();
             }
           }}
-          className="kage-focus h-11 rounded-[14px] bg-field px-5 font-semibold text-[#ffb4a3] transition-colors hover:bg-field-hover"
+          className="scrappy-focus h-11 rounded-[14px] bg-field px-5 font-semibold text-[#ffb4a3] transition-colors hover:bg-field-hover"
         >
           Sign out on this device
         </button>

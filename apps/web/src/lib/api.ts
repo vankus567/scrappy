@@ -1,5 +1,5 @@
-// Client for the Kage Human API (apps/api). Workers use a device token; developers use a project API key.
-export const API_URL = (process.env.NEXT_PUBLIC_KAGE_API ?? "http://localhost:8787").replace(/\/$/, "");
+// Client for the Scrappy Human API (apps/api). Workers use a device token; developers use a project API key.
+export const API_URL = (process.env.NEXT_PUBLIC_SCRAPPY_API ?? process.env.NEXT_PUBLIC_KAGE_API ?? "http://localhost:8787").replace(/\/$/, "");
 export const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet";
 const clusterQs = EXPLORER_CLUSTER === "mainnet" ? "" : `?cluster=${EXPLORER_CLUSTER}`;
 export const addressUrl = (addr: string) => `https://explorer.solana.com/address/${addr}${clusterQs}`;
@@ -37,6 +37,9 @@ export type WorkerProfile = {
   checks: number;
   avg_response_ms: number | null;
   skills: Skill[];
+  level: number;
+  next_level_at: number | null;
+  unlocks: { better_pay: boolean; expert_tasks: boolean; first_pick: boolean };
   earnings: { today_usdc: number; week_usdc: number; total_usdc: number; owed_usdc: number; paid_usdc: number };
   payout_hold_until: string;
   payout_held: boolean;

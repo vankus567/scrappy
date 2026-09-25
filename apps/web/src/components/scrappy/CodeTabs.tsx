@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 const TABS = {
-  SDK: `import { Kage } from "@kage/sdk";
+  SDK: `import { Scrappy } from "@scrappy/sdk";
 
-const kage = new Kage({ apiKey: process.env.KAGE_API_KEY });
+const scrappy = new Scrappy({ apiKey: process.env.SCRAPPY_API_KEY });
 
-const r = await kage.consensus({
+const r = await scrappy.consensus({
   task: "Does this change let one user act as another?",
   content: diff,
   skill: "security",
@@ -22,20 +22,20 @@ if (r.answer === "yes") cancelDeploy();`,
 // then in claude_desktop_config.json, .cursor/mcp.json, ...
 {
   "mcpServers": {
-    "kage": {
+    "scrappy": {
       "command": "bun",
       "args": ["<repo>/apps/mcp/src/index.ts"],
-      "env": { "KAGE_API_KEY": "kage_sk_..." }
+      "env": { "SCRAPPY_API_KEY": "scrappy_sk_..." }
     }
   }
 }
 
 // Tools your agent gets:
-//   kage_ask_human       one human, one judgment
-//   kage_consensus       n humans, majority + agreement
-//   kage_find_capacity   who is online right now (free)`,
-  REST: `curl https://kageai.me/v1/consensus \\
-  -H "authorization: Bearer $KAGE_API_KEY" \\
+//   scrappy_ask_human       one human, one judgment
+//   scrappy_consensus       n humans, majority + agreement
+//   scrappy_find_capacity   who is online right now (free)`,
+  REST: `curl https://scrappypet.vercel.app/v1/consensus \\
+  -H "authorization: Bearer $SCRAPPY_API_KEY" \\
   -H "content-type: application/json" \\
   -d '{
     "task": "Which Telugu reply sounds natural?",
@@ -85,7 +85,7 @@ export function CodeTabs() {
               aria-selected={tab === k}
               aria-controls="code-panel"
               onClick={() => setTab(k)}
-              className={`kage-focus rounded-[12px] px-3.5 py-2 text-[14px] font-semibold transition-colors ${tab === k ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
+              className={`scrappy-focus rounded-[12px] px-3.5 py-2 text-[14px] font-semibold transition-colors ${tab === k ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
             >
               {k}
             </button>
@@ -104,7 +104,7 @@ export function CodeTabs() {
               type="button"
               aria-selected={out === k}
               onClick={() => setOut(k)}
-              className={`kage-focus rounded-[12px] px-3.5 py-2 text-[14px] font-semibold transition-colors ${out === k ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
+              className={`scrappy-focus rounded-[12px] px-3.5 py-2 text-[14px] font-semibold transition-colors ${out === k ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
             >
               {label}
             </button>
@@ -114,7 +114,7 @@ export function CodeTabs() {
         <p className="px-5 pb-5 text-[13px] leading-relaxed text-ink-faint">
           {out === "result"
             ? "Majority answer, how many agreed, and how sure the proven humans were."
-            : "Kage never hangs and never fakes it. You get this before paying, then decide: retry, raise the reward, or stop."}
+            : "Scrappy never hangs and never fakes it. You get this before paying, then decide: retry, raise the reward, or stop."}
         </p>
       </div>
     </div>

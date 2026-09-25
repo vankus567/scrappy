@@ -14,7 +14,7 @@ export const pushSupported = () => typeof window !== "undefined" && "serviceWork
 export async function enablePush(token: string) {
   if (!pushSupported()) throw new Error("This browser can't receive task notifications.");
   const { push_public_key } = await getConfig();
-  if (!push_public_key) throw new Error("Notifications are not switched on for this Kage server yet.");
+  if (!push_public_key) throw new Error("Notifications are not switched on for this Scrappy server yet.");
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Notifications are blocked for this site.");
   const reg = await navigator.serviceWorker.register("/sw.js");

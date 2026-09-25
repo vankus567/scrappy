@@ -9,15 +9,15 @@ let mwaRegistered = false;
 /**
  * Solana wallet adapter for the whole app. Wallet Standard wallets (Phantom, Solflare, Backpack, ...) register
  * themselves; on Android and Seeker we also register Mobile Wallet Adapter (Seed Vault and installed wallet apps).
- * The wallet is only used to prove a payout address and sign in: Kage never asks it to approve per-task transactions.
+ * The wallet is only used to prove a payout address and sign in: Scrappy never asks it to approve per-task transactions.
  */
-export function KageWalletProvider({ children }: { children: React.ReactNode }) {
+export function ScrappyWalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (mwaRegistered || !/android/i.test(navigator.userAgent)) return;
     mwaRegistered = true;
     import("@solana-mobile/wallet-standard-mobile").then((m) =>
       m.registerMwa({
-        appIdentity: { name: "Kage", uri: window.location.origin, icon: "/icon-192.png" },
+        appIdentity: { name: "Scrappy", uri: window.location.origin, icon: "/icon-192.png" },
         authorizationCache: m.createDefaultAuthorizationCache(),
         chains: ["solana:mainnet", "solana:devnet"],
         chainSelector: m.createDefaultChainSelector(),
@@ -27,7 +27,7 @@ export function KageWalletProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <WalletProvider wallets={[]} autoConnect localStorageKey="kage.wallet">
+    <WalletProvider wallets={[]} autoConnect localStorageKey="scrappy.wallet">
       <WalletPickerProvider>{children}</WalletPickerProvider>
     </WalletProvider>
   );

@@ -57,7 +57,7 @@ export function WalletView() {
                   <p className="money font-display text-[20px] font-bold tabular-nums">+${p.amount_usdc.toFixed(2)}</p>
                   <p className="text-[13px] text-ink-faint">{new Date(p.at).toLocaleString()}</p>
                 </div>
-                <a href={txUrl(p.tx_sig)} target="_blank" rel="noreferrer" className="kage-btn !min-h-10 !bg-field !px-3 !text-[14px] !text-ink hover:!bg-field-hover">
+                <a href={txUrl(p.tx_sig)} target="_blank" rel="noreferrer" className="scrappy-btn !min-h-10 !bg-field !px-3 !text-[14px] !text-ink hover:!bg-field-hover">
                   Receipt <Arrow />
                 </a>
               </li>

@@ -1,15 +1,15 @@
-// A real agent paying Kage per task over x402 (devnet USDC from .keys/agent.json).
+// A real agent paying Scrappy per task over x402 (devnet USDC from .keys/agent.json).
 //   bun scripts/agent-pay.ts "Which answer is factually correct?"
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { Kage } from "../../../packages/sdk/src/index";
+import { Scrappy } from "../../../packages/sdk/src/index";
 
 const keyFile = fileURLToPath(new URL("../.keys/agent.json", import.meta.url));
 const { secret, address } = JSON.parse(readFileSync(keyFile, "utf8"));
-const kage = new Kage({ baseUrl: process.env.KAGE_API ?? "http://localhost:8787", walletSecretKey: secret });
+const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? "http://localhost:8787", walletSecretKey: secret });
 
 console.log(`agent ${address} asking 3 humans...`);
-const r = await kage.consensus({
+const r = await scrappy.consensus({
   task: process.argv[2] ?? "Which answer is factually correct?",
   options: ["The Pacific is the largest ocean", "The Atlantic is the largest ocean"],
   humans: Number(process.env.HUMANS ?? 3),

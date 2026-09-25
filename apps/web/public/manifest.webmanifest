@@ -1,6 +1,6 @@
 {
-  "name": "Kage",
-  "short_name": "Kage",
+  "name": "Scrappy",
+  "short_name": "Scrappy",
   "description": "Answer quick questions for AI agents. Get paid in USDC.",
   "start_url": "/app",
   "scope": "/",

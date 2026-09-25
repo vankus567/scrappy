@@ -1,6 +1,6 @@
-# Kage: TODO v2 (the Human API)
+# Scrappy: TODO v2 (the Human API)
 
-**One line:** When AI needs a human, Kage pays one instantly.
+**One line:** When AI needs a human, Scrappy pays one instantly.
 **Source of truth:** `docs/POSITIONING.md`. **Rule:** real product only, no mocks (`CLAUDE.md`).
 **Deadlines:** CLOCK IN **Oct 8** (APK + repo + video + deck) · Colosseum + Superteam Earn **Oct 11** (hard Oct 12).
 
@@ -35,7 +35,7 @@ Legend: [S] sales/supply · [B] build · [P] pitch/submission
 - [ ] [B] **Human Router v1** (rules): language, domain, difficulty, latency, required accuracy, budget, availability, fairness
 - [ ] [B] **Capability graph v1**: per-domain accuracy from hidden gold tasks + agreement + history (never self-declared); shown as numbers
 - [ ] [B] Gold tasks seeded per domain; anti-farming (hidden evals, latency floors, payout holds for new accounts)
-- [ ] [B] `@kage/human` SDK (`human.ask({ task, budget, deadline })`) + MCP tool `ask_human` paying automatically
+- [ ] [B] `@scrappy/human` SDK (`human.ask({ task, budget, deadline })`) + MCP tool `ask_human` paying automatically
 
 ## Day 8-9 (Oct 2-3): worker app becomes real
 - [ ] [B] Job card screen (verify / compare / record) with confidence slider; answer submit; real payout shown
@@ -47,7 +47,7 @@ Legend: [S] sales/supply · [B] build · [P] pitch/submission
 - [ ] [S] **Checkpoint Oct 3:** 3 agents paying? If 0, change buyer segment same day
 
 ## Day 10-11 (Oct 4-5): the killer demo + network features
-- [ ] [B] **Human Fallback**: demo agent whose confidence drops (e.g. 61%) → calls Kage → human answers → agent continues at 96%
+- [ ] [B] **Human Fallback**: demo agent whose confidence drops (e.g. 61%) → calls Scrappy → human answers → agent continues at 96%
 - [ ] [B] Consensus for hard tasks (second human, split pay) + arbitration on disagreement (SHOULD)
 - [ ] [B] Leaderboards from real outside-agent earnings; share cards; public live dashboard (tx count, paid, median latency, agreement)
 - [ ] [B] SKR as expert reputation stake (gates expert eligibility; no fake slashing) (SHOULD, for the SKR prize)

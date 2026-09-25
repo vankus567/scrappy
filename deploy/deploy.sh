@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Kage to the VPS: web + API on https://kageai.me (API at /v1 on the same origin).
+# Deploy Scrappy to the VPS: web + API on https://kageai.me (API at /v1 on the same origin).
 #   SSH_KEY=~/.ssh/hostinger_tenki HOST=root@187.127.137.136 bash deploy/deploy.sh
 # Ships the committed tree (git archive: no .env, no .keys, no node_modules) plus the platform wallet key.
 set -euo pipefail

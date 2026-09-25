@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Kage: shadow ink. A green-black ground, one pale moonlight tone for action, warm gold only when money moves.
+  /* Scrappy: shadow ink. A green-black ground, one pale moonlight tone for action, warm gold only when money moves.
      The pets carry the colour. */
   --ground: #0c0e0d;
   --ground-deep: #151816;
@@ -221,11 +221,11 @@ body {
 .reward-pop { display: inline-block; animation: reward-pop 0.6s cubic-bezier(.3,1.4,.5,1) both; }
 @media (prefers-reduced-motion: reduce) { .reward-pop { animation: none; } }
 
-/* ---------------- Kage ---------------- */
+/* ---------------- Scrappy ---------------- */
 
 /* The wordmark casts its own shadow: a flattened, skewed copy lying on the ground below it. */
-.kage-mark { position: relative; display: inline-block; line-height: 0.9; }
-.kage-mark::after {
+.scrappy-mark { position: relative; display: inline-block; line-height: 0.9; }
+.scrappy-mark::after {
   content: attr(data-text);
   position: absolute;
   inset: 0;
@@ -238,18 +238,18 @@ body {
 }
 
 /* Solid action: no glow, no lift. State changes by tone; the arrow travels. */
-.kage-btn {
+.scrappy-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   min-height: 3rem; padding: 0 1.4rem; border-radius: 14px;
   background: var(--leaf); color: var(--on-leaf); font-weight: 700; font-size: 16px;
   transition: background-color 160ms ease;
 }
-.kage-btn:hover { background: var(--leaf-hover); }
-.kage-btn:active { background: #cfd9a4; }
-.kage-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.kage-btn:focus-visible, .kage-focus:focus-visible { outline: 2px solid var(--leaf); outline-offset: 3px; }
-.kage-btn .arrow { transition: transform 200ms cubic-bezier(.3,.7,.4,1); }
-.kage-btn:hover .arrow { transform: translate(2px, -2px); }
+.scrappy-btn:hover { background: var(--leaf-hover); }
+.scrappy-btn:active { background: #cfd9a4; }
+.scrappy-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.scrappy-btn:focus-visible, .scrappy-focus:focus-visible { outline: 2px solid var(--leaf); outline-offset: 3px; }
+.scrappy-btn .arrow { transition: transform 200ms cubic-bezier(.3,.7,.4,1); }
+.scrappy-btn:hover .arrow { transform: translate(2px, -2px); }
 
 /* Trace: every node is always visible; the active step is lit by tone only. */
 .trace-node { transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease; }

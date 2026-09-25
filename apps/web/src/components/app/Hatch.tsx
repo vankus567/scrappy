@@ -38,8 +38,8 @@ export function Hatch() {
       <div className="space-y-6 pb-28">
         <div>
           <p className="text-[14px] font-semibold text-ink-soft">Step 1 of 2</p>
-          <h1 className="mt-1 font-display text-[clamp(2rem,4vw,2.9rem)] font-bold leading-[1.08]">Choose your Kage</h1>
-          <p className="mt-2 text-ink-soft">Your Kage is your identity on the network. It grows through four forms as your answers prove you right.</p>
+          <h1 className="mt-1 font-display text-[clamp(2rem,4vw,2.9rem)] font-bold leading-[1.08]">Choose your Scrappy</h1>
+          <p className="mt-2 text-ink-soft">Your Scrappy is your identity on the network. It grows through four forms as your answers prove you right.</p>
           <ReturningSignIn />
         </div>
 
@@ -99,7 +99,7 @@ export function Hatch() {
           />
         </div>
         <p className="text-[15px] text-ink-soft">
-          Your Kage: <span className="font-bold text-ink">{sp.name}</span>, the {sp.blurb.toLowerCase()}.{" "}
+          Your Scrappy: <span className="font-bold text-ink">{sp.name}</span>, the {sp.blurb.toLowerCase()}.{" "}
           <button type="button" onClick={() => setStep("pick")} className="font-semibold text-leaf transition-colors hover:text-leaf-hover">
             Change
           </button>

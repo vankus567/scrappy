@@ -13,7 +13,7 @@ const LAST = 6; // 0 ask · 1 route · 2-4 humans · 5 consensus · 6 continue +
 const PAY = (0.3 / 3) * 0.8;
 
 /**
- * One Kage call, end to end. Server-rendered at the final step, so every node is visible without JS;
+ * One Scrappy call, end to end. Server-rendered at the final step, so every node is visible without JS;
  * on the client it replays the call step by step. Motion changes tone only, never visibility.
  */
 export function Trace() {
@@ -36,14 +36,14 @@ export function Trace() {
   const on = (n: number) => String(step === n || (n === LAST && step === LAST));
 
   return (
-    <figure className="w-full" aria-label="Example Kage call: an AI coding agent asks three humans before deploying">
+    <figure className="w-full" aria-label="Example Scrappy call: an AI coding agent asks three humans before deploying">
       <div className="grid items-stretch gap-3 lg:grid-cols-[1.25fr_auto_0.9fr_auto_1.15fr_auto_1.1fr] lg:gap-0">
         {/* agent */}
         <div className="trace-node rounded-[22px] border border-transparent bg-ground-deep p-5" data-lit={on(0)}>
           <p className="text-[13px] text-ink-faint">AI coding agent</p>
           <p className="mt-2 text-[15px] leading-snug">Changed an auth check. Before deploying: does this let one user act as another?</p>
           <pre className="mt-3 overflow-x-auto rounded-[12px] bg-field px-3 py-2.5 font-mono text-[12px] leading-relaxed text-ink-soft">
-{`kage.consensus({
+{`scrappy.consensus({
   humans: 3,
   budget: 0.30,
   deadline: 20,
@@ -53,7 +53,7 @@ export function Trace() {
 
         <Wire lit={lit(1)} flowing={step === 1} />
 
-        {/* kage */}
+        {/* scrappy */}
         <div className="trace-node flex flex-col justify-center rounded-[22px] border border-transparent bg-ground-deep p-5" data-lit={on(1)}>
           <Wordmark className="text-[26px]" />
           <p className="mt-5 text-[14px] leading-snug text-ink-soft">Finds 3 online humans with proven security skill. Each answers alone.</p>

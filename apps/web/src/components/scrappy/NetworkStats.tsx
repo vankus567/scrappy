@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getStats, pct, secs, usd, type NetworkStats as Stats } from "@/lib/api";
 
-/** Live network numbers, straight from the Kage API. Nothing estimated; zero is shown as zero. */
+/** Live network numbers, straight from the Scrappy API. Nothing estimated; zero is shown as zero. */
 export function NetworkStats({ poll = 10_000, dense = false }: { poll?: number; dense?: boolean }) {
   const [s, setS] = useState<Stats | null>(null);
   const [error, setError] = useState(false);

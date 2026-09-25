@@ -15,11 +15,11 @@ const LinkCtx = createContext<Ctx>({ start: () => {}, status: { state: "idle" },
 export const useWalletLink = () => useContext(LinkCtx);
 
 /** Must match apps/api/src/auth.ts signInMessage. */
-const message = (wallet: string, nonce: string, issuedAt: string) => `Kage sign-in\nwallet: ${wallet}\nnonce: ${nonce}\nissued: ${issuedAt}`;
+const message = (wallet: string, nonce: string, issuedAt: string) => `Scrappy sign-in\nwallet: ${wallet}\nnonce: ${nonce}\nissued: ${issuedAt}`;
 
 /**
- * Turns "wallet connected" into "signed in to Kage". Only acts after the person taps Connect (never on silent
- * auto-connect): a new wallet registers; a wallet that already has a Kage signs one message to prove it.
+ * Turns "wallet connected" into "signed in to Scrappy". Only acts after the person taps Connect (never on silent
+ * auto-connect): a new wallet registers; a wallet that already has a Scrappy signs one message to prove it.
  */
 export function WalletLinkProvider({ children }: { children: React.ReactNode }) {
   const { publicKey, connected, signMessage, disconnect } = useWallet();
@@ -72,14 +72,14 @@ export function WalletLinkProvider({ children }: { children: React.ReactNode }) 
           const r = await signIn(address);
           const species = (r.profile.species && r.profile.species in SPECIES ? r.profile.species : "mochi") as Species;
           const languages = r.profile.languages.filter((l): l is Language => LANGUAGES.some((x) => x.id === l));
-          hatch({ species, name: r.profile.pet_name ?? "Kage", languages, city: r.profile.city ?? "", college: "" });
+          hatch({ species, name: r.profile.pet_name ?? "Scrappy", languages, city: r.profile.city ?? "", college: "" });
           update({ workerToken: r.worker_token, wallet: address });
         }
         if (alive) setStatus({ state: "idle" });
         if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
       } catch (err) {
         const msg = err instanceof ApiError && err.status === 401 && i === "signin"
-          ? "No Kage for this wallet yet. Create one first."
+          ? "No Scrappy for this wallet yet. Create one first."
           : err instanceof Error ? err.message : "Could not connect.";
         if (alive) setStatus({ state: "error", message: msg });
         if (i === "signin") disconnect().catch(() => {});

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Lightning, PawPrint, Trophy, Wallet } from "@phosphor-icons/react";
 import { MorphNav } from "@/components/MorphNav";
-import { Wordmark } from "@/components/kage/Wordmark";
+import { Wordmark } from "@/components/scrappy/Wordmark";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import { useWalletLink } from "@/components/wallet/WalletLink";
 import { RadialNav } from "./RadialNav";
@@ -12,7 +12,7 @@ import { RadialNav } from "./RadialNav";
 const TABS = [
   { href: "/app", label: "Home", Icon: House },
   { href: "/app/tasks", label: "Tasks", Icon: Lightning },
-  { href: "/app/profile", label: "Kage", Icon: PawPrint },
+  { href: "/app/profile", label: "Scrappy", Icon: PawPrint },
   { href: "/app/wallet", label: "Wallet", Icon: Wallet },
   { href: "/app/ranks", label: "Ranks", Icon: Trophy },
 ];
@@ -31,7 +31,7 @@ export function AppNav() {
 
       {/* mobile: slim top bar (brand + wallet), radial tabs at the bottom */}
       <header className="sticky top-0 z-30 flex items-center justify-between bg-ground/95 px-4 pb-2 pt-[calc(10px+env(safe-area-inset-top))] md:hidden">
-        <Link href="/app" aria-label="Kage home" className="kage-focus rounded pb-1.5"><Wordmark className="text-[22px]" /></Link>
+        <Link href="/app" aria-label="Scrappy home" className="scrappy-focus rounded pb-1.5"><Wordmark className="text-[22px]" /></Link>
         <WalletButton compact />
       </header>
       <RadialNav items={TABS.map((t) => ({ ...t, active: isActive(t.href) }))} />
@@ -50,7 +50,7 @@ function LinkBanner() {
   if (mismatch) {
     return (
       <p role="status" className="mx-auto mt-3 max-w-[1400px] px-4 text-[14px] text-ink-soft sm:px-8">
-        The connected wallet isn&apos;t this Kage&apos;s payout wallet. Earnings still go to the payout wallet shown in the header.
+        The connected wallet isn&apos;t this Scrappy&apos;s payout wallet. Earnings still go to the payout wallet shown in the header.
       </p>
     );
   }

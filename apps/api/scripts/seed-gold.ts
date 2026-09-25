@@ -1,7 +1,7 @@
 // Seeds hidden qualification (gold) tasks: questions with one objectively correct answer.
 // New workers answer these first; their accuracy per language and skill is measured, never self-declared.
-//   ADMIN_TOKEN=... KAGE_API=http://localhost:8787 bun scripts/seed-gold.ts
-const API = process.env.KAGE_API ?? "http://localhost:8787";
+//   ADMIN_TOKEN=... SCRAPPY_API=http://localhost:8787 bun scripts/seed-gold.ts
+const API = process.env.SCRAPPY_API ?? "http://localhost:8787";
 const token = process.env.ADMIN_TOKEN;
 if (!token) throw new Error("ADMIN_TOKEN is required");
 

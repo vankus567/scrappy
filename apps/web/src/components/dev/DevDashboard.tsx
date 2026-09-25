@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { NetworkStats } from "@/components/kage/NetworkStats";
+import { NetworkStats } from "@/components/scrappy/NetworkStats";
 import { Button } from "@/components/ui/Button";
 import {
   ApiError, createKey, createProject, creditDeposit, getConfig, getKeys, getPayments, getProject, getProjectTasks, patchProject, pct,
   revokeKey, secs, txUrl, usd, type ProjectOverview, type ProjectTask,
 } from "@/lib/api";
 
-const KEY = "kage.dev.key";
+const KEY = "scrappy.dev.key";
 const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 const write = (k: string | null) => { try { if (k) localStorage.setItem(KEY, k); else localStorage.removeItem(KEY); } catch { /* blocked storage: session only */ } };
 
@@ -108,7 +108,7 @@ function Dashboard({ apiKey, signOut }: { apiKey: string; signOut: () => void })
       setError("");
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) signOut();
-      else setError("Can't reach Kage right now.");
+      else setError("Can't reach Scrappy right now.");
     }
   }, [apiKey, signOut]);
 
@@ -132,7 +132,7 @@ function Dashboard({ apiKey, signOut }: { apiKey: string; signOut: () => void })
             <p className="text-[13px] text-ink-faint">Balance</p>
             <p className="money font-display text-[26px] font-bold tabular-nums">{o ? usd(o.balance_usdc) : "…"}</p>
           </div>
-          <button type="button" onClick={signOut} className="kage-focus rounded text-[14px] text-ink-faint hover:text-ink-soft">Sign out</button>
+          <button type="button" onClick={signOut} className="scrappy-focus rounded text-[14px] text-ink-faint hover:text-ink-soft">Sign out</button>
         </div>
       </header>
 
@@ -144,12 +144,12 @@ function Dashboard({ apiKey, signOut }: { apiKey: string; signOut: () => void })
             type="button"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={`kage-focus shrink-0 rounded-[12px] px-4 py-2 text-[14px] font-semibold transition-colors ${tab === t ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
+            className={`scrappy-focus shrink-0 rounded-[12px] px-4 py-2 text-[14px] font-semibold transition-colors ${tab === t ? "bg-field text-ink" : "text-ink-faint hover:text-ink-soft"}`}
           >
             {t}
           </button>
         ))}
-        <Link href="/docs" className="kage-focus ml-auto shrink-0 rounded-[12px] px-4 py-2 text-[14px] font-semibold text-leaf hover:text-leaf-hover">Docs</Link>
+        <Link href="/docs" className="scrappy-focus ml-auto shrink-0 rounded-[12px] px-4 py-2 text-[14px] font-semibold text-leaf hover:text-leaf-hover">Docs</Link>
       </div>
 
       {error && <p role="alert" className="text-ink-soft">{error}</p>}
@@ -285,8 +285,8 @@ function Funding({ apiKey, o, onCredit }: { apiKey: string; o: ProjectOverview |
         <h2 className="font-display text-[22px] font-bold">Add USDC</h2>
         <ol className="list-decimal space-y-2 pl-5 text-[15px] text-ink-soft">
           <li>Set the wallet you&apos;ll pay from.</li>
-          <li>Send USDC{network?.includes("EtWTRABZ") ? " (devnet)" : ""} to Kage: <span className="break-all font-mono text-[13px] text-ink">{platform ?? "…"}</span></li>
-          <li>Paste the transaction signature. Kage checks it on-chain and credits it once.</li>
+          <li>Send USDC{network?.includes("EtWTRABZ") ? " (devnet)" : ""} to Scrappy: <span className="break-all font-mono text-[13px] text-ink">{platform ?? "…"}</span></li>
+          <li>Paste the transaction signature. Scrappy checks it on-chain and credits it once.</li>
         </ol>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input aria-label="Funding wallet" value={wallet} onChange={(e) => setWallet(e.target.value)} spellCheck={false} className="h-11 min-w-0 flex-1 rounded-[12px] bg-field px-3 font-mono text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-leaf" />
@@ -354,7 +354,7 @@ function Keys({ apiKey }: { apiKey: string }) {
                 type="button"
                 disabled={k.current}
                 onClick={async () => { if (window.confirm("Revoke this key? Agents using it stop working immediately.")) { await revokeKey(apiKey, k.id); pull(); } }}
-                className="kage-focus rounded font-semibold text-[#ffb4a3] disabled:text-ink-faint"
+                className="scrappy-focus rounded font-semibold text-[#ffb4a3] disabled:text-ink-faint"
               >
                 Revoke
               </button>
@@ -370,10 +370,10 @@ function Integrations() {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       {[
-        ["SDK", `import { Kage } from "@kage/sdk";\nconst kage = new Kage({ apiKey: process.env.KAGE_API_KEY });\nconst r = await kage.consensus({ task, humans: 3, budget: 0.3, deadline: 30 });`],
-        ["MCP", `{ "mcpServers": { "kage": {\n  "command": "bun",\n  "args": ["<repo>/apps/mcp/src/index.ts"],\n  "env": { "KAGE_API_KEY": "kage_sk_..." } } } }`],
-        ["curl", `curl https://kageai.me/v1/consensus \\\n  -H "authorization: Bearer $KAGE_API_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"task":"Is this reply safe to send?","humans":3,"budget":0.3}'`],
-        ["Webhook check", `import { verifyWebhook } from "@kage/sdk";\nawait verifyWebhook(secret, rawBody, req.headers["x-kage-signature"]);`],
+        ["SDK", `import { Scrappy } from "@scrappy/sdk";\nconst scrappy = new Scrappy({ apiKey: process.env.SCRAPPY_API_KEY });\nconst r = await scrappy.consensus({ task, humans: 3, budget: 0.3, deadline: 30 });`],
+        ["MCP", `{ "mcpServers": { "scrappy": {\n  "command": "bun",\n  "args": ["<repo>/apps/mcp/src/index.ts"],\n  "env": { "SCRAPPY_API_KEY": "scrappy_sk_..." } } } }`],
+        ["curl", `curl https://scrappypet.vercel.app/v1/consensus \\\n  -H "authorization: Bearer $SCRAPPY_API_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"task":"Is this reply safe to send?","humans":3,"budget":0.3}'`],
+        ["Webhook check", `import { verifyWebhook } from "@scrappy/sdk";\nawait verifyWebhook(secret, rawBody, req.headers["x-scrappy-signature"]);`],
       ].map(([t, code]) => (
         <section key={t} className="rounded-[22px] bg-ground-deep p-5">
           <h3 className="font-semibold">{t}</h3>
@@ -404,7 +404,7 @@ function Secret({ label, value }: { label: string; value: string }) {
         <button
           type="button"
           onClick={() => navigator.clipboard.writeText(value).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); })}
-          className="kage-focus shrink-0 rounded-[10px] px-3 py-1.5 text-[13px] font-semibold text-leaf hover:bg-field-hover"
+          className="scrappy-focus shrink-0 rounded-[10px] px-3 py-1.5 text-[13px] font-semibold text-leaf hover:bg-field-hover"
         >
           {copied ? "Copied" : "Copy"}
         </button>

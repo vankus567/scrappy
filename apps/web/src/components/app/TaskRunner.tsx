@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pet } from "@/components/Pet";
-import { TaskCard } from "@/components/kage/TaskCard";
+import { TaskCard } from "@/components/scrappy/TaskCard";
 import { ApiError, nextTask, respond, type WorkerTask } from "@/lib/api";
 import { stageFor, usePet } from "@/lib/pet-store";
 import { EnablePush } from "./EnablePush";
@@ -115,7 +115,7 @@ export function TaskRunner() {
     <div className="mx-auto max-w-2xl space-y-3">
       <Stage pet={pet} stage={stage} mood="curious" dance="peek">
         <h1 className="font-display text-[clamp(1.7rem,4vw,2.3rem)] font-bold leading-tight">
-          {offline ? "Can't reach Kage" : `${pet.name} is listening for agents`}
+          {offline ? "Can't reach Scrappy" : `${pet.name} is listening for agents`}
         </h1>
         <p className="mt-2 text-ink-soft">
           {offline ? "We'll keep trying every few seconds." : "When an agent needs a human in your languages, the task appears here."}

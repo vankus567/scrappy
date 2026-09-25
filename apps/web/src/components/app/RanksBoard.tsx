@@ -45,7 +45,7 @@ export function RanksBoard() {
       </div>
 
       <div className="rounded-[28px] bg-ground-deep p-3 sm:p-5">
-        {error && <p className="p-6 text-ink-soft">Can&apos;t reach Kage right now.</p>}
+        {error && <p className="p-6 text-ink-soft">Can&apos;t reach Scrappy right now.</p>}
         {!error && entries === null && <div aria-busy="true" className="h-40 animate-pulse rounded-[20px] bg-field" />}
         {!error && entries?.length === 0 && (
           <p className="p-6 text-ink-soft">No ranks yet. The first paid answer puts someone on the board.</p>

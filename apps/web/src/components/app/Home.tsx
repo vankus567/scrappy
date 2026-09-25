@@ -50,7 +50,7 @@ export function Home() {
               ${(profile?.earnings.week_usdc ?? 0).toFixed(2)} this week · ${(profile?.earnings.total_usdc ?? pet.earnedUsdc ?? 0).toFixed(2)} all time
             </p>
           </div>
-          <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="kage-focus -mr-2 -mt-2 w-24 shrink-0 rounded-[20px] sm:w-28">
+          <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="scrappy-focus -mr-2 -mt-2 w-24 shrink-0 rounded-[20px] sm:w-28">
             <Pet species={pet.species} stage={current.id} mood={trick?.mood ?? (available ? "excited" : "happy")} dance={trick?.dance ?? "none"} watchPointer />
           </button>
         </div>
@@ -59,7 +59,7 @@ export function Home() {
           {!token ? (
             <p className="text-ink-soft">Connect a payout wallet below and tasks start reaching you.</p>
           ) : offline ? (
-            <p className="text-ink-soft">Can&apos;t reach Kage right now. We&apos;ll keep trying.</p>
+            <p className="text-ink-soft">Can&apos;t reach Scrappy right now. We&apos;ll keep trying.</p>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -77,9 +77,9 @@ export function Home() {
 
       {/* identity + reputation */}
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
-        <p className="text-[15px] text-ink-soft">Your Kage</p>
+        <p className="text-[15px] text-ink-soft">Your Scrappy</p>
         <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">{pet.name}</h1>
-        <p className="text-[14px] text-ink-faint">{stageName(pet.species, current.id)} · {pet.languages.length} {pet.languages.length === 1 ? "language" : "languages"}</p>
+        <p className="text-[14px] text-ink-faint">{stageName(pet.species, current.id)} · Lv {profile?.level ?? 1} · {pet.languages.length} {pet.languages.length === 1 ? "language" : "languages"}</p>
 
         <dl className="mt-6 grid grid-cols-3 gap-3">
           <Stat label="Accuracy" value={profile?.accuracy != null ? pct(profile.accuracy) : "–"} hint={profile && profile.accuracy == null ? `${Math.max(0, 3 - profile.checks)} checks to go` : undefined} />
@@ -102,7 +102,7 @@ export function Home() {
             ))}
           </ul>
         )}
-        <Link href="/app/profile" className="kage-focus mt-6 inline-block rounded text-[14px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
+        <Link href="/app/profile" className="scrappy-focus mt-6 inline-block rounded text-[14px] font-semibold text-leaf transition-colors hover:text-leaf-hover">
           Skills and history
         </Link>
       </section>
