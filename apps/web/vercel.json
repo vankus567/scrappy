@@ -1,8 +1,8 @@
 {
-  "framework": "nextjs",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": ".next",
   "rewrites": [
-    { "source": "/v1/:path*", "destination": "https://kageai.me/v1/:path*" },
-    { "source": "/health", "destination": "https://kageai.me/health" }
+    { "source": "/v1/:path*", "destination": "https://187.127.137.136.sslip.io/v1/:path*" },
+    { "source": "/health", "destination": "https://187.127.137.136.sslip.io/health" }
   ]
 }

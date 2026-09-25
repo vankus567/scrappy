@@ -2,7 +2,7 @@
 // ShopBot has to answer "is this item in stock at this shop today?" and has no data source for it, so it asks
 // a human in that city to call the shop, waits for the answer, decides, and tells the human what it did.
 //
-//   SCRAPPY_API=https://kageai.me SCRAPPY_KEY=sk_... bun scripts/shop-agent.ts \
+//   SCRAPPY_API=https://scrappypet.vercel.app SCRAPPY_KEY=scrappy_sk_... bun scripts/shop-agent.ts \
 //     --item "Amul butter 500g" --shop "Sai Kirana, FC Road" --phone "+91 20 2553 1234" --city Pune
 //
 // Needs a project API key with prepaid balance (see /dev). Every task is a real paid task.

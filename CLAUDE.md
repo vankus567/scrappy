@@ -26,7 +26,7 @@ Full text: `~/.claude/skills/hackathon-final-boss/references/judge-playbook.md`.
 - Bun + TypeScript for all offchain code (never npm/npx, never Python)
 - Anchor (Rust) for the `scrappy` program
 - Next.js responsive web app (apps/web) is the product; Android/Seeker APK = same site as a Trusted Web Activity (Bubblewrap)
-- Hono API, Postgres, Helius webhooks, x402 for buyer payments, MCP TypeScript SDK for `ask_human`
+- Hono API on `bun:sqlite`, x402 for buyer payments, MCP TypeScript SDK for `scrappy_ask_human`
 - UI follows the global anti-slop design law; commissioned/distinct pet art, no generic AI look
 
 ## Private
@@ -34,13 +34,14 @@ Full text: `~/.claude/skills/hackathon-final-boss/references/judge-playbook.md`.
 - The `hackathon-final-boss` skill never goes into this repo.
 - Repo: https://github.com/Venkat5599/solana_coloseum. Ask before every push.
 
-## Toolchain status (checked 2026-09-24, Windows)
+## Toolchain status (checked 2026-09-26, Windows)
 | Tool | Status |
 |---|---|
-| bun 1.3.8, node 22, rust/cargo 1.96, git, adb, java 26 | installed |
+| bun 1.3.8, node 22, rust/cargo 1.96, git, adb | installed |
+| Android SDK + cmdline-tools | installed at %LOCALAPPDATA%\Android\Sdk |
+| JDK 17 (Bubblewrap/Gradle) | installed: C:\Users\ksubh\jdk17-extract\jdk-17.0.20.1+1 |
 | solana CLI, anchor (avm) | **missing**: install inside WSL2 Ubuntu (Anchor on native Windows is unreliable) |
 | eas CLI | **missing**: `bun add -g eas-cli` |
-| Android SDK | ANDROID_HOME unset: install Android Studio SDK; Gradle may need JDK 17/21, not 26 |
 
 ## Build order (from ARCHITECTURE.md §16)
 1. Program: hatch_pet, open_job, settle_job, refund_job + LiteSVM tests

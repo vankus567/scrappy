@@ -58,7 +58,7 @@ solana_coloseum/
 │  ├─ android/                # Bubblewrap TWA project -> scrappy.apk (wraps the web app)
 │  └─ mcp/                    # MCP server: scrappy_ask_human, scrappy_consensus, scrappy_find_capacity
 ├─ packages/sdk/              # @scrappy/sdk: Scrappy class (askHuman, consensus w/ escalation), verifyWebhook
-└─ deploy/                    # git-archive deploy to VPS: systemd + Caddy, kageai.me upstream
+└─ deploy/                    # git-archive deploy to VPS: systemd + Caddy, sslip.io upstream
 ```
 
 Empty/on-deck: `programs/scrappy/` (escrow program), `apps/indexer/`, `packages/idl/`.
@@ -68,7 +68,7 @@ Empty/on-deck: `programs/scrappy/` (escrow program), `apps/indexer/`, `packages/
 | Piece | Runs on | Address |
 |---|---|---|
 | Web app | Vercel project `scrappy` | `https://scrappypet.vercel.app` |
-| API | VPS, systemd `kage-api`, Caddy port 8795 | `https://kageai.me` (internal upstream) |
+| API | VPS, systemd `scrappy-api`, Caddy port 8795 | `https://187.127.137.136.sslip.io` (internal upstream) |
 | API via web | Vercel rewrites `/v1/*`, `/health` | same-origin from the public domain |
 | Android | Bubblewrap TWA, packageId `app.scrappypet` | `scrappypet.vercel.app/scrappy.apk` |
 
@@ -152,7 +152,7 @@ Server-owned, lazy-ticked on worker reads (`tickPet`):
 
 ## 10. Auth & abuse controls
 
-- Workers: wallet proves identity by signing `Scrappy sign-in` (Ed25519 over the wallet pubkey, 5-min single-use nonce) → device `kw_` token (sha256 stored).
+- Workers: wallet proves identity by signing `Scrappy sign-in` (Ed25519 over the wallet pubkey, 5-min single-use nonce) → device `sw_` token (sha256 stored).
 - Developers: `scrappy_sk_` API keys (sha256 stored, revocable, per-key labels).
 - Rate limits: token-bucket per IP per route group (signup 10/min, signin 20, poll 120, respond 60, deposits 20).
 - Anti-farming: 2s answer latency floor; gold known-answer tasks gate skill claims; one seat per human per task; chain workers can't re-answer.

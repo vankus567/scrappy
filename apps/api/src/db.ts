@@ -4,7 +4,7 @@ import { Database } from "bun:sqlite";
  * Scrappy relational schema (SQLite; one file on the API host).
  * Money is stored in micro-USDC integers (1 USDC = 1_000_000) so sums are exact.
  */
-export function openDb(path = process.env.SCRAPPY_DB ?? process.env.KAGE_DB ?? "scrappy.db") {
+export function openDb(path = process.env.SCRAPPY_DB ?? "scrappy.db") {
   const db = new Database(path, { create: true, strict: true });
   db.exec(`
     PRAGMA journal_mode = WAL;

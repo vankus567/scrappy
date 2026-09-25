@@ -156,7 +156,7 @@ describe("workers: auth, quality, privacy", () => {
     const s = setup();
     await s.worker(0);
     expect((await s.req("GET", "/v1/worker/next")).status).toBe(401);
-    expect((await s.req("GET", "/v1/worker/me", undefined, "kw_forged")).status).toBe(401);
+    expect((await s.req("GET", "/v1/worker/me", undefined, "sw_forged")).status).toBe(401);
     const again = await s.req("POST", "/v1/workers", { wallet: wallets[0], languages: ["en"] });
     expect(again.status).toBe(409);
     const lb = await s.req("GET", "/v1/leaderboard");
@@ -174,7 +174,7 @@ describe("workers: auth, quality, privacy", () => {
     const sig = base58.encode(new Uint8Array(await crypto.subtle.sign("Ed25519", kp.privateKey, new TextEncoder().encode(signInMessage(wallet, nonce, issued)))));
     const ok = await s.req("POST", "/v1/workers/session", { wallet, nonce, issued_at: issued, signature: sig });
     expect(ok.status).toBe(200);
-    expect(ok.body.worker_token).toStartWith("kw_");
+    expect(ok.body.worker_token).toStartWith("sw_");
     expect((await s.req("GET", "/v1/worker/me", undefined, ok.body.worker_token)).body.languages).toEqual(["hi"]);
     expect((await s.req("POST", "/v1/workers/session", { wallet, nonce, issued_at: issued, signature: sig })).status).toBe(401);
   });

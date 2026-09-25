@@ -61,7 +61,7 @@ export function createAuth(db: Db) {
     if (db.query("SELECT 1 FROM workers WHERE wallet = ?").get(wallet)) {
       return { ok: false, error: "This wallet already has a Scrappy. Sign in with the wallet to continue on this device." };
     }
-    const token = randomToken("kw_");
+    const token = randomToken("sw_");
     const w: WorkerRow = {
       id: uid(), wallet, token_hash: sha256(token), languages: JSON.stringify(languages), pet_name: profile.pet_name ?? null,
       species: profile.species ?? null, city: profile.city ?? null, created_at: now, last_seen_at: now, tasks_done: 0,
@@ -75,7 +75,7 @@ export function createAuth(db: Db) {
   };
 
   const workerForToken = (token: string | undefined) => {
-    if (!token?.startsWith("kw_")) return null;
+    if (!token?.startsWith("sw_")) return null;
     return db.query("SELECT * FROM workers WHERE token_hash = ?").get(sha256(token)) as WorkerRow | null;
   };
 
@@ -100,7 +100,7 @@ export function createAuth(db: Db) {
     const used = db.query("INSERT OR IGNORE INTO auth_nonces (nonce, used_at) VALUES (?, ?)").run(nonce, now);
     if (used.changes === 0) return { ok: false as const, error: "this sign-in was already used" };
     db.query("DELETE FROM auth_nonces WHERE used_at < ?").run(now - 2 * SIGN_IN_MAX_AGE_MS);
-    const token = randomToken("kw_");
+    const token = randomToken("sw_");
     db.query("UPDATE workers SET token_hash = ? WHERE id = ?").run(sha256(token), worker.id);
     return { ok: true as const, worker, token };
   };

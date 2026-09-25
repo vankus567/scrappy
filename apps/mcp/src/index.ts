@@ -5,13 +5,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { Scrappy } from "../../../packages/sdk/src/index";
 
-const apiKey = process.env.SCRAPPY_API_KEY ?? process.env.KAGE_API_KEY;
-const walletSecretKey = process.env.SCRAPPY_AGENT_SECRET ?? process.env.KAGE_AGENT_SECRET;
+const apiKey = process.env.SCRAPPY_API_KEY;
+const walletSecretKey = process.env.SCRAPPY_AGENT_SECRET;
 if (!apiKey && !walletSecretKey) {
   console.error("Set SCRAPPY_API_KEY (project key) or SCRAPPY_AGENT_SECRET (base58 64-byte agent wallet key).");
   process.exit(1);
 }
-const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? process.env.KAGE_API ?? "https://scrappypet.vercel.app", apiKey, walletSecretKey });
+const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? "https://scrappypet.vercel.app", apiKey, walletSecretKey });
 
 const server = new McpServer({ name: "scrappy", version: "0.2.0" });
 

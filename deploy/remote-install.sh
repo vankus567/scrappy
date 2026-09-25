@@ -1,17 +1,31 @@
 #!/usr/bin/env bash
 # Runs on the VPS. Idempotent: installs Bun, builds, (re)writes systemd units and the Caddy site, restarts.
+# The VPS only runs the API now: the web app deploys from Vercel.
 set -euo pipefail
 REL="$1"
-APP=/opt/kage/releases/$REL
+APP=/opt/scrappy/releases/$REL
+API_HOST=187.127.137.136.sslip.io   # sslip.io maps this name to the VPS IP; Caddy issues a cert for it
 export PATH="$HOME/.bun/bin:$PATH"
 command -v bun >/dev/null || { curl -fsSL https://bun.sh/install | bash; export PATH="$HOME/.bun/bin:$PATH"; }
 BUN="$(command -v bun)"
-install -d -m 700 /var/lib/kage
+install -d -m 700 /var/lib/scrappy /etc/scrappy
 
-# ---- secrets live in /etc/kage/api.env (created once, never overwritten) ----
-ENV=/etc/kage/api.env
+# ---- one-time migration from the retired layout (/etc/kage, /opt/kage, /var/lib/kage) ----
+if [ -f /etc/kage/api.env ] && [ ! -f /etc/scrappy/api.env ]; then
+  sed -e 's|/var/lib/kage|/var/lib/scrappy|g' -e 's|/etc/kage|/etc/scrappy|g' \
+      -e 's|kageai\.me|187.127.137.136.sslip.io|g' -e 's|kage\.db|scrappy.db|g' /etc/kage/api.env > /etc/scrappy/api.env
+  chmod 600 /etc/scrappy/api.env
+fi
+[ -f /etc/kage/platform.json ] && [ ! -f /etc/scrappy/platform.json ] && cp /etc/kage/platform.json /etc/scrappy/platform.json && chmod 600 /etc/scrappy/platform.json || true
+if [ -f /var/lib/kage/kage.db ] && [ ! -f /var/lib/scrappy/scrappy.db ]; then
+  cp /var/lib/kage/kage.db /var/lib/scrappy/scrappy.db
+  for s in wal shm; do [ -f "/var/lib/kage/kage.db-$s" ] && cp "/var/lib/kage/kage.db-$s" "/var/lib/scrappy/scrappy.db-$s"; done
+fi
+
+# ---- secrets live in /etc/scrappy/api.env (created once, never overwritten) ----
+ENV=/etc/scrappy/api.env
 if [ ! -f "$ENV" ]; then
-  PAY_TO=$("$BUN" -e 'console.log(JSON.parse(require("fs").readFileSync("/etc/kage/platform.json","utf8")).address)')
+  PAY_TO=$("$BUN" -e 'console.log(JSON.parse(require("fs").readFileSync("/etc/scrappy/platform.json","utf8")).address)')
   VAPID=$(cd "$APP" && "$BUN" install >/dev/null && cd apps/api && "$BUN" x web-push generate-vapid-keys --json)
   cat > "$ENV" <<CONF
 PAY_TO=$PAY_TO
@@ -20,33 +34,29 @@ SOLANA_RPC=https://api.devnet.solana.com
 USDC_MINT=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
 X402_FACILITATOR_URL=https://x402.org/facilitator
 ADMIN_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)
-WEB_ORIGINS=https://kageai.me,https://www.kageai.me,https://scrappypet.vercel.app
-SCRAPPY_DB=/var/lib/kage/kage.db
-PLATFORM_KEY_FILE=/etc/kage/platform.json
+WEB_ORIGINS=https://scrappypet.vercel.app
+SCRAPPY_DB=/var/lib/scrappy/scrappy.db
+PLATFORM_KEY_FILE=/etc/scrappy/platform.json
 VAPID_PUBLIC_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).publicKey)')
 VAPID_PRIVATE_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).privateKey)')
-VAPID_SUBJECT=mailto:hello@kageai.me
+VAPID_SUBJECT=https://scrappypet.vercel.app
 PORT=8795
 CONF
   chmod 600 "$ENV"
 fi
 
-# ---- build ----
+# ---- build (API only; the web app deploys from Vercel) ----
 cd "$APP" && "$BUN" install
-cd "$APP/apps/web" && NEXT_PUBLIC_SCRAPPY_API=https://kageai.me NEXT_PUBLIC_SOLANA_CLUSTER=devnet \
-  NEXT_PUBLIC_APK_URL="$( [ -f /opt/kage/shared/kage.apk ] && echo /kage.apk )" "$BUN" run build
-[ -f /opt/kage/shared/kage.apk ] && cp /opt/kage/shared/kage.apk "$APP/apps/web/public/kage.apk" || true
-[ -f /opt/kage/shared/assetlinks.json ] && mkdir -p "$APP/apps/web/public/.well-known" && cp /opt/kage/shared/assetlinks.json "$APP/apps/web/public/.well-known/" || true
-ln -sfn "$APP" /opt/kage/current
+ln -sfn "$APP" /opt/scrappy/current
 
 # ---- services ----
-cat > /etc/systemd/system/kage-api.service <<UNIT
+cat > /etc/systemd/system/scrappy-api.service <<UNIT
 [Unit]
 Description=Scrappy Human API
 After=network-online.target
 [Service]
-WorkingDirectory=/opt/kage/current/apps/api
-EnvironmentFile=/etc/kage/api.env
+WorkingDirectory=/opt/scrappy/current/apps/api
+EnvironmentFile=/etc/scrappy/api.env
 ExecStart=$BUN src/index.ts
 Restart=always
 RestartSec=2
@@ -54,31 +64,16 @@ NoNewPrivileges=true
 [Install]
 WantedBy=multi-user.target
 UNIT
-cat > /etc/systemd/system/kage-web.service <<UNIT
-[Unit]
-Description=Scrappy web
-After=network-online.target
-[Service]
-WorkingDirectory=/opt/kage/current/apps/web
-Environment=PORT=3100
-Environment=HOSTNAME=127.0.0.1
-ExecStart=$BUN run start -- -p 3100 -H 127.0.0.1
-Restart=always
-RestartSec=2
-NoNewPrivileges=true
-[Install]
-WantedBy=multi-user.target
-UNIT
-cat > /etc/systemd/system/kage-payout.service <<UNIT
+cat > /etc/systemd/system/scrappy-payout.service <<UNIT
 [Unit]
 Description=Scrappy settlement: USDC payouts to workers, refunds to agents
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/kage/current/apps/api
-EnvironmentFile=/etc/kage/api.env
+WorkingDirectory=/opt/scrappy/current/apps/api
+EnvironmentFile=/etc/scrappy/api.env
 ExecStart=$BUN scripts/payout.ts
 UNIT
-cat > /etc/systemd/system/kage-payout.timer <<UNIT
+cat > /etc/systemd/system/scrappy-payout.timer <<UNIT
 [Unit]
 Description=Run Scrappy settlement every 15 minutes
 [Timer]
@@ -88,20 +83,22 @@ OnUnitActiveSec=15min
 WantedBy=timers.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now kage-api kage-web kage-payout.timer >/dev/null
-systemctl restart kage-api kage-web
+systemctl disable --now kage-api kage-web kage-payout.timer 2>/dev/null || true
+rm -f /etc/systemd/system/kage-api.service /etc/systemd/system/kage-web.service /etc/systemd/system/kage-payout.service /etc/systemd/system/kage-payout.timer
+systemctl enable --now scrappy-api scrappy-payout.timer >/dev/null
+systemctl restart scrappy-api
 
-# ---- Caddy: kageai.me serves Scrappy (API under /v1 on the same origin) ----
-# The Caddyfile is shared with other sites: replace only the kageai.me block, with a backup and auto-restore.
-cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak-kage-$REL"
-"$BUN" "$APP/deploy/caddy-kage.ts" /etc/caddy/Caddyfile 8795 3100
+# ---- Caddy: sslip.io name serves the API for the Vercel rewrite upstream ----
+# The Caddyfile is shared with other sites: only Scrappy/retired blocks are touched, with a backup and auto-restore.
+cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak-scrappy-$REL"
+"$BUN" "$APP/deploy/caddy-scrappy.ts" /etc/caddy/Caddyfile 8795 "$API_HOST"
 if caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   systemctl reload caddy
 else
   echo "Caddy config invalid: restoring backup"
-  cp "/etc/caddy/Caddyfile.bak-kage-$REL" /etc/caddy/Caddyfile
+  cp "/etc/caddy/Caddyfile.bak-scrappy-$REL" /etc/caddy/Caddyfile
   exit 1
 fi
 sleep 2
 curl -fsS http://127.0.0.1:8795/health && echo " api ok"
-ls -1dt /opt/kage/releases/* | tail -n +3 | xargs -r rm -rf   # keep 2 releases (shared disk)
+ls -1dt /opt/scrappy/releases/* | tail -n +3 | xargs -r rm -rf   # keep 2 releases (shared disk)
