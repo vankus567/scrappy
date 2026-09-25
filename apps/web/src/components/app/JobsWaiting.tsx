@@ -4,11 +4,21 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { GlossButton } from "@/components/GlossButton";
 import { Pet } from "@/components/Pet";
-import { nextJob, submitAnswer, type WorkerJob } from "@/lib/api";
+import { getHistory, nextJob, submitAnswer, type HistoryItem, type TaskKind, type WorkerJob } from "@/lib/api";
 import { stageFor, usePet } from "@/lib/pet-store";
 import { useWorkerSync } from "./useWorkerSync";
 
-type Reward = { earned: number } | null;
+type Reward = { earned: number; agent: string | null } | null;
+
+/** How each kind of task reads to the human doing it. */
+const KIND_GUIDE: Record<TaskKind, { label: string; how: string }> = {
+  judgment: { label: "Judgment", how: "" },
+  call: { label: "Phone call", how: "Call, ask exactly this, and type what they said. Be polite and quick: most calls take under two minutes." },
+  photo_check: { label: "Photo check", how: "Look closely at what the agent sent and say what you actually see. Don't guess." },
+  price_check: { label: "Price check", how: "Open the app or site on your phone in your city and type the exact price you see right now." },
+};
+
+const formatWindow = (ms: number) => (ms >= 90_000 ? `${Math.round(ms / 60_000)} min` : `${Math.max(1, Math.round(ms / 1000))} s`);
 
 export function JobsWaiting() {
   const { pet, update } = usePet();
@@ -60,7 +70,7 @@ export function JobsWaiting() {
       const r = await submitAnswer(job.job_id, workerId, answer.trim(), confidence);
       update({ jobsDone: (pet?.jobsDone ?? 0) + 1, earnedUsdc: (pet?.earnedUsdc ?? 0) + r.earned_usdc });
       setJob(null);
-      setReward({ earned: r.earned_usdc });
+      setReward({ earned: r.earned_usdc, agent: job.qualification ? null : job.agent?.name ?? "the agent" });
       window.setTimeout(() => setReward(null), 2800);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send your answer.");
@@ -90,7 +100,10 @@ export function JobsWaiting() {
         <p className="reward-pop mt-1 font-display text-[clamp(2.6rem,6vw,3.8rem)] font-bold leading-none text-[#15803d]">
           +${reward.earned.toFixed(2)}
         </p>
-        <p className="mt-3 text-ink-soft">{name} ate. Earned to your payout wallet.</p>
+        <p className="mt-3 text-ink-soft">
+          {reward.agent ? `Sent to ${reward.agent}. ` : "Skill check done. "}
+          {name} ate. Earned to your payout wallet.
+        </p>
       </Shell>
     );
   }
@@ -98,19 +111,41 @@ export function JobsWaiting() {
   // a job is open
   if (job) {
     const choices = job.options ?? [];
+    const guide = KIND_GUIDE[job.kind];
     return (
       <div className="grid gap-5 lg:grid-cols-[320px_1fr] lg:items-start">
-        <div className="rounded-[28px] bg-ground-deep p-6">
-          <Pet species={pet?.species} stage={stage} mood="focused" dance="none" watchPointer className="mx-auto w-44" title={`${name} found a job`} />
-          <p className="mt-2 text-center font-semibold">{name} found a job</p>
-          <p className="text-center text-[14px] text-ink-soft">Pays ${job.pays_usdc.toFixed(2)} · answer within 60 seconds</p>
+        <div className="space-y-5 rounded-[28px] bg-ground-deep p-6">
+          <div className="app-bob">
+            <Pet species={pet?.species} stage={stage} mood="focused" dance="none" watchPointer className="mx-auto w-40" title={`${name} found a job`} />
+          </div>
+          <div className="rounded-[20px] bg-field p-4">
+            <p className="text-[13px] font-semibold text-ink-faint">{job.qualification ? "Skill check from Scrappy" : "An AI agent is stuck"}</p>
+            <p className="mt-0.5 font-display text-[20px] font-bold leading-tight">{job.qualification ? "Prove your skill" : job.agent?.name ?? "An AI agent"}</p>
+            {job.agent?.reason && <p className="mt-1.5 text-[15px] leading-snug text-ink-soft">{job.agent.reason}</p>}
+            {job.qualification && <p className="mt-1.5 text-[15px] leading-snug text-ink-soft">Unpaid. Right answers unlock paid work from agents.</p>}
+          </div>
+          <p className="text-center text-[15px] font-semibold">
+            {job.qualification ? "Unpaid check" : `Pays $${job.pays_usdc.toFixed(2)}`} · {formatWindow(job.answer_within_ms)} to answer
+          </p>
         </div>
 
         <section className="space-y-6 rounded-[28px] bg-ground-deep p-6 sm:p-8">
-          <p className="text-[14px] font-semibold text-ink-faint">From an AI agent · {job.language}</p>
+          <p className="text-[14px] font-semibold text-ink-faint">
+            {guide.label}{job.city ? ` · ${job.city}` : ""} · {job.language}
+          </p>
           <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] font-bold leading-[1.15]">{job.task}</h1>
           {job.content && (
             <p lang={job.language} className="rounded-[18px] bg-field p-4 text-[18px] leading-relaxed">{job.content}</p>
+          )}
+          {job.kind !== "judgment" && <p className="text-[15px] leading-relaxed text-ink-soft">{guide.how}</p>}
+          {job.kind === "call" && job.phone && (
+            <a
+              href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}
+              className="flex min-h-14 items-center justify-between rounded-[18px] bg-[#007aff] px-5 text-white transition-colors hover:bg-[#0060cc]"
+            >
+              <span className="font-semibold">Call the shop</span>
+              <span className="font-mono text-[16px] tabular-nums">{job.phone}</span>
+            </a>
           )}
 
           {choices.length ? (
@@ -150,6 +185,7 @@ export function JobsWaiting() {
 
   // waiting for work
   return (
+    <div className="space-y-5">
     <Shell pet={pet} stage={stage} mood="curious" dance="peek" name={name}>
       <h1 className="font-display text-[clamp(1.8rem,3vw,2.4rem)] font-bold leading-[1.1]">
         {offline ? "Can't reach Scrappy right now" : `${name} is looking for work`}
@@ -163,6 +199,41 @@ export function JobsWaiting() {
         Payout wallet set · <Link href="/app/wallet" className="underline underline-offset-4">change</Link>
       </p>
     </Shell>
+    <RecentWork token={workerId} />
+    </div>
+  );
+}
+
+/** Real history from the API: what you answered, which agent asked, and what it did with your answer. */
+function RecentWork({ token }: { token: string }) {
+  const [items, setItems] = useState<HistoryItem[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getHistory(token).then((h) => alive && setItems(h)).catch(() => alive && setItems([]));
+    return () => {
+      alive = false;
+    };
+  }, [token]);
+  if (!items?.length) return null;
+  return (
+    <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
+      <h2 className="font-display text-[24px] font-bold">Your recent work</h2>
+      <ol className="mt-4 divide-y divide-edge">
+        {items.slice(0, 8).map((h, i) => (
+          <li key={i} className="grid gap-1 py-4 sm:grid-cols-[1fr_auto] sm:gap-6">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-ink-faint">
+                {h.qualification ? "Skill check" : h.agent ?? "AI agent"} · {KIND_GUIDE[h.kind]?.label ?? "Judgment"}
+              </p>
+              <p className="mt-0.5 truncate font-semibold">{h.prompt}</p>
+              <p className="mt-0.5 text-[15px] text-ink-soft">You said: {h.answer}</p>
+              {h.outcome && <p className="mt-1 text-[15px] font-semibold text-[#007aff]">What the agent did: {h.outcome}</p>}
+            </div>
+            <p className="font-display text-[18px] font-bold tabular-nums sm:text-right">{h.qualification ? "Check" : `+$${h.earned_usdc.toFixed(2)}`}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

@@ -12,7 +12,14 @@ export type WorkerJob = {
   language: string;
   pays_usdc: number;
   answer_within_ms: number;
+  kind: TaskKind;
+  agent: { name: string; reason: string | null } | null;
+  city: string | null;
+  phone: string | null;
+  qualification: boolean;
 };
+export type TaskKind = "judgment" | "call" | "photo_check" | "price_check";
+export type HistoryItem = { prompt: string; answer: string; earned_usdc: number; at: string; qualification: boolean; matched_consensus: boolean | null; agent: string | null; kind: TaskKind; outcome: string | null };
 
 type ResponseSchema =
   | { type: "binary" }
@@ -28,6 +35,11 @@ type WorkerTask = {
   language: string;
   reward_usdc: number;
   expires_at: string;
+  qualification: boolean;
+  kind?: TaskKind;
+  agent?: { name: string; reason: string | null } | null;
+  city?: string | null;
+  phone?: string | null;
 };
 
 export class ApiError extends Error {
@@ -92,7 +104,17 @@ export async function nextJob(token: string): Promise<WorkerJob | null> {
     language: t.language,
     pays_usdc: t.reward_usdc,
     answer_within_ms: Math.max(0, new Date(t.expires_at).getTime() - Date.now()),
+    kind: t.kind ?? "judgment",
+    agent: t.agent ?? null,
+    city: t.city ?? null,
+    phone: t.phone ?? null,
+    qualification: t.qualification,
   };
+}
+
+/** Your answers, which agent asked, and what the agent did with them. */
+export async function getHistory(token: string) {
+  return (await call<{ answers: HistoryItem[] }>("/v1/worker/history", { token })).answers;
 }
 
 export async function submitAnswer(jobId: string, token: string, answer: string, confidence: number) {
