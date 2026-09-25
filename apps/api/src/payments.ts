@@ -79,7 +79,7 @@ export function pushNotifier(db: Db) {
   let webpush: typeof import("web-push") | null = null;
   import("web-push").then((m) => {
     webpush = m.default ?? (m as any);
-    webpush!.setVapidDetails(process.env.VAPID_SUBJECT ?? "mailto:hello@kageai.me", pub, priv);
+    webpush!.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://scrappypet.vercel.app", pub, priv);
   });
   return (task: TaskRow) => {
     if (!webpush) return;

@@ -79,7 +79,7 @@ export function Home() {
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
         <p className="text-[15px] text-ink-soft">Your Scrappy</p>
         <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">{pet.name}</h1>
-        <p className="text-[14px] text-ink-faint">{stageName(pet.species, current.id)} · Lv {profile?.level ?? 1} · {pet.languages.length} {pet.languages.length === 1 ? "language" : "languages"}</p>
+        <p className="text-[14px] text-ink-faint">{stageName(pet.species, current.id)} · {pet.languages.length} {pet.languages.length === 1 ? "language" : "languages"}</p>
 
         <dl className="mt-6 grid grid-cols-3 gap-3">
           <Stat label="Accuracy" value={profile?.accuracy != null ? pct(profile.accuracy) : "–"} hint={profile && profile.accuracy == null ? `${Math.max(0, 3 - profile.checks)} checks to go` : undefined} />

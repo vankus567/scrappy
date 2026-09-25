@@ -1,6 +1,6 @@
 # Deploying Scrappy
 
-Everything runs on one VPS behind Caddy: `https://kageai.me` serves the web app, and the API on the same origin under `/v1` and `/health`.
+The public domain is `https://scrappypet.vercel.app` (Vercel rewrites `/v1` and `/health` to the API). Origin infra runs on one VPS behind Caddy: `https://kageai.me` serves the web app, and the API on the same origin under `/v1` and `/health`.
 
 ## 1. Wallets (devnet while building)
 ```
@@ -28,7 +28,7 @@ ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps
 Needs the site live on https (step 2).
 ```
 cd apps/web
-bunx @bubblewrap/cli init --manifest https://kageai.me/manifest.webmanifest   # or reuse twa-manifest.json
+bunx @bubblewrap/cli init --manifest https://scrappypet.vercel.app/manifest.webmanifest   # or reuse twa-manifest.json
 bunx @bubblewrap/cli build                                                        # creates android.keystore (gitignored) + app-release-signed.apk
 bunx @bubblewrap/cli fingerprint generateAssetLinks                              # writes assetlinks.json
 scp -i ~/.ssh/hostinger_tenki app-release-signed.apk root@187.127.137.136:/opt/kage/shared/kage.apk

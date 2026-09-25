@@ -1,5 +1,6 @@
 // Client for the Scrappy Human API (apps/api). Workers use a device token; developers use a project API key.
-export const API_URL = (process.env.NEXT_PUBLIC_SCRAPPY_API ?? process.env.NEXT_PUBLIC_KAGE_API ?? "http://localhost:8787").replace(/\/$/, "");
+// Production default is same-origin: Vercel rewrites /v1 and /health to the API host.
+export const API_URL = (process.env.NEXT_PUBLIC_SCRAPPY_API ?? process.env.NEXT_PUBLIC_KAGE_API ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:8787")).replace(/\/$/, "");
 export const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet";
 const clusterQs = EXPLORER_CLUSTER === "mainnet" ? "" : `?cluster=${EXPLORER_CLUSTER}`;
 export const addressUrl = (addr: string) => `https://explorer.solana.com/address/${addr}${clusterQs}`;

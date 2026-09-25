@@ -117,7 +117,7 @@ export class Scrappy {
 
   constructor(config: ScrappyConfig) {
     if (!config.apiKey && !config.walletSecretKey) throw new Error("Scrappy needs an apiKey or a walletSecretKey");
-    this.baseUrl = (config.baseUrl ?? "https://kageai.me").replace(/\/$/, "");
+    this.baseUrl = (config.baseUrl ?? "https://scrappypet.vercel.app").replace(/\/$/, "");
     this.apiKey = config.apiKey;
     this.plainFetch = config.fetch ?? fetch;
     if (!config.apiKey && config.walletSecretKey) {

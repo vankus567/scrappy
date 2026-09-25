@@ -11,7 +11,7 @@ if (!apiKey && !walletSecretKey) {
   console.error("Set SCRAPPY_API_KEY (project key) or SCRAPPY_AGENT_SECRET (base58 64-byte agent wallet key).");
   process.exit(1);
 }
-const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? process.env.KAGE_API ?? "https://kageai.me", apiKey, walletSecretKey });
+const scrappy = new Scrappy({ baseUrl: process.env.SCRAPPY_API ?? process.env.KAGE_API ?? "https://scrappypet.vercel.app", apiKey, walletSecretKey });
 
 const server = new McpServer({ name: "scrappy", version: "0.2.0" });
 

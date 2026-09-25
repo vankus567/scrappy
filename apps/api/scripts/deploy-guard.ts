@@ -15,7 +15,7 @@ const DIFF = `--- a/src/auth/session.ts
 
 const QUESTION = "Does this change let one user act as another user?";
 const scrappy = new Scrappy({
-  baseUrl: process.env.SCRAPPY_API ?? "https://kageai.me",
+  baseUrl: process.env.SCRAPPY_API ?? "https://scrappypet.vercel.app",
   apiKey: process.env.SCRAPPY_API_KEY,
   walletSecretKey: process.env.SCRAPPY_AGENT_SECRET,
 });
