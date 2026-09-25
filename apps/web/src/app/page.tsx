@@ -10,8 +10,8 @@ import { Trace } from "@/components/scrappy/Trace";
 import { Wordmark } from "@/components/scrappy/Wordmark";
 
 const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
-// Signed TWA build published as a GitHub release; NEXT_PUBLIC_APK_URL overrides for newer builds.
-const APK_URL = process.env.NEXT_PUBLIC_APK_URL ?? "https://github.com/Venkat5599/solana_coloseum/releases/download/android-v0.1.0/scrappy.apk";
+// Signed TWA build served from the site (public/scrappy.apk); NEXT_PUBLIC_APK_URL overrides for newer builds.
+const APK_URL = process.env.NEXT_PUBLIC_APK_URL ?? "/scrappy.apk";
 const CREW: Species[] = ["neko", "kitsu", "pengu", "drako", "goo", "boo"];
 
 function Door({ href, side, title, line }: { href: string; side: string; title: string; line: string }) {

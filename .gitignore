@@ -22,3 +22,5 @@ ideas/
 *.jks
 android-twa/
 android-signing.local.json
+apps/android/app/build/
+!apps/web/public/scrappy.apk

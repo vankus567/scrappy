@@ -31,7 +31,7 @@ cd apps/android   (never apps/web: a Bubblewrap app/ folder there hijacks the Ne
 bunx @bubblewrap/cli init --manifest https://scrappypet.vercel.app/manifest.webmanifest   # or reuse twa-manifest.json
 bunx @bubblewrap/cli build                                                        # creates android.keystore (gitignored) + app-release-signed.apk
 bunx @bubblewrap/cli fingerprint generateAssetLinks                              # writes assetlinks.json
-gh release create android-vX.Y.Z --repo Venkat5599/solana_coloseum --title "Scrappy for Android" scrappy.apk scrappy.aab   # APK is distributed via GitHub Releases; landing downloads it
+cp app-release-signed.apk ../web/public/scrappy.apk                                # landing Download button serves it (gitignored-allowed)
 bash ../../deploy/deploy.sh                                                       # re-deploy: publishes /kage.apk + /.well-known/assetlinks.json and shows the download link
 ```
 Keep `android.keystore` safe and out of git: every future update must be signed with it.
