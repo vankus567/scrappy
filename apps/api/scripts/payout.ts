@@ -4,6 +4,7 @@
 // Every transfer's signature is recorded. Run on a timer (e.g. every 10 min).
 //   bun scripts/payout.ts            (devnet by default)
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   address, appendTransactionMessageInstructions, createKeyPairSignerFromBytes, createSolanaRpc, createSolanaRpcSubscriptions,
   createTransactionMessage, getSignatureFromTransaction, pipe, sendAndConfirmTransactionFactory,
@@ -21,7 +22,7 @@ const WS = process.env.SOLANA_WS ?? RPC.replace("https", "wss");
 const MIN_PAYOUT_MICRO = Math.round(Number(process.env.MIN_PAYOUT_USDC ?? 0.1) * 1e6);
 const HOLD_MS = 48 * 3_600_000;
 
-const keyFile = process.env.PLATFORM_KEY_FILE ?? new URL("../.keys/platform.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
+const keyFile = process.env.PLATFORM_KEY_FILE ?? fileURLToPath(new URL("../.keys/platform.json", import.meta.url));
 const platform = await createKeyPairSignerFromBytes(base58.decode(JSON.parse(readFileSync(keyFile, "utf8")).secret));
 const rpc = createSolanaRpc(RPC);
 const sendAndConfirm = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions: createSolanaRpcSubscriptions(WS) });

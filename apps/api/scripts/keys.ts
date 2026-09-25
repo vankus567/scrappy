@@ -2,9 +2,11 @@
 import { generateKeyPairSync } from "node:crypto";
 import { base58 } from "@scure/base";
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const RPC = process.env.SOLANA_RPC ?? "https://api.devnet.solana.com";
-const DIR = new URL("../.keys/", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
+// fileURLToPath decodes %20 etc.; URL.pathname does not (paths with spaces broke)
+const DIR = fileURLToPath(new URL("../.keys/", import.meta.url));
 mkdirSync(DIR, { recursive: true });
 
 function makeKey() {

@@ -1,9 +1,10 @@
 // A real agent paying Kage per task over x402 (devnet USDC from .keys/agent.json).
 //   bun scripts/agent-pay.ts "Which answer is factually correct?"
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Kage } from "../../../packages/sdk/src/index";
 
-const keyFile = new URL("../.keys/agent.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
+const keyFile = fileURLToPath(new URL("../.keys/agent.json", import.meta.url));
 const { secret, address } = JSON.parse(readFileSync(keyFile, "utf8"));
 const kage = new Kage({ baseUrl: process.env.KAGE_API ?? "http://localhost:8787", walletSecretKey: secret });
 
