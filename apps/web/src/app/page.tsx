@@ -45,9 +45,11 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
-            <a href="/scrappy.apk" download className="text-[15px] font-bold text-[#007aff] transition-colors hover:text-[#0060cc]">
-              Download the Android app (APK, 1 MB)
-            </a>
+            <GlossButton href="/scrappy.apk" download>
+              Download the Android app
+              <Arrow />
+            </GlossButton>
+            <span className="-mt-1 text-[13px] font-semibold text-navy-text">APK · 1 MB</span>
             <span className="text-[14px] font-semibold text-navy-text">Hatching opens October 2026 on web and Seeker.</span>
           </div>
           <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">

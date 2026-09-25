@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 type Common = { children: React.ReactNode; className?: string };
-type AsLink = Common & { href: string };
+type AsLink = Common & { href: string; download?: boolean };
 type AsButton = Common & React.ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined };
 
 /**
@@ -20,6 +20,14 @@ export function GlossButton(props: AsLink | AsButton) {
   );
 
   if (props.href !== undefined) {
+    // A file download must be a plain anchor: next/link would try to route to it.
+    if ((props as AsLink).download) {
+      return (
+        <a href={props.href} download className={base}>
+          {inner}
+        </a>
+      );
+    }
     return (
       <Link href={props.href} className={base}>
         {inner}
