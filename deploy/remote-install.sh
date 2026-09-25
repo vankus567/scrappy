@@ -26,7 +26,7 @@ PLATFORM_KEY_FILE=/etc/kage/platform.json
 VAPID_PUBLIC_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).publicKey)')
 VAPID_PRIVATE_KEY=$(echo "$VAPID" | "$BUN" -e 'console.log(JSON.parse(await Bun.stdin.text()).privateKey)')
 VAPID_SUBJECT=mailto:hello@kageai.me
-PORT=8787
+PORT=8795
 CONF
   chmod 600 "$ENV"
 fi
@@ -92,33 +92,16 @@ systemctl enable --now kage-api kage-web kage-payout.timer >/dev/null
 systemctl restart kage-api kage-web
 
 # ---- Caddy: kageai.me serves Kage (API under /v1 on the same origin) ----
-SITE=/etc/caddy/kage.caddy
-cat > "$SITE" <<CADDY
-kageai.me, www.kageai.me {
-	encode zstd gzip
-	@api path /v1/* /health
-	handle @api {
-		reverse_proxy 127.0.0.1:8787 {
-			flush_interval -1
-		}
-	}
-	handle {
-		reverse_proxy 127.0.0.1:3100
-	}
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		X-Content-Type-Options nosniff
-		Referrer-Policy strict-origin-when-cross-origin
-	}
-}
-CADDY
-if ! grep -q "import /etc/caddy/kage.caddy" /etc/caddy/Caddyfile; then
-  cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak-$REL"
-  echo "Backed up Caddyfile to /etc/caddy/Caddyfile.bak-$REL"
-  echo "NOTE: remove any existing kageai.me block from /etc/caddy/Caddyfile, then re-run. Kage import added."
-  printf '\nimport /etc/caddy/kage.caddy\n' >> /etc/caddy/Caddyfile
+# The Caddyfile is shared with other sites: replace only the kageai.me block, with a backup and auto-restore.
+cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak-kage-$REL"
+"$BUN" "$APP/deploy/caddy-kage.ts" /etc/caddy/Caddyfile 8795 3100
+if caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+  systemctl reload caddy
+else
+  echo "Caddy config invalid: restoring backup"
+  cp "/etc/caddy/Caddyfile.bak-kage-$REL" /etc/caddy/Caddyfile
+  exit 1
 fi
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy
 sleep 2
-curl -fsS http://127.0.0.1:8787/health && echo " api ok"
-ls -1dt /opt/kage/releases/* | tail -n +4 | xargs -r rm -rf   # keep 3 releases
+curl -fsS http://127.0.0.1:8795/health && echo " api ok"
+ls -1dt /opt/kage/releases/* | tail -n +3 | xargs -r rm -rf   # keep 2 releases (shared disk)

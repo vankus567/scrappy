@@ -13,15 +13,15 @@ The platform wallet also needs devnet USDC to pay workers.
 SSH on port 22 must be reachable from your network (some campus/office networks block it; use a phone hotspot).
 ```
 git commit -am "..."                        # deploy ships HEAD
-SSH_KEY=~/.ssh/kage_vps HOST=root@187.127.137.136 bash deploy/deploy.sh
+SSH_KEY=~/.ssh/hostinger_tenki HOST=root@187.127.137.136 bash deploy/deploy.sh
 ```
 First run creates `/etc/kage/api.env` (PAY_TO from the platform key, random ADMIN_TOKEN, VAPID keys for push). It never overwrites it.
-Services: `kage-api` (:8787), `kage-web` (:3100), `kage-payout.timer` (USDC payouts + refunds every 15 min).
+Services: `kage-api` (:8795), `kage-web` (:3100), `kage-payout.timer` (USDC payouts + refunds every 15 min).
 If the Caddyfile already has a `kageai.me` block, the script stops at validation: remove that block (a backup is saved) and run again.
 
 Then seed qualification checks once:
 ```
-ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps/api && KAGE_API=http://127.0.0.1:8787 ~/.bun/bin/bun scripts/seed-gold.ts'
+ssh root@187.127.137.136 'set -a; . /etc/kage/api.env; cd /opt/kage/current/apps/api && KAGE_API=http://127.0.0.1:8795 ~/.bun/bin/bun scripts/seed-gold.ts'
 ```
 
 ## 3. Android APK (Trusted Web Activity)
@@ -31,8 +31,8 @@ cd apps/web
 bunx @bubblewrap/cli init --manifest https://kageai.me/manifest.webmanifest   # or reuse twa-manifest.json
 bunx @bubblewrap/cli build                                                        # creates android.keystore (gitignored) + app-release-signed.apk
 bunx @bubblewrap/cli fingerprint generateAssetLinks                              # writes assetlinks.json
-scp -i ~/.ssh/kage_vps app-release-signed.apk root@187.127.137.136:/opt/kage/shared/kage.apk
-scp -i ~/.ssh/kage_vps assetlinks.json       root@187.127.137.136:/opt/kage/shared/assetlinks.json
+scp -i ~/.ssh/hostinger_tenki app-release-signed.apk root@187.127.137.136:/opt/kage/shared/kage.apk
+scp -i ~/.ssh/hostinger_tenki assetlinks.json       root@187.127.137.136:/opt/kage/shared/assetlinks.json
 bash ../../deploy/deploy.sh                                                       # re-deploy: publishes /kage.apk + /.well-known/assetlinks.json and shows the download link
 ```
 Keep `android.keystore` safe and out of git: every future update must be signed with it.
