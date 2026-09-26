@@ -9,7 +9,7 @@ import { Meter } from "./GameModes";
 
 type Dir = "left" | "center" | "right";
 type Kick = { shooter: "a" | "b"; shoot: Dir | null; dive: Dir | null; goal: boolean };
-type Beat = { kick: Kick; step: "runup" | "fly" | "result"; which: 1 | 2 } | null;
+type Beat = { kick: Kick; step: "runup" | "fly" | "result"; which: 1 | 2; r: RoundResult } | null;
 
 // positions in % of the pitch box
 const SHOT: Record<Dir, { x: number; y: number }> = { left: { x: 29, y: 31 }, center: { x: 50, y: 28 }, right: { x: 71, y: 31 } };
@@ -60,21 +60,21 @@ export function PenaltyStage({ b, mine, face, onAnnounce }: { b: BattleView; min
     const name = (side: "a" | "b") => b[side]?.name ?? "Pet";
     const say = (k: Kick) => (k.shoot === null ? `${name(k.shooter)} didn't kick` : k.goal ? `${name(k.shooter)} scores!` : "Saved!");
     const buzz = (k: Kick) => "vibrate" in navigator && navigator.vibrate?.(k.goal ? (k.shooter === mine ? [30, 40, 60] : 140) : 40);
-    setBeat({ kick: first, step: "runup", which: 1 });
+    setBeat({ kick: first, step: "runup", which: 1, r });
     onAnnounce(`Round ${r.round}: your kick`);
-    at(450, () => setBeat({ kick: first, step: "fly", which: 1 }));
+    at(450, () => setBeat({ kick: first, step: "fly", which: 1, r }));
     at(1050, () => {
-      setBeat({ kick: first, step: "result", which: 1 });
+      setBeat({ kick: first, step: "result", which: 1, r });
       onAnnounce(say(first));
       buzz(first);
     });
     at(2100, () => {
-      setBeat({ kick: second, step: "runup", which: 2 });
+      setBeat({ kick: second, step: "runup", which: 2, r });
       onAnnounce(`Round ${r.round}: their kick`);
     });
-    at(2550, () => setBeat({ kick: second, step: "fly", which: 2 }));
+    at(2550, () => setBeat({ kick: second, step: "fly", which: 2, r }));
     at(3150, () => {
-      setBeat({ kick: second, step: "result", which: 2 });
+      setBeat({ kick: second, step: "result", which: 2, r });
       onAnnounce(say(second));
       buzz(second);
     });
@@ -91,11 +91,15 @@ export function PenaltyStage({ b, mine, face, onAnnounce }: { b: BattleView; min
   const keeperPet = b[keeper];
   const faceFor = (side: "a" | "b") => (side === mine ? face : undefined);
   const done = b.status === "done";
+  // a kick's goal only counts on screen once its result beat plays
+  const hidden = (side: "a" | "b") => !!beat && (side === mine ? beat.which === 1 && beat.step !== "result" : !(beat.which === 2 && beat.step === "result"));
+  const goalIn = (side: "a" | "b") => !!(side === "a" ? beat?.r.detail?.a_goal : beat?.r.detail?.b_goal);
+  const shownScore = (side: "a" | "b") => b.score[side] - (hidden(side) && goalIn(side) ? 1 : 0);
 
   const kick = beat?.kick;
   const flying = beat && beat.step !== "runup";
   const ball = !beat || beat.step === "runup" || !kick?.shoot
-    ? { x: 50, y: 78, scale: 1 }
+    ? { x: 50, y: 84, scale: 1 }
     : beat.step === "fly"
       ? { ...SHOT[kick.shoot], scale: 0.62 }
       : kick.goal
@@ -145,8 +149,8 @@ export function PenaltyStage({ b, mine, face, onAnnounce }: { b: BattleView; min
         {/* shooter behind the ball */}
         <motion.div
           className="absolute w-[22%]"
-          style={{ left: "50%", top: "66%", translateX: "-50%" }}
-          animate={reduce ? {} : beat?.step === "runup" ? { y: [-14, 0], x: [0, 6] } : { y: 0, x: 0 }}
+          style={{ left: "38%", top: "56%", translateX: "-50%" }}
+          animate={reduce ? {} : beat?.step === "runup" ? { left: ["38%", "46%"], y: [0, -10, 0] } : beat ? { left: "46%", y: 0 } : { left: "38%", y: 0 }}
           transition={{ duration: 0.4 }}
         >
           <Pet species={shooterPet?.species as Species} face={faceFor(shooter)} {...(beat ? shooterLook : idleLook(shooter))} className="w-full" title={`${shooterPet?.name ?? "Shooter"} taking the kick`} />
@@ -171,22 +175,22 @@ export function PenaltyStage({ b, mine, face, onAnnounce }: { b: BattleView; min
 
       {/* scoreboard: goals per side */}
       <div className="mx-auto mt-4 grid max-w-[560px] grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <Side p={b[mine]} you={!!b.you} b={b} side={mine} reduce={!!reduce} />
+        <Side p={b[mine]} you={!!b.you} b={b} side={mine} lagging={hidden(mine)} reduce={!!reduce} />
         <p className="font-display text-[clamp(1.8rem,5vw,2.8rem)] font-bold tabular-nums">
-          {b.score[mine]}<span className="px-2 text-ink-faint">:</span>{b.score[theirs]}
+          {shownScore(mine)}<span className="px-2 text-ink-faint">:</span>{shownScore(theirs)}
         </p>
-        <Side p={b[theirs]} b={b} side={theirs} reduce={!!reduce} />
+        <Side p={b[theirs]} b={b} side={theirs} lagging={hidden(theirs)} reduce={!!reduce} />
       </div>
     </div>
   );
 }
 
-function Side({ p, you, b, side, reduce }: { p: BattlePet | null; you?: boolean; b: BattleView; side: "a" | "b"; reduce: boolean }) {
+function Side({ p, you, b, side, lagging, reduce }: { p: BattlePet | null; you?: boolean; b: BattleView; side: "a" | "b"; lagging: boolean; reduce: boolean }) {
   return (
     <div className="flex flex-col items-center text-center">
       <p className="font-display text-[clamp(1rem,2.2vw,1.3rem)] font-bold leading-tight">{p ? `${p.name}${you ? " (you)" : ""}` : "Waiting..."}</p>
       {p && <p className="text-[13px] text-ink-soft">{ELEMENT_INFO[p.element].label}</p>}
-      {p && <Meter b={b} side={side} lagging={false} reduce={reduce} />}
+      {p && <Meter b={b} side={side} lagging={lagging} reduce={reduce} />}
     </div>
   );
 }
