@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HandFist, MagicWand, ShieldCheck } from "@phosphor-icons/react";
 import { GlossButton } from "@/components/GlossButton";
-import { Pet, type PetDance, type PetMood, type Species } from "@/components/Pet";
-import { type BattlePet, type BattleView, commitMove, getBattle, joinBattle, type Move, type Play, quickMatch, revealMove } from "@/lib/api";
-import { commitHash, ELEMENT_INFO, loadLocked, MOVE_INFO, newSalt, saveLocked } from "@/lib/battle";
+import { type BattleView, commitMove, getBattle, joinBattle, type Move, type Play, quickMatch, revealMove } from "@/lib/api";
+import { commitHash, loadLocked, MOVE_INFO, newSalt, saveLocked } from "@/lib/battle";
 import { usePet } from "@/lib/pet-store";
+import { BattleStage } from "./BattleStage";
 
 const MOVE_ICON = { attack: HandFist, guard: ShieldCheck, trick: MagicWand } as const;
 const playLabel = (p: Play) => (p === null ? "no move" : p === "locked" ? "hid its move" : MOVE_INFO[p].label);
@@ -21,11 +21,9 @@ export function BattleArena({ id }: { id: string }) {
   const [b, setB] = useState<BattleView | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [flash, setFlash] = useState<{ winner: "a" | "b" | null; text: string } | null>(null);
+  const [announce, setAnnounce] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const seenRounds = useRef<number | null>(null);
   const revealing = useRef<string | null>(null);
-  const flashTimer = useRef<number | undefined>(undefined);
 
   const load = useCallback(async () => {
     try {
@@ -40,28 +38,6 @@ export function BattleArena({ id }: { id: string }) {
     const t = window.setInterval(load, 1500);
     return () => window.clearInterval(t);
   }, [load]);
-
-  // a round just closed: flash who won it, shake the loser, buzz the phone
-  useEffect(() => {
-    if (!b) return;
-    const n = b.rounds.length;
-    if (seenRounds.current === null) {
-      seenRounds.current = n;
-      return;
-    }
-    if (n > seenRounds.current) {
-      seenRounds.current = n;
-      const r = b.rounds[n - 1];
-      const winnerName = r.winner ? (r.winner === "a" ? b.a?.name : b.b?.name) : null;
-      const how = r.by === "element" ? "element advantage" : r.by === "timeout" ? "the other didn't move in time" : r.by === "tie" ? "" : "";
-      setFlash({ winner: r.winner, text: winnerName ? `${winnerName} takes round ${r.round}${how ? ` (${how})` : ""}` : `Round ${r.round} is a tie` });
-      if ("vibrate" in navigator) navigator.vibrate?.(r.winner === b.you ? [40, 30, 40] : 120);
-      // the battle refreshes every 1.5 s, so the timer lives in a ref, not in this effect's cleanup
-      window.clearTimeout(flashTimer.current);
-      flashTimer.current = window.setTimeout(() => setFlash(null), 1800);
-    }
-  }, [b]);
-  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
   // both locked in: reveal automatically from the move saved on this phone
   useEffect(() => {
@@ -143,17 +119,12 @@ export function BattleArena({ id }: { id: string }) {
   const left = b[mine];
   const right = b[theirs];
   const done = b.status === "done";
-  const moodFor = (side: "a" | "b"): { mood: PetMood; dance: PetDance } => {
-    if (done) return b.winner === side ? { mood: "excited", dance: "cheer" } : b.winner === "draw" ? { mood: "happy", dance: "sway" } : { mood: "sad", dance: "none" };
-    if (flash) return flash.winner === side ? { mood: "excited", dance: "hop" } : flash.winner ? { mood: "surprised", dance: "dizzy" } : { mood: "curious", dance: "shake" };
-    return { mood: "focused", dance: "bounce" };
-  };
 
   const headline =
     b.status === "open" ? (b.you === "a" ? "Waiting for a challenger" : `${b.a?.name ?? "A pet"} challenges you`)
     : b.status === "cancelled" ? "This challenge expired"
     : done ? (b.winner === "draw" ? "It's a draw" : b.you ? (b.winner === b.you ? "You won!" : "You lost") : `${b[b.winner as "a" | "b"]?.name} won`)
-    : flash ? flash.text
+    : announce ? announce
     : `Round ${b.round} of 5`;
 
   const deadline = b.round_deadline ? Math.max(0, new Date(b.round_deadline).getTime() - Date.now()) : null;
@@ -163,13 +134,7 @@ export function BattleArena({ id }: { id: string }) {
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-10">
         <p className="text-center font-display text-[clamp(1.6rem,3.2vw,2.4rem)] font-bold leading-tight" aria-live="polite">{headline}</p>
 
-        <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-6">
-          <Fighter p={left} {...moodFor(mine)} you={!!b.you} face={b.you ? pet?.face : undefined} />
-          <p className="font-display text-[clamp(2.4rem,7vw,4.4rem)] font-bold tabular-nums tracking-wide">
-            {b.score[mine]}<span className="px-2 text-ink-faint sm:px-4">:</span>{b.score[theirs]}
-          </p>
-          <Fighter p={right} {...moodFor(theirs)} mirrored />
-        </div>
+        <BattleStage b={b} mine={mine} face={b.you ? pet?.face : undefined} onAnnounce={setAnnounce} />
 
         {/* open challenge */}
         {b.status === "open" && (
@@ -279,23 +244,3 @@ export function BattleArena({ id }: { id: string }) {
   );
 }
 
-function Fighter({ p, mood, dance, mirrored, you, face }: { p: BattlePet | null; mood: PetMood; dance: PetDance; mirrored?: boolean; you?: boolean; face?: string }) {
-  if (!p) {
-    return (
-      <div className="flex flex-col items-center text-center">
-        <div className="grid aspect-square w-full max-w-[220px] place-items-center font-display text-[48px] font-bold text-ink-faint">?</div>
-        <p className="mt-1 font-semibold text-ink-soft">Waiting...</p>
-      </div>
-    );
-  }
-  const el = ELEMENT_INFO[p.element];
-  return (
-    <div className="flex flex-col items-center text-center">
-      <div className={`w-full max-w-[220px] ${mirrored ? "-scale-x-100" : ""}`}>
-        <Pet species={p.species as Species} face={face} mood={mood} dance={dance} className="w-full" title={p.name} />
-      </div>
-      <p className="mt-1 font-display text-[clamp(1rem,2.2vw,1.35rem)] font-bold">{p.name}{you ? " (you)" : ""}</p>
-      <p className="text-[13px] text-ink-soft">{el.label}</p>
-    </div>
-  );
-}
