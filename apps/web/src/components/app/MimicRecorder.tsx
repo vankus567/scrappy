@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Microphone, Play } from "@phosphor-icons/react";
 import { API_URL, type ClipView } from "@/lib/api";
 import { scoreContour } from "@/lib/mimic";
-import { playTune, playUrl, record } from "@/lib/voice";
+import { playAnimal, playTune, playUrl, record } from "@/lib/voice";
 
 /** The clip's pitch line (grey) and yours (blue), lined up in the same key so the shapes compare. */
 export function PitchLine({ target, sung }: { target: number[]; sung: (number | null)[] }) {
@@ -44,7 +44,17 @@ export function PitchLine({ target, sung }: { target: number[]; sung: (number | 
 }
 
 export function playClip(clip: ClipView) {
-  return clip.kind === "tune" ? playTune(clip.notes) : playUrl(`${API_URL}${clip.audio_url}`);
+  if (clip.kind === "tune") return playTune(clip.notes);
+  if (clip.kind === "animal") return playAnimal(clip.animal);
+  return playUrl(`${API_URL}${clip.audio_url}`);
+}
+
+/** What kind of sound this is, and who made it. */
+export function clipLabel(clip: ClipView) {
+  if (clip.kind === "tune") return "Scrappy Tune";
+  if (clip.kind === "animal") return "Animal call";
+  const by = clip.by ? ` by ${clip.by}` : "";
+  return clip.category === "dialogue" ? `Famous line, performed${by}` : clip.category === "animal" ? `Animal impression${by}` : `Player sound${by}`;
 }
 
 /**
@@ -94,8 +104,9 @@ export function MimicRecorder({ clip, busy, onLock }: { clip: ClipView; busy: bo
       <div className="rounded-[20px] bg-field p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-ink-soft">{clip.kind === "tune" ? "Scrappy Tune" : "Player sound"}</p>
-            <p className="truncate font-display text-[20px] font-bold">{clip.title}</p>
+            <p className="text-[13px] font-semibold text-ink-soft">{clipLabel(clip)}</p>
+            <p className="font-display text-[20px] font-bold leading-snug">{clip.kind === "upload" && clip.quote ? `"${clip.quote}"` : clip.title}</p>
+            {clip.kind === "upload" && clip.movie && <p className="text-[13px] text-ink-soft">{clip.movie}</p>}
           </div>
           <button
             type="button"

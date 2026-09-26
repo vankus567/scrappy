@@ -129,8 +129,8 @@ export function MimicArena({ id }: { id: string }) {
               <>
                 <p className="text-ink-soft">
                   {b.mode === "quick"
-                    ? botIn !== null && botIn > 0 ? `Looking for players... Scrappy Bot fills in ${botIn}s.` : "Calling Scrappy Bot..."
-                    : "Share the link. Start when your friends are in, or fill empty seats with Scrappy Bots."}
+                    ? botIn !== null && botIn > 0 ? `Looking for players... a practice bot joins in ${botIn}s.` : "Adding a practice bot..."
+                    : "Share the link. Start when your friends are in, or fill empty seats with practice bots."}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                   {b.mode === "friend" && <GlossButton type="button" onClick={share}>{copied ? "Link copied" : "Invite friends"}</GlossButton>}
@@ -140,7 +140,7 @@ export function MimicArena({ id }: { id: string }) {
                     </button>
                   )}
                   <button type="button" disabled={busy} onClick={() => token && act(() => startMimic(id, token, true))} className="min-h-12 rounded-[14px] bg-field px-5 font-semibold transition-colors hover:bg-field-hover disabled:opacity-60">
-                    Fill with Scrappy Bots
+                    Fill with practice bots
                   </button>
                 </div>
                 <button type="button" onClick={async () => { if (token) { await leaveMimic(id, token).catch(() => {}); router.push("/app/battle"); } }} className="mt-4 text-[14px] font-semibold text-ink-soft hover:text-ink">
@@ -232,8 +232,9 @@ function Seat({ p, you, face, status }: { p?: MimicPlayer; you: boolean; face?: 
         <Pet species={p.species as Species} face={face} mood={mood} dance={dance} className="w-full" title={p.name} />
       </div>
       <p className="mt-1 truncate font-display text-[16px] font-bold">{p.name}{you ? " (you)" : ""}</p>
+      {p.bot && <p className="text-[12px] text-ink-faint">practice</p>}
       <p className="flex items-center gap-1 text-[13px] text-ink-soft">
-        {status === "active" ? (p.submitted ? <><Check size={14} weight="bold" className="text-[#15803d]" /> Sang</> : "Singing...") : status === "done" ? `${p.total} pts` : p.bot ? "Bot" : "Ready"}
+        {status === "active" ? (p.submitted ? <><Check size={14} weight="bold" className="text-[#15803d]" /> Sang</> : "Singing...") : status === "done" ? `${p.total} pts` : "Ready"}
       </p>
     </li>
   );

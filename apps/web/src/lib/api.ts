@@ -1,3 +1,4 @@
+import type { Animal } from "./mimic";
 // Client for the Scrappy Human API (apps/api). Worker-side calls only; agents pay via x402.
 // Production default is same-origin: vercel.json rewrites /v1 to the API host.
 // The API issues a worker token at signup; this app stores it where it used to store worker_id.
@@ -150,7 +151,11 @@ export const savePush = (token: string, sub: PushSubscriptionJSON) =>
 
 export type ClipView =
   | { id: string; kind: "tune"; title: string; notes: { semi: number; ms: number }[]; frames: number[]; duration_ms: number }
-  | { id: string; kind: "upload"; title: string; audio_url: string; frames: number[]; duration_ms: number; hidden?: boolean };
+  | { id: string; kind: "animal"; title: string; animal: Animal; frames: number[]; duration_ms: number }
+  | {
+      id: string; kind: "upload"; title: string; audio_url: string; frames: number[]; duration_ms: number; hidden?: boolean;
+      category?: "sound" | "dialogue" | "animal"; quote?: string | null; movie?: string | null; by?: string | null;
+    };
 export type MimicPlayer = { seat: number; name: string; species: string; bot: boolean; submitted: boolean; total: number; winner: boolean };
 export type MimicView = {
   id: string;
@@ -179,6 +184,6 @@ export const startMimic = (id: string, token: string, fill_with_bots: boolean) =
 export const leaveMimic = (id: string, token: string) => call<{ ok: true }>(`/v1/mimic/${id}/leave`, { method: "POST", token });
 export const submitMimic = (id: string, token: string, round: number, contour: string) =>
   call<MimicView>(`/v1/mimic/${id}/submit`, { method: "POST", token, body: JSON.stringify({ round, contour }) });
-export const uploadClip = (token: string, clip: { title: string; mime: string; audio: string; contour: string; duration_ms: number }) =>
+export const uploadClip = (token: string, clip: { title: string; mime: string; audio: string; contour: string; duration_ms: number; category?: "sound" | "dialogue" | "animal"; quote?: string; movie?: string }) =>
   call<ClipView>("/v1/clips", { method: "POST", token, body: JSON.stringify(clip) });
 export const reportClip = (id: string) => call<{ ok: true }>(`/v1/clips/${id}/report`, { method: "POST" });

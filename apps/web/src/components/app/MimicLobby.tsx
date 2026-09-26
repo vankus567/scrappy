@@ -85,7 +85,7 @@ export function MimicLobby() {
 
           <div className="mt-6 rounded-[20px] bg-field p-4">
             <p className="font-semibold">Battle your friends</p>
-            <p className="mt-0.5 text-[14px] text-ink-soft">Pick how many play, share the link. Empty seats can go to Scrappy Bots.</p>
+            <p className="mt-0.5 text-[14px] text-ink-soft">Pick how many play, share the link. Empty seats can go to practice bots.</p>
             <div className="mt-3 flex gap-2">
               {[2, 3, 4].map((n) => (
                 <button key={n} type="button" aria-pressed={players === n} onClick={() => setPlayers(n)} className={`min-h-11 flex-1 rounded-[14px] text-[15px] font-semibold transition-colors ${players === n ? "bg-leaf text-on-leaf" : "bg-ground-deep hover:bg-field-hover"}`}>

@@ -1,7 +1,7 @@
 // Phone-side audio for Mimic: play a clip, listen to the mic, and turn your voice into a pitch line
 // (one value every 50 ms). Plain signal processing (autocorrelation), nothing leaves the phone but
 // the pitch line itself.
-import { FRAME_MS, type Note, RECORD_MS } from "./mimic";
+import { type Animal, FRAME_MS, type Note, RECORD_MS } from "./mimic";
 
 let shared: AudioContext | null = null;
 export const audioCtx = () => {
@@ -36,6 +36,45 @@ export function playTune(notes: Note[]): Promise<void> {
     vib.start(t);
     osc.stop(t + d);
     vib.stop(t + d);
+    t += d;
+  }
+  return new Promise((res) => window.setTimeout(res, (t - ctx.currentTime) * 1000 + 50));
+}
+
+/** Play a built-in animal call: pitch glides on a voice-like wave, softened so it's cute, not harsh. */
+export function playAnimal(a: Animal): Promise<void> {
+  const ctx = audioCtx();
+  let t = ctx.currentTime + 0.05;
+  for (const g of a.glides) {
+    if ("gap" in g) {
+      t += g.gap / 1000;
+      continue;
+    }
+    const d = g.ms / 1000;
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = a.wave;
+    filter.type = "lowpass";
+    filter.frequency.value = a.root * 6;
+    osc.frequency.setValueAtTime(a.root * 2 ** (g.from / 12), t);
+    osc.frequency.linearRampToValueAtTime(a.root * 2 ** (g.to / 12), t + d);
+    if (g.wobble) {
+      const lfo = ctx.createOscillator();
+      const depth = ctx.createGain();
+      lfo.frequency.value = 9;
+      depth.gain.value = a.root * (2 ** (g.wobble / 12) - 1);
+      lfo.connect(depth).connect(osc.frequency);
+      lfo.start(t);
+      lfo.stop(t + d);
+    }
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(a.wave === "sine" ? 0.35 : 0.18, t + 0.03);
+    gain.gain.setValueAtTime(a.wave === "sine" ? 0.35 : 0.18, t + d * 0.8);
+    gain.gain.linearRampToValueAtTime(0, t + d);
+    osc.connect(filter).connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + d);
     t += d;
   }
   return new Promise((res) => window.setTimeout(res, (t - ctx.currentTime) * 1000 + 50));
