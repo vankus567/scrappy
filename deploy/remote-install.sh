@@ -45,6 +45,10 @@ CONF
   chmod 600 "$ENV"
 fi
 
+# proof photos live outside the release dir so they survive deploys (added after api.env first shipped)
+install -d -m 700 /var/lib/scrappy/proofs
+grep -q '^PROOF_DIR=' "$ENV" || echo 'PROOF_DIR=/var/lib/scrappy/proofs' >> "$ENV"
+
 # ---- build (API only; the web app deploys from Vercel) ----
 cd "$APP" && "$BUN" install
 ln -sfn "$APP" /opt/scrappy/current

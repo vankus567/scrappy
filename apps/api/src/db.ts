@@ -160,11 +160,26 @@ export function openDb(path = process.env.SCRAPPY_DB ?? "scrappy.db") {
       task_id TEXT PRIMARY KEY REFERENCES tasks(id),
       agent_name TEXT,
       agent_reason TEXT,
-      kind TEXT NOT NULL DEFAULT 'judgment' CHECK (kind IN ('judgment', 'call', 'photo_check', 'price_check')),
+      kind TEXT NOT NULL DEFAULT 'judgment' CHECK (kind IN ('judgment', 'call', 'photo_check', 'price_check', 'visit')),
       city TEXT,
       phone TEXT,
       outcome TEXT,
-      outcome_at INTEGER
+      outcome_at INTEGER,
+      lat REAL, lng REAL, radius_m INTEGER, place TEXT,
+      proof TEXT
+    );
+
+    -- Evidence a human submitted with an answer: photo (on disk, hashed) and a GPS fix checked against the task's place.
+    CREATE TABLE IF NOT EXISTS task_proofs (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(id),
+      worker_id TEXT NOT NULL REFERENCES workers(id),
+      photo_file TEXT, photo_mime TEXT, photo_sha256 TEXT,
+      lat REAL, lng REAL, accuracy_m REAL, distance_m INTEGER,
+      location_verified INTEGER NOT NULL DEFAULT 0,
+      captured_at INTEGER,
+      created_at INTEGER NOT NULL,
+      UNIQUE (task_id, worker_id)
     );
 
     CREATE TABLE IF NOT EXISTS notifications (
@@ -187,6 +202,32 @@ export function openDb(path = process.env.SCRAPPY_DB ?? "scrappy.db") {
   addWorkerCol("pet_hunger_at INTEGER");
   addWorkerCol("pet_starving_at INTEGER");
   addWorkerCol("pet_dead INTEGER NOT NULL DEFAULT 0");
+  addWorkerCol("last_lat REAL");
+  addWorkerCol("last_lng REAL");
+  addWorkerCol("last_fix_at INTEGER");
+
+  // task_context gained a place, proof requirements and the 'visit' kind after it first shipped
+  const ctxSql = (db.query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'task_context'").get() as { sql?: string } | null)?.sql ?? "";
+  if (ctxSql && !ctxSql.includes("'visit'")) {
+    db.exec(`
+      CREATE TABLE task_context_v2 (
+        task_id TEXT PRIMARY KEY REFERENCES tasks(id),
+        agent_name TEXT,
+        agent_reason TEXT,
+        kind TEXT NOT NULL DEFAULT 'judgment' CHECK (kind IN ('judgment', 'call', 'photo_check', 'price_check', 'visit')),
+        city TEXT,
+        phone TEXT,
+        outcome TEXT,
+        outcome_at INTEGER,
+        lat REAL, lng REAL, radius_m INTEGER, place TEXT,
+        proof TEXT
+      );
+      INSERT INTO task_context_v2 (task_id, agent_name, agent_reason, kind, city, phone, outcome, outcome_at)
+        SELECT task_id, agent_name, agent_reason, kind, city, phone, outcome, outcome_at FROM task_context;
+      DROP TABLE task_context;
+      ALTER TABLE task_context_v2 RENAME TO task_context;
+    `);
+  }
 
   // payments.kind gained 'revive' after the table first shipped: rebuild it when the old CHECK is still there
   const paySql = (db.query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'payments'").get() as { sql?: string } | null)?.sql ?? "";

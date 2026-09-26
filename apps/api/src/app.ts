@@ -5,6 +5,7 @@ import { z } from "zod";
 import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
 import { type Db, toUsdc, uid } from "./db";
 import { type Rpc, verifyDeposit, verifyRevive } from "./payments";
+import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
@@ -20,6 +21,8 @@ export type AppDeps = {
   platformWallet?: string;
   network?: string;
   pushPublicKey?: string;
+  /** Where proof photos live; defaults to PROOF_DIR on disk. */
+  proofs?: ProofStore;
 };
 
 const lang = z.string().trim().toLowerCase().min(2).max(5);
@@ -32,7 +35,8 @@ const workerBody = z.object({
 });
 const profilePatch = workerBody.omit({ wallet: true }).partial();
 const signInBody = z.object({ wallet: z.string().regex(SOLANA_ADDRESS), nonce: z.string(), issued_at: z.string(), signature: z.string().max(120) });
-const respondBody = z.object({ answer: z.string().min(1).max(2000), confidence: z.number().min(0).max(100).default(80) });
+const respondBody = z.object({ answer: z.string().min(1).max(2000), confidence: z.number().min(0).max(100).default(80), proof: proofSubmit.optional() });
+const positionQuery = z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) });
 const pushBody = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
 const projectBody = z.object({ name: z.string().trim().min(2).max(60), funding_wallet: z.string().regex(SOLANA_ADDRESS).optional() });
 const goldBody = z.object({
@@ -50,6 +54,7 @@ const body = async (c: Context) => c.req.json().catch(() => null);
 
 export function createApp(deps: AppDeps) {
   const { db, tasks, auth } = deps;
+  const proofs = deps.proofs ?? createProofStore(db);
   const app = new Hono<Env>();
 
   app.use("*", cors({
@@ -245,6 +250,9 @@ export function createApp(deps: AppDeps) {
     if (!w) return c.json({ error: "unauthorized" }, 401);
     tickPet(db, w);
     if (w.pet_dead) return c.json({ error: "pet_dead", pet: petView(w) }, 403);
+    // the app sends the phone's position (when the worker allows it) so tasks at nearby places find them
+    const pos = positionQuery.safeParse(c.req.query());
+    if (pos.success) tasks.setPosition(w, pos.data.lat, pos.data.lng);
     const t = tasks.nextFor(w);
     return t ? c.json(tasks.workerView(t, w)) : c.body(null, 204);
   });
@@ -293,8 +301,36 @@ export function createApp(deps: AppDeps) {
     if (!w) return c.json({ error: "unauthorized" }, 401);
     const p = respondBody.safeParse(await body(c));
     if (!p.success) return bad(c, p.error);
-    const r = tasks.respond(c.req.param("id"), w, p.data.answer, p.data.confidence);
-    return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 400);
+    const id = c.req.param("id");
+    const t = tasks.getTask(id);
+    const held = t && db.query("SELECT 1 FROM task_assignments WHERE task_id = ? AND worker_id = ? AND status = 'assigned'").get(id, w.id);
+    if (!t || !held) {
+      const r = tasks.respond(id, w, p.data.answer, p.data.confidence); // yields the precise 404/409/410
+      return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 400);
+    }
+    // proof is checked before the answer counts, so nobody is paid for a task they did not do
+    const { req, place } = tasks.proofReqFor(t);
+    const chk = checkProof(req, place, p.data.proof);
+    if (!chk.ok) return c.json({ error: "proof_rejected", message: chk.error }, 422);
+    const hasProof = !!chk.proof.photo || chk.proof.lat !== null;
+    const proofId = hasProof ? await proofs.save(t.id, w.id, chk.proof) : null;
+    const r = tasks.respond(id, w, p.data.answer, p.data.confidence);
+    if (!r.ok) {
+      if (proofId) await proofs.remove(proofId);
+      return c.json({ error: r.error }, r.status as 400);
+    }
+    return c.json({ ...r, ...(proofId && { proof_id: proofId, location_verified: chk.proof.location_verified, distance_m: chk.proof.distance_m }) });
+  });
+
+  /** A proof photo. Tasks paid from a project balance need that project's key; x402 tasks are reachable by the unguessable proof id. */
+  app.get("/v1/proofs/:id/photo", rateLimit("read", 600), async (c) => {
+    const row = proofs.get(c.req.param("id"));
+    const t = row && tasks.getTask(row.task_id);
+    if (!row || !t) return c.json({ error: "not found" }, 404);
+    if (t.project_id && auth.projectForKey(bearer(c.req.header("authorization")))?.id !== t.project_id) return c.json({ error: "not found" }, 404);
+    const f = proofs.photo(row);
+    if (!f || !(await f.exists())) return c.json({ error: "not found" }, 404);
+    return new Response(f, { headers: { "content-type": row.photo_mime ?? "image/jpeg", "cache-control": "private, max-age=86400", "x-sha256": row.photo_sha256 ?? "" } });
   });
 
   app.get("/v1/worker/history", (c) => {

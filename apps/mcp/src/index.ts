@@ -82,6 +82,40 @@ server.registerTool(
 );
 
 server.registerTool(
+  "scrappy_find_human",
+  {
+    title: "Send a human to a place",
+    description:
+      "Eyes and hands in the physical world. A nearby human goes to a place (a shop shelf, a restaurant, an entrance), checks what " +
+      "you ask, and answers with a photo and a GPS fix. Scrappy verifies the photo and that they were within radius_m before paying " +
+      "them in USDC. Returns the answer, verified (true/false) and the evidence (photo_url, sha256, distance_m, captured_at).",
+    inputSchema: {
+      task: z.string().describe("What to check on site, e.g. 'Is Amul butter 500g on the shelf? Reply with the shelf price.'"),
+      place: z.object({
+        lat: z.number(), lng: z.number(),
+        radius_m: z.number().optional().describe("How close they must be, default 250"),
+        name: z.string().optional().describe("Shown to the human, e.g. 'Reliance Smart, Mangalagiri'"),
+      }),
+      kind: z.enum(["photo_check", "price_check", "visit"]).optional().describe("Default photo_check"),
+      response_schema: taskFields.response_schema,
+      options: taskFields.options,
+      proof: z.object({ photo: z.boolean().optional(), gps: z.boolean().optional() }).optional().describe("Default: photo + GPS"),
+      budget: z.number().optional().describe("USDC for the human, e.g. 0.5"),
+      deadline: z.number().optional().describe("Seconds you can wait (up to 3600), default 1800"),
+      agent: z.object({ name: z.string(), reason: z.string().optional() }).optional().describe("Who is asking and why you are stuck"),
+    },
+  },
+  async (a) => {
+    try {
+      const r = await scrappy.findHuman({ ...a, responseSchema: a.response_schema as never });
+      return text({ ...summary(r), verified: r.verified ?? false, proof: r.proof ?? [] });
+    } catch (e) {
+      return fail(e);
+    }
+  },
+);
+
+server.registerTool(
   "scrappy_find_capacity",
   {
     title: "Find human capacity",

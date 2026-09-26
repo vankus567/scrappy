@@ -294,6 +294,67 @@ describe("developers: API keys, balance, deposits", () => {
     expect(hist.body.answers[0]).toMatchObject({ agent: "ShopBot", kind: "call", outcome: "Ordered 2 packs for pickup" });
   });
 
+  test("proof-native shelf check: routed to nearby phones, photo + GPS checked before the answer counts, agent gets the evidence", async () => {
+    tick(0);
+    const s = setup();
+    const key = (await s.req("POST", "/v1/projects", { name: "ShopBot", funding_wallet: wallets[7] })).body.api_key;
+    s.db.query("UPDATE projects SET balance_micro = 5000000").run();
+    const store = { lat: 16.4307, lng: 80.5525, radius_m: 200, name: "Reliance Smart, Mangalagiri" };
+    const join = async (i: number, pos: { lat: number; lng: number }) => {
+      const r = await s.req("POST", "/v1/workers", { wallet: wallets[i], languages: ["en"], pet_name: `Pet${i}` });
+      await s.req("GET", `/v1/worker/next?lat=${pos.lat}&lng=${pos.lng}`, undefined, r.body.worker_token);
+      return r.body.worker_token as string;
+    };
+    const far = await join(0, { lat: 19.076, lng: 72.8777 }); // Mumbai
+    const near = await join(1, { lat: 16.4331, lng: 80.5561 }); // ~450 m from the store
+
+    const check = {
+      task: "Is Amul butter 500g on the shelf? Reply with the shelf price.",
+      kind: "photo_check",
+      place: store,
+      agent: { name: "ShopBot", reason: "The store website has no live stock" },
+      response_schema: { type: "text", max_length: 120 },
+      budget: 0.5,
+      deadline: 1_800,
+    };
+    expect((await s.req("POST", "/v1/tasks", { ...check, place: undefined, proof: { gps: true } }, key)).status).toBe(400); // GPS proof needs a place
+    const t = await s.req("POST", "/v1/tasks", check, key);
+    expect(t.status).toBe(201);
+
+    expect((await s.req("GET", `/v1/worker/next?lat=19.076&lng=72.8777`, undefined, far)).status).toBe(204); // 400 km away never sees it
+    const job = await s.req("GET", `/v1/worker/next?lat=16.4331&lng=80.5561`, undefined, near);
+    expect(job.status).toBe(200);
+    expect(job.body).toMatchObject({ kind: "photo_check", proof_required: { photo: true, gps: true }, place: { name: store.name, radius_m: 200 } });
+    expect(job.body.place.distance_m).toBeGreaterThan(300);
+    expect(Date.parse(job.body.expires_at) - Date.now()).toBeGreaterThan(15 * 60_000); // time to walk there
+
+    tick(120_000);
+    const photo = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(4_000, 7)]).toString("base64");
+    const at = () => new Date(Date.now()).toISOString();
+    const url = `/v1/tasks/${job.body.task_id}/respond`;
+    const noPhoto = await s.req("POST", url, { answer: "Yes, Rs 285", proof: { lat: 16.4308, lng: 80.5526, accuracy_m: 12, captured_at: at() } }, near);
+    expect(noPhoto.status).toBe(422);
+    const notThere = await s.req("POST", url, { answer: "Yes, Rs 285", proof: { photo, lat: 16.4331, lng: 80.5561, accuracy_m: 12, captured_at: at() } }, near);
+    expect(notThere.status).toBe(422);
+    expect(notThere.body.message).toContain("m from Reliance Smart");
+    const fake = await s.req("POST", url, { answer: "Yes, Rs 285", proof: { photo: Buffer.from("<svg>not a photo</svg>".repeat(80)).toString("base64"), lat: 16.4308, lng: 80.5526, captured_at: at() } }, near);
+    expect(fake.status).toBe(422);
+
+    const ok = await s.req("POST", url, { answer: "Yes, Rs 285", confidence: 95, proof: { photo, lat: 16.4308, lng: 80.5526, accuracy_m: 12, captured_at: at() } }, near);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ location_verified: true, earned_usdc: 0.4 });
+
+    const res = await s.req("GET", `/v1/tasks/${t.body.task_id}`, undefined, key);
+    expect(res.body).toMatchObject({ status: "completed", answer: "Yes, Rs 285", verified: true, proof_required: { photo: true, gps: true }, place: { name: store.name } });
+    expect(res.body.proof[0]).toMatchObject({ location_verified: true, photo_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(res.body.proof[0].distance_m).toBeLessThan(200);
+
+    const img = await s.app.request(res.body.proof[0].photo_url, { headers: { authorization: `Bearer ${key}` } });
+    expect(img.status).toBe(200);
+    expect(img.headers.get("content-type")).toBe("image/jpeg");
+    expect((await s.app.request(res.body.proof[0].photo_url)).status).toBe(404); // someone else's evidence stays private
+  });
+
   test("deposits are verified from the chain and credited once", async () => {
     const db = openDb(":memory:");
     const PLATFORM = "P1atform1111111111111111111111111111111111";

@@ -25,12 +25,36 @@ export type TaskOptions = {
   skill?: string;
   /** Minimum proven accuracy each human needs (0-1). >= 0.95 routes to experts only. Default 0.8. */
   minAccuracy?: number;
-  /** Seconds you can wait. 10-600. Default 60. */
+  /** Seconds you can wait. 10-3600 (on-site tasks need minutes). Default 60. */
   deadline?: number;
   /** Total USDC for all humans in this round. Default $0.05 per human. */
   budget?: number;
   /** HTTPS URL that receives a signed `task.finished` event (API-key projects). */
   webhookUrl?: string;
+  /** Real-world work a person does from their phone. Default "judgment". */
+  kind?: "judgment" | "call" | "photo_check" | "price_check" | "visit";
+  /** Where the human has to be. Routes the task to phones nearby and checks their GPS against it. */
+  place?: { lat: number; lng: number; radius_m?: number; name?: string };
+  /** Evidence the answer must carry. Defaults: photo for photo/price checks, GPS whenever a place is given. */
+  proof?: { photo?: boolean; gps?: boolean };
+  /** City routing when there is no exact place. */
+  city?: string;
+  /** Business phone number for call tasks. */
+  phone?: string;
+  /** Shown to the human: who is asking and why the agent is stuck. */
+  agent?: { name: string; reason?: string };
+};
+
+export type Proof = {
+  proof_id: string;
+  /** Relative to the API base; fetch with your API key. */
+  photo_url?: string;
+  photo_sha256?: string;
+  location?: { lat: number; lng: number; accuracy_m: number | null };
+  distance_m?: number;
+  location_verified: boolean;
+  captured_at: string;
+  submitted_at: string;
 };
 
 export type ConsensusOptions = TaskOptions & {
@@ -64,6 +88,10 @@ export type ScrappyResult = {
   /** Every task in the chain (first round + escalations). */
   rounds: string[];
   spent_usdc: number;
+  /** Evidence from each human (proof tasks only). */
+  proof?: Proof[];
+  /** Every answer carried the required photo and a GPS fix inside the place's radius. */
+  verified?: boolean;
   reason?: string;
   available?: number;
   required?: number;
@@ -100,6 +128,12 @@ const toBody = (o: TaskOptions & { humans?: number; qualityThreshold?: number; e
   quality_threshold: o.qualityThreshold,
   webhook_url: o.webhookUrl,
   extends: o.extends,
+  kind: o.kind,
+  place: o.place,
+  proof: o.proof,
+  city: o.city,
+  phone: o.phone,
+  agent: o.agent,
 });
 
 /**
@@ -172,8 +206,21 @@ export class Scrappy {
     return {
       status: r.status, answer: r.answer ?? null, agreement: r.agreement ?? 0, confidence: r.confidence ?? 0, humans: r.humans ?? 0,
       votes: r.votes ?? [], latency_ms: r.latency_ms ?? null, task_id: r.task_id, rounds, spent_usdc: Math.round(spent * 1e6) / 1e6,
+      ...(r.proof && { proof: r.proof, verified: r.verified }),
       ...(r.reason && { reason: r.reason }),
     };
+  }
+
+  /**
+   * Eyes and hands in the physical world: one nearby human goes to a place, checks it, and answers with
+   * a photo and a GPS fix that Scrappy verifies before paying them.
+   *
+   *   const r = await scrappy.findHuman({ task: "Is Amul butter 500g on the shelf? Shelf price?", place: { lat, lng, name: "Reliance Smart" },
+   *     responseSchema: { type: "text" }, budget: 0.5, deadline: 1800 });
+   *   if (r.verified) console.log(r.answer, r.proof?.[0].photo_url);
+   */
+  async findHuman(o: TaskOptions & { place: NonNullable<TaskOptions["place"]> }): Promise<ScrappyResult> {
+    return this.askHuman({ kind: "photo_check", deadline: 1_800, ...o });
   }
 
   /** One human, one judgment. */

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type Db, toMicro, toUsdc, uid } from "./db";
+import { distanceM, NEARBY_M, type Place, placeInput, proofInput, type ProofReq, proofsForTask } from "./proofs";
 
 // ---- policy constants ----
 export const WORKER_SHARE = 0.8; // workers get 80% of each human slot; 20% runs the network
@@ -8,6 +9,8 @@ export const MAX_REWARD_USDC = 5;
 export const AVAILABLE_MS = 45_000; // a worker polled within this window counts as online
 export const ASSIGN_MS = 60_000; // a claimed task must be answered within this window
 export const REAL_WORLD_ASSIGN_MS = 5 * 60_000; // calls, photo and price checks take a few minutes
+export const ON_SITE_ASSIGN_MS = 20 * 60_000; // tasks at a place: time to walk there and take the proof
+const FIX_FRESH_MS = 30 * 60_000; // a worker's last known position counts for routing this long
 export const MIN_ANSWER_MS = 2_000; // anti-farming latency floor
 export const PENDING_PAYMENT_MS = 120_000;
 export const GOLD_WARMUP = 5; // qualification tasks before paid work (when gold exists for the language)
@@ -106,7 +109,7 @@ export const taskInput = z
     response_schema: responseSchema.optional(),
     humans: z.number().int().min(1).max(15).default(1),
     budget: z.number().positive().max(75).optional(),
-    deadline: z.number().int().min(10).max(600).default(60),
+    deadline: z.number().int().min(10).max(3_600).default(60), // seconds; on-site tasks need minutes
     language: z.string().trim().toLowerCase().min(2).max(5).default("en"),
     skill: z.string().trim().toLowerCase().regex(/^[a-z0-9_-]{2,40}$/).default("general"),
     min_accuracy: z.number().min(0).max(1).default(0.8),
@@ -116,13 +119,25 @@ export const taskInput = z
     // who is asking and why it got stuck: shown to the human on the task card
     agent: z.object({ name: z.string().trim().min(2).max(60), reason: z.string().trim().max(200).optional() }).optional(),
     // real-world checks a person can do from their phone in a few minutes
-    kind: z.enum(["judgment", "call", "photo_check", "price_check"]).default("judgment"),
+    kind: z.enum(["judgment", "call", "photo_check", "price_check", "visit"]).default("judgment"),
+    // where the human has to be, and what evidence the answer must carry
+    place: placeInput.optional(),
+    proof: proofInput.partial().optional(),
     city: z.string().trim().min(2).max(60).optional(),
     phone: z.string().trim().regex(/^\+?[0-9][0-9 -]{6,18}$/, "phone must be a business phone number").optional(),
   })
   .transform((b, ctx) => {
     if (b.kind === "call" && !b.phone) {
       ctx.addIssue({ code: "custom", path: ["phone"], message: "a call task needs the business phone number to call" });
+      return z.NEVER;
+    }
+    // proof defaults: photo checks and price checks carry a photo; anything at a place carries a GPS fix
+    const proofReq: ProofReq = {
+      photo: b.proof?.photo ?? (b.kind === "photo_check" || b.kind === "price_check"),
+      gps: b.proof?.gps ?? (!!b.place || b.kind === "visit"),
+    };
+    if (proofReq.gps && !b.place) {
+      ctx.addIssue({ code: "custom", path: ["place"], message: "GPS proof needs a place: send place {lat, lng, radius_m}" });
       return z.NEVER;
     }
     const schema: ResponseSchema = b.response_schema ?? (b.options ? { type: "choice", options: b.options } : { type: "binary" });
@@ -141,7 +156,7 @@ export const taskInput = z
       return z.NEVER;
     }
     const reward_micro = Math.floor(toMicro(perHuman));
-    return { ...b, schema, reward_micro, price_micro: reward_micro * b.humans };
+    return { ...b, schema, proofReq, reward_micro, price_micro: reward_micro * b.humans };
   });
 export type TaskInput = z.output<typeof taskInput>;
 
@@ -197,7 +212,7 @@ export type WorkerRow = {
   id: string; wallet: string; token_hash: string; languages: string; pet_name: string | null; species: string | null; city: string | null;
   created_at: number; last_seen_at: number | null; tasks_done: number; earned_micro: number; owed_micro: number; pending_micro: number;
   pet_food: number; pet_hunger: number; pet_hunger_at: number | null; pet_starving_at: number | null; pet_dead: number;
-  push_subscription: string | null;
+  push_subscription: string | null; last_lat?: number | null; last_lng?: number | null; last_fix_at?: number | null;
 };
 
 type Skill = { skill: string; accuracy: number; samples: number };
@@ -283,10 +298,11 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
     skills.get(`${language}:${skill}`) ?? skills.get(`${language}:general`);
 
   /** Can this worker take this task? Language, proven skill, probation, work level. */
-  const eligible = (w: WorkerRow, skills: Map<string, Skill>, t: Pick<TaskRow, "language" | "skill" | "min_accuracy"> & { reward_micro?: number }) => {
+  const eligible = (w: WorkerRow, skills: Map<string, Skill>, t: Pick<TaskRow, "language" | "skill" | "min_accuracy"> & { reward_micro?: number; proof_backed?: boolean }) => {
     if (!parseLangs(w).includes(t.language)) return false;
     if (t.min_accuracy >= EXPERT_ACCURACY && levelOf(w.tasks_done) < EXPERT_LEVEL) return false;
-    if (t.reward_micro !== undefined && t.reward_micro >= HIGH_REWARD_MICRO && levelOf(w.tasks_done) < HIGH_REWARD_LEVEL) return false;
+    // better-paid work waits for Lv5, unless the task demands proof: then the evidence, not the level, protects the buyer
+    if (!t.proof_backed && t.reward_micro !== undefined && t.reward_micro >= HIGH_REWARD_MICRO && levelOf(w.tasks_done) < HIGH_REWARD_LEVEL) return false;
     const s = skillFor(skills, t.language, t.skill);
     if (!s || s.samples < PROVEN_SAMPLES) return t.min_accuracy <= PROBATION_MAX_ACCURACY;
     return s.accuracy >= t.min_accuracy;
@@ -359,11 +375,49 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   };
 
   // ---- task context: the asking agent, the real-world kind, the city, and what the agent did next ----
-  type TaskContext = { agent_name: string | null; agent_reason: string | null; kind: string; city: string | null; phone: string | null; outcome: string | null; outcome_at: number | null };
+  type TaskContext = {
+    agent_name: string | null; agent_reason: string | null; kind: string; city: string | null; phone: string | null; outcome: string | null; outcome_at: number | null;
+    lat: number | null; lng: number | null; radius_m: number | null; place: string | null; proof: string | null;
+  };
   const ctxOf = (taskId: string) => db.query("SELECT * FROM task_context WHERE task_id = ?").get(taskId) as TaskContext | null;
+  const ctxFor = (t: Pick<TaskRow, "id" | "root_id">) => ctxOf(t.root_id) ?? ctxOf(t.id);
+  const placeOf = (ctx: TaskContext | null): Place | null =>
+    ctx && ctx.lat !== null && ctx.lng !== null ? { lat: ctx.lat, lng: ctx.lng, radius_m: ctx.radius_m ?? 250, ...(ctx.place && { name: ctx.place }) } : null;
+  const proofOf = (ctx: TaskContext | null): ProofReq => (ctx?.proof ? JSON.parse(ctx.proof) : { photo: false, gps: false });
   const sameCity = (a: string | null | undefined, b: string | null | undefined) => !b || (!!a && a.trim().toLowerCase() === b.trim().toLowerCase());
-  const cityOk = (w: WorkerRow, t: TaskRow) => sameCity(w.city, ctxOf(t.root_id)?.city ?? ctxOf(t.id)?.city);
-  const assignWindow = (t: TaskRow) => ((ctxOf(t.root_id) ?? ctxOf(t.id))?.kind ?? "judgment") === "judgment" ? ASSIGN_MS : REAL_WORLD_ASSIGN_MS;
+  /** A located task goes to workers whose recent position is nearby, or who live in the task's city. */
+  const whereOk = (w: WorkerRow, city: string | null | undefined, place: Place | null, now = Date.now()) => {
+    if (!place) return sameCity(w.city, city);
+    const fresh = w.last_lat != null && w.last_lng != null && w.last_fix_at != null && now - w.last_fix_at <= FIX_FRESH_MS;
+    if (fresh && distanceM({ lat: w.last_lat!, lng: w.last_lng! }, place) <= NEARBY_M) return true;
+    return !!city && sameCity(w.city, city);
+  };
+  const cityOk = (w: WorkerRow, t: TaskRow) => {
+    const ctx = ctxFor(t);
+    return whereOk(w, ctx?.city, placeOf(ctx));
+  };
+  const assignWindow = (t: TaskRow) => {
+    const ctx = ctxFor(t);
+    if (placeOf(ctx)) return ON_SITE_ASSIGN_MS;
+    return (ctx?.kind ?? "judgment") === "judgment" ? ASSIGN_MS : REAL_WORLD_ASSIGN_MS;
+  };
+
+  const proofBacked = (t: TaskRow) => {
+    const r = proofOf(ctxFor(t));
+    return r.photo || r.gps;
+  };
+
+  /** What proof a task needs and where it has to be taken. */
+  const proofReqFor = (t: TaskRow) => {
+    const ctx = ctxFor(t);
+    return { req: proofOf(ctx), place: placeOf(ctx) };
+  };
+
+  /** The worker app reports where the phone is so nearby tasks can find it. */
+  const setPosition = (w: WorkerRow, lat: number, lng: number, now = Date.now()) => {
+    db.query("UPDATE workers SET last_lat = ?, last_lng = ?, last_fix_at = ? WHERE id = ?").run(lat, lng, now, w.id);
+    Object.assign(w, { last_lat: lat, last_lng: lng, last_fix_at: now });
+  };
 
   /** The agent reports what it did with the humans' answer; shown back to the humans who answered. */
   const setOutcome = (taskId: string, projectId: string, outcome: string, now = Date.now()) => {
@@ -377,9 +431,9 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   };
 
   /** Workers online now who qualify for a task with these requirements. */
-  const capacity = (req: { language: string; skill: string; min_accuracy: number; reward_micro?: number; city?: string | null }, now = Date.now(), exclude: Set<string> = new Set()) => {
+  const capacity = (req: { language: string; skill: string; min_accuracy: number; reward_micro?: number; city?: string | null; place?: Place | null; proof_backed?: boolean }, now = Date.now(), exclude: Set<string> = new Set()) => {
     const online = db.query("SELECT * FROM workers WHERE last_seen_at >= ?").all(now - AVAILABLE_MS) as WorkerRow[];
-    const qualified = online.filter((w) => !exclude.has(w.id) && sameCity(w.city, req.city) && eligible(w, new Map(skillsOf(w.id).map((s) => [s.skill, s])), req));
+    const qualified = online.filter((w) => !exclude.has(w.id) && whereOk(w, req.city, req.place ?? null, now) && eligible(w, new Map(skillsOf(w.id).map((s) => [s.skill, s])), req));
     return { online: online.length, available: qualified.length };
   };
 
@@ -410,7 +464,8 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
 
     const parentCtx = rootId ? ctxOf(rootId) : null;
     const city = input.city ?? parentCtx?.city ?? null;
-    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy, reward_micro: input.reward_micro, city }, now, rootId ? chainWorkers(rootId) : new Set());
+    const place = input.place ?? placeOf(parentCtx);
+    const cap = capacity({ language: base.language, skill: base.skill, min_accuracy: input.min_accuracy, reward_micro: input.reward_micro, city, place, proof_backed: input.proofReq.photo || input.proofReq.gps }, now, rootId ? chainWorkers(rootId) : new Set());
     if (cap.available < input.humans) {
       return {
         ok: false, status: 409, error: "insufficient_capacity",
@@ -441,9 +496,15 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       ).run(task.id, task.root_id, task.parent_id, task.project_id, task.payer, task.billing, task.prompt, task.content, task.response_schema,
         task.language, task.skill, task.min_accuracy, task.humans_required, task.reward_micro, task.budget_micro, task.consensus_threshold,
         task.deadline_at, task.status, task.webhook_url, task.created_at);
-      if (!rootId && (input.agent || input.kind !== "judgment" || input.city || input.phone)) {
-        db.query("INSERT INTO task_context (task_id, agent_name, agent_reason, kind, city, phone) VALUES (?, ?, ?, ?, ?, ?)").run(
+      const needsProof = input.proofReq.photo || input.proofReq.gps;
+      if (!rootId && (input.agent || input.kind !== "judgment" || input.city || input.phone || input.place || needsProof)) {
+        db.query(
+          `INSERT INTO task_context (task_id, agent_name, agent_reason, kind, city, phone, lat, lng, radius_m, place, proof)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
           task.id, input.agent?.name ?? null, input.agent?.reason ?? null, input.kind, input.city ?? null, input.phone ?? null,
+          input.place?.lat ?? null, input.place?.lng ?? null, input.place?.radius_m ?? null, input.place?.name ?? null,
+          needsProof ? JSON.stringify(input.proofReq) : null,
         );
       }
       return true;
@@ -534,7 +595,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
            AND (SELECT COUNT(*) FROM task_assignments a WHERE a.task_id = t.id AND a.status IN ('assigned', 'responded')) < t.humans_required
          ORDER BY CASE WHEN ? >= ? THEN t.reward_micro ELSE -t.deadline_at END DESC LIMIT 50`,
       ).all(now + MIN_ANSWER_MS + 1_000, ...langs, w.id, levelOf(w.tasks_done), PRIORITY_LEVEL) as TaskRow[];
-      const t = candidates.find((c) => eligible(w, skills, c) && cityOk(w, c));
+      const t = candidates.find((c) => eligible(w, skills, { ...c, proof_backed: proofBacked(c) }) && cityOk(w, c));
       if (!t) return null;
       claim(t, w.id, now);
       return t;
@@ -563,7 +624,7 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
          AND NOT EXISTS (SELECT 1 FROM task_assignments a WHERE a.root_id = t.root_id AND a.worker_id = ?)
          AND (SELECT COUNT(*) FROM task_assignments a WHERE a.task_id = t.id AND a.status IN ('assigned', 'responded')) < t.humans_required`,
     ).all(now, ...langs, w.id) as TaskRow[];
-    return rows.filter((t) => eligible(w, skills, t) && cityOk(w, t)).length;
+    return rows.filter((t) => eligible(w, skills, { ...t, proof_backed: proofBacked(t) }) && cityOk(w, t)).length;
   };
 
   /** A worker answers a task they claimed. */
@@ -615,6 +676,11 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
     const got = responsesFor(t.id);
     const chain = t.root_id !== t.id ? (db.query("SELECT COUNT(*) AS n FROM task_responses WHERE root_id = ?").get(t.root_id) as any).n : got;
     const done = isFinal(t.status);
+    const ctx = ctxFor(t);
+    const req = proofOf(ctx);
+    const place = placeOf(ctx);
+    const evidence = req.photo || req.gps || place ? proofsForTask(db, t.id) : [];
+    const verified = evidence.length > 0 && evidence.every((p) => (!req.photo || "photo_url" in p) && (!req.gps || p.location_verified));
     return {
       task_id: t.id,
       status: t.status,
@@ -630,10 +696,10 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       responses_this_round: got,
       ...(t.parent_id && { extends: t.parent_id }),
       ...(t.status === "insufficient_capacity" && { reason: "Not enough qualified humans answered before the deadline" }),
-      ...(() => {
-        const ctx = ctxOf(t.root_id) ?? ctxOf(t.id);
-        return ctx ? { kind: ctx.kind, ...(ctx.city && { city: ctx.city }), ...(ctx.outcome && { outcome: ctx.outcome }) } : { kind: "judgment" };
-      })(),
+      ...(ctx ? { kind: ctx.kind, ...(ctx.city && { city: ctx.city }), ...(ctx.outcome && { outcome: ctx.outcome }) } : { kind: "judgment" }),
+      ...(place && { place }),
+      ...((req.photo || req.gps) && { proof_required: req }),
+      ...(evidence.length > 0 && { proof: evidence, verified }),
       price_usdc: toUsdc(t.budget_micro),
       refund_usdc: toUsdc(t.refund_micro),
       payment_tx: t.payment_tx,
@@ -647,8 +713,10 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
   const workerView = (t: TaskRow, w: WorkerRow) => {
     const a = db.query("SELECT expires_at FROM task_assignments WHERE task_id = ? AND worker_id = ?").get(t.id, w.id) as any;
     const schema = JSON.parse(t.response_schema) as ResponseSchema;
-    const ctx = ctxOf(t.root_id) ?? ctxOf(t.id);
+    const ctx = ctxFor(t);
     const kind = ctx?.kind ?? "judgment";
+    const place = placeOf(ctx);
+    const pos = w.last_lat != null && w.last_lng != null ? { lat: w.last_lat, lng: w.last_lng } : null;
     return {
       task_id: t.id,
       prompt: t.prompt,
@@ -662,12 +730,14 @@ export function createTaskService(db: Db, opts: { onFinal?: Webhook; onNewTask?:
       agent: ctx?.agent_name ? { name: ctx.agent_name, reason: ctx.agent_reason } : null,
       city: ctx?.city ?? null,
       phone: ctx?.phone ?? null,
-      estimated_seconds: kind !== "judgment" ? 150 : schema.type === "text" ? 45 : t.content && t.content.length > 400 ? 30 : 10,
+      place: place ? { ...place, ...(pos && { distance_m: distanceM(pos, place) }) } : null,
+      proof_required: proofOf(ctx),
+      estimated_seconds: place ? 600 : kind !== "judgment" ? 150 : schema.type === "text" ? 45 : t.content && t.content.length > 400 ? 30 : 10,
       expires_at: new Date(a?.expires_at ?? t.deadline_at).toISOString(),
     };
   };
 
-  return { getTask, createTask, markFunded, cancelUnpaid, sweep, capacity, nextFor, availableFor, qualificationFor, respond, publicResult, workerView, addGold, skillsOf, finalize, setOutcome };
+  return { proofReqFor, setPosition, getTask, createTask, markFunded, cancelUnpaid, sweep, capacity, nextFor, availableFor, qualificationFor, respond, publicResult, workerView, addGold, skillsOf, finalize, setOutcome };
 }
 
 export type TaskService = ReturnType<typeof createTaskService>;
