@@ -1,5 +1,9 @@
 import { type Element, elementOf, type Side, verifyReveal } from "./battle";
-import { type Game, GAME_ROUNDS as ROUNDS, type Play, scoreGame, validMove } from "./games";
+import { botMove, type Game, GAME_ROUNDS as ROUNDS, type Play, scoreGame, validMove } from "./games";
+
+/** Scrappy Bot: the computer opponent for when nobody else is online. It can never log in. */
+export const BOT_ID = "scrappy-bot";
+const BOT_SPECIES = ["mochi", "neko", "bun", "kumo", "pip", "zap", "kitsu", "pengu", "drako", "goo", "ember", "boo"];
 import { type Db, uid } from "./db";
 import type { WorkerPush } from "./payments";
 import type { WorkerRow } from "./tasks";
@@ -72,6 +76,27 @@ export function createBattleService(db: Db, push?: WorkerPush) {
   const movesOf = (id: string) => db.query("SELECT * FROM battle_moves WHERE battle_id = ? ORDER BY round, side").all(id) as MoveRow[];
   const sideOf = (b: BattleRow, workerId: string): Side | null => (b.a_id === workerId ? "a" : b.b_id === workerId ? "b" : null);
 
+  db.query(
+    `INSERT OR IGNORE INTO workers (id, wallet, token_hash, languages, pet_name, species, created_at)
+     VALUES (?, 'ScrappyBot1111111111111111111111111111111', 'bot:no-login', '[]', 'Scrappy Bot', 'mochi', ?)`,
+  ).run(BOT_ID, Date.now());
+
+  /** The bot locks in and reveals its move as soon as a round opens, knowing only earlier revealed rounds. */
+  const botTurn = (b: BattleRow, now: number) => {
+    const side: Side | null = b.a_id === BOT_ID ? "a" : b.b_id === BOT_ID ? "b" : null;
+    if (!side || b.status !== "active") return;
+    const rows = movesOf(b.id);
+    if (rows.some((m) => m.round === b.round && m.side === side)) return;
+    const mine = rows.filter((m) => m.side === side && m.round < b.round).map((m) => m.move);
+    const theirs = rows.filter((m) => m.side !== side && m.round < b.round).map((m) => m.move);
+    const move = botMove(b.game, b.round, mine, theirs);
+    const salt = crypto.randomUUID().replace(/-/g, "");
+    const hash = new Bun.CryptoHasher("sha256").update(`${move}:${salt}`).digest("hex");
+    db.query(
+      `INSERT OR IGNORE INTO battle_moves (battle_id, round, side, commit_hash, move, salt, committed_at, revealed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(b.id, b.round, side, hash, move, salt, now, now);
+  };
+
   const canFight = (w: WorkerRow, stake: number): Fail | null => {
     if (w.pet_dead) return fail(409, "pet_dead");
     if (!w.species) return fail(409, "hatch a pet first");
@@ -132,7 +157,10 @@ export function createBattleService(db: Db, push?: WorkerPush) {
         })();
         return get(cur.id)!;
       }
-      if (played.length < cur.round) return cur; // current round still open
+      if (played.length < cur.round) {
+        botTurn(cur, now);
+        return cur; // current round still open
+      }
       // current round closed: open the next one
       const next = cur.round + 1;
       if (next > ROUNDS) return cur;
@@ -155,6 +183,20 @@ export function createBattleService(db: Db, push?: WorkerPush) {
       return true;
     })();
     return ok ? { ok: true, battle: get(id)! } : fail(409, "not enough food");
+  };
+
+  /** Nobody took the challenge: the creator plays Scrappy Bot instead (friendly battles only, no food at stake). */
+  const playBot = (id: string, w: WorkerRow, now = Date.now()): { ok: true; battle: BattleRow } | Fail => {
+    const b = get(id);
+    if (!b || b.a_id !== w.id) return fail(404, "battle not found");
+    if (b.status !== "open") return fail(409, "this battle already started");
+    if (b.stake_food > 0) return fail(409, "Scrappy Bot only plays friendly battles. Cancel and start one with no stake.");
+    const species = BOT_SPECIES[Math.floor(Math.random() * BOT_SPECIES.length)];
+    const ok = db.query(
+      "UPDATE battles SET b_id = ?, b_species = ?, b_name = 'Scrappy Bot', status = 'active', round = 1, round_deadline = ? WHERE id = ? AND status = 'open'",
+    ).run(BOT_ID, species, now + ROUND_MS, id).changes === 1;
+    if (!ok) return fail(409, "this battle was just taken");
+    return { ok: true, battle: advance(get(id)!, now) };
   };
 
   const join = (id: string, w: WorkerRow, now = Date.now()): { ok: true; battle: BattleRow } | Fail => {
@@ -320,12 +362,12 @@ export function createBattleService(db: Db, push?: WorkerPush) {
        )
        SELECT w.id, w.pet_name, w.species, w.city, SUM(p.won) AS wins, COUNT(*) AS battles
        FROM played p JOIN workers w ON w.id = p.wid
-       WHERE (?1 IS NULL OR LOWER(TRIM(w.city)) = LOWER(TRIM(?1)))
+       WHERE w.id != 'scrappy-bot' AND (?1 IS NULL OR LOWER(TRIM(w.city)) = LOWER(TRIM(?1)))
        GROUP BY w.id ORDER BY wins DESC, battles ASC LIMIT 50`,
     ).all(city ?? null) as { id: string; pet_name: string | null; species: string | null; city: string | null; wins: number; battles: number }[];
     return rows.map((r, i) => ({ rank: i + 1, pet_name: r.pet_name, species: r.species, city: r.city, wins: r.wins, battles: r.battles, you: r.id === viewerId }));
   };
 
-  return { get, create, join, quick, cancel, commit, reveal, view, listFor, record, advance, leaderboard };
+  return { get, create, join, quick, cancel, commit, reveal, view, listFor, record, advance, leaderboard, playBot };
 }
 export type BattleService = ReturnType<typeof createBattleService>;

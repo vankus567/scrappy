@@ -521,6 +521,13 @@ export function createApp(deps: AppDeps) {
     return battleOut(c, battles.join(c.req.param("id"), w), w);
   });
 
+  /** No one showed up: play Scrappy Bot, the computer opponent. */
+  app.post("/v1/battles/:id/bot", rateLimit("battle", 30), (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    return battleOut(c, battles.playBot(c.req.param("id"), w), w);
+  });
+
   app.post("/v1/battles/:id/cancel", (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);

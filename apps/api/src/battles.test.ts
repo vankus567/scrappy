@@ -169,6 +169,40 @@ describe("battles API", () => {
     expect((await s.req("POST", "/v1/battles/quick", undefined, b)).body.error).toBe("pet_dead");
   });
 
+  test("Scrappy Bot plays every game to the end when nobody else is online, and stays off the leaderboard", async () => {
+    tick(0);
+    const s = setup();
+    const me = await s.player(0, "ember", "Bruno");
+    const human: Record<string, (round: number) => string> = {
+      duel: (r) => ["attack", "guard", "trick"][r % 3],
+      penalty: (r) => ["left:right", "center:left", "right:center"][r % 3],
+      cards: (r) => String(r),
+      towers: (r) => `${2 + r},0`,
+    };
+    for (const game of ["duel", "penalty", "cards", "towers"]) {
+      const open = await s.req("POST", "/v1/battles/quick", { game }, me);
+      expect(open.body).toMatchObject({ status: "open", game });
+      const started = await s.req("POST", `/v1/battles/${open.body.id}/bot`, undefined, me);
+      expect(started.body).toMatchObject({ status: "active", b: { name: "Scrappy Bot" }, turn: { they_locked: true, next: "lock" } });
+      let v = started.body;
+      for (let round = 1; v.status === "active" && round <= 5; round++) {
+        const move = human[game](round);
+        const salt = crypto.randomUUID();
+        expect((await s.req("POST", `/v1/battles/${v.id}/commit`, { round, hash: await commitHash(move, salt) }, me)).status).toBe(200);
+        const r = await s.req("POST", `/v1/battles/${v.id}/reveal`, { round, move, salt }, me);
+        expect(r.status).toBe(200);
+        v = r.body;
+      }
+      expect(v.status).toBe("done");
+      expect(["a", "b", "draw"]).toContain(v.winner);
+    }
+    // a staked challenge can't be handed to the bot
+    const staked = await s.req("POST", "/v1/battles", { stake_food: 1 }, me);
+    expect((await s.req("POST", `/v1/battles/${staked.body.id}/bot`, undefined, me)).status).toBe(409);
+    const board = await s.req("GET", "/v1/battles/leaderboard");
+    expect(board.body.entries.every((e: any) => e.pet_name !== "Scrappy Bot")).toBe(true);
+  });
+
   test("a draw refunds both stakes", async () => {
     tick(0);
     const s = setup();

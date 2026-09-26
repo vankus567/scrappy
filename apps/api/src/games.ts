@@ -186,3 +186,34 @@ export function scoreGame(game: Game, pairs: Pair[], aEl: Element, bEl: Element)
 }
 
 export { resolveRound };
+
+// ---------------- Scrappy Bot ----------------
+// The computer opponent picks its move when a round opens, from what it could legally know:
+// its own earlier moves and the opponent's REVEALED earlier moves. Never the current move.
+const pick = <T>(xs: readonly T[], rand: () => number) => xs[Math.floor(rand() * xs.length)];
+
+export function botMove(game: Game, round: number, mine: Play[], theirs: Play[], rand: () => number = Math.random): string {
+  const seen = theirs.filter(revealed);
+  switch (game) {
+    case "duel": {
+      // half the time counter the move they play most, otherwise surprise them
+      const counts = { attack: 0, guard: 0, trick: 0 } as Record<string, number>;
+      for (const m of seen) if (m in counts) counts[m]++;
+      const fav = Object.entries(counts).sort((x, y) => y[1] - x[1])[0];
+      const counter: Record<string, string> = { attack: "guard", guard: "trick", trick: "attack" };
+      return fav[1] > 0 && rand() < 0.5 ? counter[fav[0]] : pick(["attack", "guard", "trick"], rand);
+    }
+    case "penalty":
+      return `${pick(DIRS, rand)}:${pick(DIRS, rand)}`;
+    case "cards": {
+      const left = CARDS.filter((c) => !mine.includes(c));
+      return pick(left.length ? left : CARDS, rand);
+    }
+    case "towers": {
+      // spend all energy, leaning on one lane so pushes actually break through
+      const e = energyFor(round);
+      const heavy = Math.ceil(e * (0.6 + rand() * 0.4));
+      return rand() < 0.5 ? `${heavy},${e - heavy}` : `${e - heavy},${heavy}`;
+    }
+  }
+}
