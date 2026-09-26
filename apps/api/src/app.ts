@@ -503,6 +503,11 @@ export function createApp(deps: AppDeps) {
     return c.json({ battles: battles.listFor(w), record: battles.record(w.id), food: w.pet_food });
   });
 
+  app.get("/v1/battles/leaderboard", rateLimit("read", 600), (c) => {
+    const city = c.req.query("city")?.trim();
+    return c.json({ entries: battles.leaderboard(worker(c)?.id ?? null, city || undefined) });
+  });
+
   /** Anyone with the link can see a battle (to accept it); moves stay hidden until each round closes. */
   app.get("/v1/battles/:id", rateLimit("read", 600), (c) => {
     const b = battles.get(c.req.param("id"));

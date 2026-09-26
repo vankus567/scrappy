@@ -107,6 +107,8 @@ describe("battles API", () => {
 
     const list = await s.req("GET", "/v1/battles", undefined, luna);
     expect(list.body.record).toEqual({ wins: 1, losses: 0, draws: 0 });
+    const board = await s.req("GET", "/v1/battles/leaderboard", undefined, luna);
+    expect(board.body.entries.map((e: any) => [e.rank, e.pet_name, e.wins, e.you])).toEqual([[1, "Luna", 1, true], [2, "Bruno", 0, false]]);
   });
 
   test("async: a player who stops answering loses the rounds as deadlines pass", async () => {

@@ -310,6 +310,22 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     return { wins: r.wins ?? 0, losses: r.losses ?? 0, draws: r.draws ?? 0 };
   };
 
-  return { get, create, join, quick, cancel, commit, reveal, view, listFor, record, advance };
+  /** Top pets by battle wins (ties: fewer battles played ranks higher), optionally within one city. */
+  const leaderboard = (viewerId: string | null, city?: string) => {
+    const rows = db.query(
+      `WITH played AS (
+         SELECT a_id AS wid, CASE WHEN winner = 'a' THEN 1 ELSE 0 END AS won FROM battles WHERE status = 'done'
+         UNION ALL
+         SELECT b_id AS wid, CASE WHEN winner = 'b' THEN 1 ELSE 0 END AS won FROM battles WHERE status = 'done'
+       )
+       SELECT w.id, w.pet_name, w.species, w.city, SUM(p.won) AS wins, COUNT(*) AS battles
+       FROM played p JOIN workers w ON w.id = p.wid
+       WHERE (?1 IS NULL OR LOWER(TRIM(w.city)) = LOWER(TRIM(?1)))
+       GROUP BY w.id ORDER BY wins DESC, battles ASC LIMIT 50`,
+    ).all(city ?? null) as { id: string; pet_name: string | null; species: string | null; city: string | null; wins: number; battles: number }[];
+    return rows.map((r, i) => ({ rank: i + 1, pet_name: r.pet_name, species: r.species, city: r.city, wins: r.wins, battles: r.battles, you: r.id === viewerId }));
+  };
+
+  return { get, create, join, quick, cancel, commit, reveal, view, listFor, record, advance, leaderboard };
 }
 export type BattleService = ReturnType<typeof createBattleService>;
