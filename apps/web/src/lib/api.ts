@@ -187,3 +187,14 @@ export const submitMimic = (id: string, token: string, round: number, contour: s
 export const uploadClip = (token: string, clip: { title: string; mime: string; audio: string; contour: string; duration_ms: number; category?: "sound" | "dialogue" | "animal"; quote?: string; movie?: string }) =>
   call<ClipView>("/v1/clips", { method: "POST", token, body: JSON.stringify(clip) });
 export const reportClip = (id: string) => call<{ ok: true }>(`/v1/clips/${id}/report`, { method: "POST" });
+
+// ================= pet shop =================
+export type ShopView = {
+  network: "devnet" | "mainnet";
+  pay_to: string | null;
+  equipped: string | null;
+  pets: { species: string; name: string; tier: "common" | "rare" | "legendary"; price_sol: number; owned: boolean }[];
+};
+export const getShop = (token?: string) => call<ShopView>("/v1/shop", { token });
+export const buyPet = (token: string, species: string, tx_sig: string) => call<ShopView>("/v1/shop/buy", { method: "POST", token, body: JSON.stringify({ species, tx_sig }) });
+export const equipPet = (token: string, species: string) => call<ShopView>("/v1/shop/equip", { method: "POST", token, body: JSON.stringify({ species }) });

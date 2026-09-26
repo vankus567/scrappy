@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, Sword, Trophy, Wallet } from "@phosphor-icons/react";
+import { House, Storefront, Sword, Trophy, Wallet } from "@phosphor-icons/react";
 import { MorphNav } from "@/components/MorphNav";
 import { RadialNav } from "./RadialNav";
 
 const TABS = [
   { href: "/app", label: "Home", Icon: House },
   { href: "/app/battle", label: "Battle", Icon: Sword },
+  { href: "/app/shop", label: "Shop", Icon: Storefront },
   { href: "/app/ranks", label: "Ranks", Icon: Trophy },
   { href: "/app/wallet", label: "Wallet", Icon: Wallet },
 ];
