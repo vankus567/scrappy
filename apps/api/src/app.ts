@@ -7,6 +7,7 @@ import { type Db, toUsdc, uid } from "./db";
 import { type Rpc, verifyDeposit, verifyRevive, type WorkerPush } from "./payments";
 import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
 import { createMimicService } from "./mimicBattles";
+import { createShop } from "./shop";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
@@ -59,6 +60,7 @@ export function createApp(deps: AppDeps) {
   const { db, tasks, auth } = deps;
   const proofs = deps.proofs ?? createProofStore(db);
   const mimic = createMimicService(db, { push: deps.workerPush });
+  const shop = createShop(db, deps.rpc, deps.platformWallet);
   const app = new Hono<Env>();
 
   app.use("*", cors({
@@ -539,6 +541,27 @@ export function createApp(deps: AppDeps) {
     const p = z.object({ round: z.number().int().min(1).max(3), contour: z.string().min(1).max(2000) }).safeParse(await body(c));
     if (!p.success) return bad(c, p.error);
     return out(c, mimic.submit(c.req.param("id"), w, p.data.round, p.data.contour), w);
+  });
+
+  // ---- pet shop (devnet SOL while testing) ----
+  app.get("/v1/shop", (c) => c.json(shop.catalog(worker(c) ?? null)));
+
+  app.post("/v1/shop/buy", rateLimit("shop", 20), async (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = z.object({ species: z.string().regex(/^[a-z]{2,12}$/), tx_sig: z.string().max(120) }).safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = await shop.buy(w, p.data.species, p.data.tx_sig);
+    return r.ok ? c.json(r.shop) : c.json({ error: r.error }, r.status as 400);
+  });
+
+  app.post("/v1/shop/equip", rateLimit("shop", 30), async (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = z.object({ species: z.string().regex(/^[a-z]{2,12}$/) }).safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = shop.equip(w, p.data.species);
+    return r.ok ? c.json(r.shop) : c.json({ error: r.error }, r.status as 403);
   });
 
   // ---- clips ----
