@@ -25,6 +25,9 @@ Legend: [B] build · [P] people/traction · [S] submission
 ## Done early (Sep 26): battle API
 - [x] [B] API: create / join / quick match / cancel / commit / reveal, food stakes in escrow, async 12 h round deadlines, show-up and refuse-to-reveal rules (36 tests pass)
 
+## Done early (Sep 26): battle screens
+- [x] [B] Lobby + arena in the blue app, Battle tab; two-browser battle e2e passes with zero console errors
+
 ## Day 3-4 (Sep 29-30): Solana program
 - [ ] [B] Install WSL2 + Solana CLI + Anchor (still missing on this machine)
 - [ ] [B] `scrappy_battles` program: create_match, join_match, commit_move, reveal_move, settle, forfeit
