@@ -7,6 +7,7 @@ export const MIMIC_ROUNDS = 3; // three clips per battle
 export const FRAME_MS = 50; // one pitch sample every 50 ms
 export const RECORD_MS = 4_000; // how long the phone listens
 export const MAX_FRAMES = RECORD_MS / FRAME_MS;
+export const CLIP_MAX_FRAMES = 12_000 / FRAME_MS; // uploaded sounds can run up to 12 s
 
 export type Note = { semi: number; ms: number }; // semitones relative to the melody's root
 
@@ -62,10 +63,10 @@ export function melodyFrames(notes: Note[]): number[] {
  * Pitch line format: comma-separated frames, each a quarter-semitone integer (semitones x 4,
  * relative to A4) or "x" for silence. Returns null when it isn't a plausible recording.
  */
-export function parseContour(text: string): (number | null)[] | null {
+export function parseContour(text: string, maxFrames = MAX_FRAMES): (number | null)[] | null {
   if (text.length > 2000) return null;
   const parts = text.split(",");
-  if (parts.length < 4 || parts.length > MAX_FRAMES) return null;
+  if (parts.length < 4 || parts.length > maxFrames) return null;
   const out: (number | null)[] = [];
   for (const p of parts) {
     if (p === "x") {
@@ -180,7 +181,7 @@ export const animalMs = (a: Animal) => a.glides.reduce((s, g) => s + ("gap" in g
 
 /** An uploaded clip's pitch line (from the uploader's phone): voiced frames only, semitones. */
 export function framesFromContour(text: string): number[] | null {
-  const frames = parseContour(text);
+  const frames = parseContour(text, CLIP_MAX_FRAMES);
   if (!frames) return null;
   const voiced = frames.filter((f): f is number => f !== null);
   return voiced.length >= 6 ? voiced : null;

@@ -157,6 +157,8 @@ describe("mimic battles API", () => {
     const line = await s.req("POST", "/v1/clips", { title: "Kitne aadmi the?", mime: "audio/webm", audio, contour: sing(target), duration_ms: 1800, category: "dialogue", quote: "Kitne aadmi the?", movie: "Sholay" }, a);
     expect(line.body).toMatchObject({ category: "dialogue", quote: "Kitne aadmi the?", movie: "Sholay" });
     expect((await s.req("GET", "/v1/clips/animal:wolf")).body).toMatchObject({ kind: "animal", title: "Wolf: Awoooo" });
+    const long = Array.from({ length: 150 }, (_, i) => String(-20 + (i % 8))).join(","); // an 8-second upload
+    expect((await s.req("POST", "/v1/clips", { title: "Long one", mime: "audio/webm;codecs=opus", audio, contour: long, duration_ms: 7600 }, a)).status).toBe(201);
     expect((await s.req("POST", "/v1/clips", { title: "bad", mime: "image/png", audio, contour: sing(target), duration_ms: 2400 }, a)).status).toBe(400);
     for (let i = 0; i < 3; i++) await s.req("POST", `/v1/clips/${up.body.id}/report`);
     expect((await s.req("GET", `/v1/clips/${up.body.id}`)).body.hidden).toBe(true);

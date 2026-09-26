@@ -142,8 +142,8 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
   };
 
   /** Three different clips for a battle: player recordings when there are any, mixed with animal calls and fresh Scrappy Tunes. */
-  const pickClips = () => {
-    const uploads = (db.query("SELECT id FROM clips WHERE kind = 'upload' AND hidden = 0 ORDER BY RANDOM() LIMIT 3").all() as { id: string }[]).map((r) => r.id);
+  const pickClips = (hostId: string) => {
+    const uploads = (db.query("SELECT id FROM clips WHERE kind = 'upload' AND hidden = 0 AND (owner_id IS NULL OR owner_id != ?) ORDER BY RANDOM() LIMIT 3").all(hostId) as { id: string }[]).map((r) => r.id);
     const animals = [...ANIMALS].sort(() => Math.random() - 0.5);
     const out: string[] = [];
     for (let i = 0; i < MIMIC_ROUNDS; i++) {
@@ -211,7 +211,7 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
     const id = uid();
     db.transaction(() => {
       db.query("INSERT INTO mimic_battles (id, mode, host_id, max_players, status, round, clips, created_at) VALUES (?, ?, ?, ?, 'open', 0, ?, ?)").run(
-        id, mode, w.id, maxPlayers, JSON.stringify(pickClips()), now,
+        id, mode, w.id, maxPlayers, JSON.stringify(pickClips(w.id)), now,
       );
       seatUp(get(id)!, w, false, now);
     })();
