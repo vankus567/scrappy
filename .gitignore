@@ -25,3 +25,6 @@ android-signing.local.json
 apps/android/app/build/
 !apps/web/public/scrappy.apk
 .vercel/
+
+# proof photos written by local runs/tests
+apps/api/proofs/
