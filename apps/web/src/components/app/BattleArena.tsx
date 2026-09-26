@@ -152,7 +152,7 @@ export function BattleArena({ id }: { id: string }) {
     : b.status === "cancelled" ? "This challenge expired"
     : done ? (b.winner === "draw" ? "It's a draw" : b.you ? (b.winner === b.you ? "You won!" : "You lost") : `${b[b.winner as "a" | "b"]?.name} won`)
     : announce ? announce
-    : `${GAME_INFO[b.game].name} · round ${b.round} of 5`;
+    : `${GAME_INFO[b.game].name} · round ${b.round} of ${b.game === "fruit" ? 3 : 5}`;
 
   const deadline = b.round_deadline ? Math.max(0, new Date(b.round_deadline).getTime() - Date.now()) : null;
 
@@ -252,7 +252,7 @@ export function BattleArena({ id }: { id: string }) {
               <li key={r.round} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-3">
                 <span className="font-display text-[18px] font-bold tabular-nums text-ink-faint">{r.round}</span>
                 <span className="text-[15px]">
-                  {left?.name}: <strong>{playLabel(b.game, r[mine])}</strong> · {right?.name}: <strong>{playLabel(b.game, r[theirs])}</strong>
+                  {left?.name}: <strong>{playLabel(b.game, r[mine], r, mine)}</strong> · {right?.name}: <strong>{playLabel(b.game, r[theirs], r, theirs)}</strong>
                   {r.by === "element" ? " · element decided it" : ""}
                 </span>
                 <span className="font-semibold">{r.winner === null ? "Tie" : r.winner === mine ? (b.you ? "You" : left?.name) : right?.name}</span>

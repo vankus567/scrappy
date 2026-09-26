@@ -151,10 +151,10 @@ export const savePush = (token: string, sub: PushSubscriptionJSON) =>
 export type Move = "attack" | "guard" | "trick";
 /** A revealed move string (per game), "locked" (hid its move) or null (no-show). */
 export type Play = string | null;
-export type Game = "duel" | "penalty" | "cards" | "towers";
+export type Game = "duel" | "penalty" | "cards" | "towers" | "squad" | "fruit";
 export type Element = "blaze" | "tide" | "spirit";
 export type BattlePet = { name: string; species: string; element: Element };
-export type RoundResult = { round: number; a: Play; b: Play; winner: "a" | "b" | null; by: string; detail?: { a_goal?: boolean; b_goal?: boolean; dealt_a?: number; dealt_b?: number } };
+export type RoundResult = { round: number; a: Play; b: Play; winner: "a" | "b" | null; by: string; detail?: { a_goal?: boolean; b_goal?: boolean; dealt_a?: number; dealt_b?: number; a_hit?: boolean; b_hit?: boolean; a_points?: number | null; b_points?: number | null } };
 export type Castle = { left: number; right: number; king: number };
 export type BattleView = {
   id: string;

@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, ArrowRight, ArrowUp, Cards, CastleTurret, HandFist, HandPalm, MagicWand, ShieldCheck, SoccerBall, Sword } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, ArrowUp, Cards, CastleTurret, Crosshair, HandFist, HandPalm, Knife, MagicWand, Person, ShieldCheck, SoccerBall, Sword } from "@phosphor-icons/react";
+import { FruitGame } from "./FruitGame";
 import type { BattleView, Game, Move, Play, RoundResult } from "@/lib/api";
 import { energyFor, KING_HP, MOVE_INFO, TOWER_HP } from "@/lib/battle";
 
-export const GAME_ICON = { duel: Sword, penalty: SoccerBall, cards: Cards, towers: CastleTurret } as const;
+export const GAME_ICON = { duel: Sword, penalty: SoccerBall, cards: Cards, towers: CastleTurret, squad: Crosshair, fruit: Knife } as const;
+const ZONE_LABEL = { left: "Left building", center: "Center", right: "Right ridge" } as const;
+type Zone = keyof typeof ZONE_LABEL;
 const MOVE_ICON = { attack: HandFist, guard: ShieldCheck, trick: MagicWand } as const;
 const DIRS = ["left", "center", "right"] as const;
 const DIR_LABEL = { left: "Left", center: "Middle", right: "Right" } as const;
@@ -15,9 +18,17 @@ const DIR_ICON = { left: ArrowLeft, center: ArrowUp, right: ArrowRight } as cons
 const shown = (p: Play): p is string => !!p && p !== "locked";
 
 /** One line of round history, e.g. "Shot left, dove right" or "Card 4". */
-export function playLabel(game: Game, p: Play): string {
+export function playLabel(game: Game, p: Play, round?: RoundResult, side?: "a" | "b"): string {
   if (p === null) return "no move";
   if (p === "locked") return "hid its move";
+  if (game === "fruit") {
+    const pts = side === "a" ? round?.detail?.a_points : round?.detail?.b_points;
+    return pts === null || pts === undefined ? "sliced" : `${pts} points`;
+  }
+  if (game === "squad") {
+    const [z, a] = p.split(":") as Zone[];
+    return `moved ${ZONE_LABEL[z]?.toLowerCase()}, aimed ${ZONE_LABEL[a]?.toLowerCase()}`;
+  }
   if (game === "duel") return MOVE_INFO[p as Move]?.label ?? p;
   if (game === "penalty") {
     const [s, d] = p.split(":") as (keyof typeof DIR_LABEL)[];
@@ -38,6 +49,8 @@ export function clashWord(game: Game, r: RoundResult): string {
     return "GOAL!";
   }
   if (game === "cards") return r.by === "upset" ? "UPSET!" : r.by === "tie" ? "SNAP!" : "HIGH CARD!";
+  if (game === "squad") return r.by === "firefight" ? "FIREFIGHT!" : r.by === "miss" ? "ALL MISSED!" : "TAKEDOWN!";
+  if (game === "fruit") return r.winner ? "COMBO!" : "SPLAT!";
   if (game === "towers") return r.by === "tie" ? "STANDOFF!" : "CHARGE!";
   if (r.by === "tie") return "CLANG!";
   if (r.by === "element") return "SUPER EFFECTIVE!";
@@ -66,6 +79,21 @@ export function BubbleContent({ game, play }: { game: Game; play: Play | "ready"
     );
   }
   if (game === "cards") return <span className="font-display text-[20px] font-bold tabular-nums">{play}</span>;
+  if (game === "fruit") {
+    const n = play === "-" ? 0 : play.split(",").length;
+    return <span className="flex items-center gap-1 text-[14px] font-bold tabular-nums"><Knife size={16} weight="fill" />{n}</span>;
+  }
+  if (game === "squad") {
+    const [z, a] = play.split(":") as Zone[];
+    const Z = DIR_ICON[z];
+    const A = DIR_ICON[a];
+    return (
+      <span className="flex items-center gap-1.5 text-[13px] font-bold">
+        <Person size={16} weight="fill" />{Z && <Z size={16} weight="bold" />}
+        <Crosshair size={16} weight="bold" className="ml-1" />{A && <A size={16} weight="bold" />}
+      </span>
+    );
+  }
   const [l, r] = play.split(",");
   return <span className="text-[13px] font-bold tabular-nums">{l} · {r}</span>;
 }
@@ -81,6 +109,18 @@ export function Meter({ b, side, lagging, reduce }: { b: BattleView; side: "a" |
       <div className="mt-1 flex gap-1" aria-label={`${shownGoals.filter(Boolean).length} goals`}>
         {Array.from({ length: 5 }, (_, i) => (
           <SoccerBall key={i} size={18} weight={shownGoals[i] ? "fill" : "regular"} className={i < shownGoals.length ? (shownGoals[i] ? "text-[#15803d]" : "text-ink-faint") : "text-[#d1d1d6]"} />
+        ))}
+      </div>
+    );
+  }
+  if (b.game === "squad") {
+    // pets still standing = 4 minus the takedowns against you
+    const down = b.score[other] - (lagging ? 1 : 0);
+    const alive = Math.max(0, 4 - Math.max(0, down));
+    return (
+      <div className="mt-1 flex gap-1" aria-label={`${alive} of 4 squad left`}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <Person key={i} size={20} weight={i < alive ? "fill" : "regular"} className={i < alive ? "text-[#007aff]" : "text-[#d1d1d6]"} />
         ))}
       </div>
     );
@@ -101,15 +141,16 @@ export function Meter({ b, side, lagging, reduce }: { b: BattleView; side: "a" |
       </div>
     );
   }
+  const total = b.game === "fruit" ? 2 : 3;
   const lost = b.score[other];
-  const n = Math.max(0, 3 - lost + (lagging ? 1 : 0));
-  return <Hearts n={Math.min(3, n)} reduce={reduce} />;
+  const n = Math.max(0, total - lost + (lagging ? 1 : 0));
+  return <Hearts n={Math.min(total, n)} total={total} reduce={reduce} />;
 }
 
-function Hearts({ n, reduce }: { n: number; reduce: boolean }) {
+function Hearts({ n, total, reduce }: { n: number; total: number; reduce: boolean }) {
   return (
-    <div className="mt-1 flex gap-1" aria-label={`${n} of 3 hearts left`}>
-      {Array.from({ length: 3 }, (_, i) => {
+    <div className="mt-1 flex gap-1" aria-label={`${n} of ${total} hearts left`}>
+      {Array.from({ length: total }, (_, i) => {
         const full = i < n;
         return (
           <motion.svg key={i} viewBox="0 0 24 22" className="h-5 w-5" animate={reduce ? undefined : { scale: full ? 1 : [1, 1.5, 1] }} transition={{ duration: 0.45 }}>
@@ -143,6 +184,12 @@ export function MovePicker({ b, mine, busy, onLock }: { b: BattleView; mine: "a"
   if (b.game === "penalty") return <PenaltyPicker busy={busy} onLock={onLock} />;
   if (b.game === "cards") return <CardPicker used={b.state?.used?.[mine] ?? []} busy={busy} onLock={onLock} />;
   if (b.game === "towers") return <TowerPicker round={b.round} busy={busy} onLock={onLock} />;
+  if (b.game === "fruit") return <FruitGame key={`${b.id}-${b.round}`} battleId={b.id} round={b.round} busy={busy} onDone={onLock} />;
+  if (b.game === "squad") {
+    const mineEarlier = b.rounds.map((r) => r[mine]).filter((p): p is string => !!p && p !== "locked");
+    const lastZone = (mineEarlier.at(-1)?.split(":")[0] as Zone | undefined) ?? null;
+    return <SquadPicker lastZone={lastZone} busy={busy} onLock={onLock} />;
+  }
   return (
     <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
       {(["attack", "guard", "trick"] as Move[]).map((m) => {
@@ -178,6 +225,40 @@ function PenaltyPicker({ busy, onLock }: { busy: boolean; onLock: (m: string) =>
       </div>
       <button type="button" disabled={busy || !shoot || !dive} onClick={() => shoot && dive && onLock(`${shoot}:${dive}`)} className={lockBtn}>
         {shoot && dive ? "Take the kick" : "Pick a shot and a dive"}
+      </button>
+    </div>
+  );
+}
+
+function SquadPicker({ lastZone, busy, onLock }: { lastZone: Zone | null; busy: boolean; onLock: (m: string) => void }) {
+  const [zone, setZone] = useState<Zone | null>(null);
+  const [aim, setAim] = useState<Zone | null>(null);
+  const zones = Object.keys(ZONE_LABEL) as Zone[];
+  return (
+    <div className="mt-4 space-y-3">
+      <div>
+        <p className="mb-1.5 flex items-center gap-1.5 text-[15px] font-semibold"><Person size={18} weight="fill" className="text-[#007aff]" /> Move your squad</p>
+        <div className="flex gap-2">
+          {zones.map((z) => (
+            <button key={z} type="button" aria-label={`Move to ${ZONE_LABEL[z].toLowerCase()}`} aria-pressed={zone === z} disabled={z === lastZone} onClick={() => setZone(z)} className={`${choice(zone === z)} disabled:opacity-35`}>
+              {ZONE_LABEL[z]}
+            </button>
+          ))}
+        </div>
+        {lastZone && <p className="mt-1 text-[13px] text-ink-soft">The zone closed on {ZONE_LABEL[lastZone].toLowerCase()}: move somewhere new.</p>}
+      </div>
+      <div>
+        <p className="mb-1.5 flex items-center gap-1.5 text-[15px] font-semibold"><Crosshair size={18} weight="bold" className="text-[#007aff]" /> Aim at</p>
+        <div className="flex gap-2">
+          {zones.map((z) => (
+            <button key={z} type="button" aria-label={`Aim at ${ZONE_LABEL[z].toLowerCase()}`} aria-pressed={aim === z} onClick={() => setAim(z)} className={choice(aim === z)}>
+              {ZONE_LABEL[z]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button type="button" disabled={busy || !zone || !aim} onClick={() => zone && aim && onLock(`${zone}:${aim}`)} className={lockBtn}>
+        {zone && aim ? "Go" : "Pick a move and a target"}
       </button>
     </div>
   );

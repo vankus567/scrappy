@@ -42,6 +42,8 @@ export const GAME_INFO: Record<Game, { name: string; blurb: string; how: string 
   penalty: { name: "Penalty Shootout", blurb: "Shoot and dive", how: "Each round pick where you shoot and where your keeper dives. A shot scores unless their keeper guesses it. Most goals in 5 wins." },
   cards: { name: "Card Clash", blurb: "Play 1 to 5, each once", how: "Play one card a round, each card once. Higher card wins, but a 1 upsets a 5. First to 3." },
   towers: { name: "Tower Rush", blurb: "Push lanes, topple the king", how: "Split your energy between the left and right lanes. The bigger push hits their tower; past a fallen tower it hits the king. King down wins." },
+  squad: { name: "Squad Deathmatch", blurb: "Move, aim, wipe their squad", how: "Move your squad of 4 and aim at a zone. Aim where they went and one of theirs is out. The zone closes: you can't hold the same spot twice. Wipe all 4 to win." },
+  fruit: { name: "Fruit Slash", blurb: "20s swipe duel, same fruit", how: "20 seconds of slicing. You both get the same fruit. Golden fruit is worth 3, bombs cost 3. Higher score takes the round, best of 3." },
 };
 
 export const TOWER_HP = 6;
