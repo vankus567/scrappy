@@ -8,6 +8,7 @@ import { type BattleView, commitMove, getBattle, joinBattle, playBot, type Move,
 import { commitHash, GAME_INFO, loadLocked, newSalt, saveLocked } from "@/lib/battle";
 import { usePet } from "@/lib/pet-store";
 import { BattleStage } from "./BattleStage";
+import { PenaltyStage } from "./PenaltyStage";
 import { MovePicker, playLabel } from "./GameModes";
 
 
@@ -161,7 +162,11 @@ export function BattleArena({ id }: { id: string }) {
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-10">
         <p className="text-center font-display text-[clamp(1.6rem,3.2vw,2.4rem)] font-bold leading-tight" aria-live="polite">{headline}</p>
 
-        <BattleStage b={b} mine={mine} face={b.you ? pet?.face : undefined} onAnnounce={setAnnounce} />
+        {b.game === "penalty" ? (
+          <PenaltyStage b={b} mine={mine} face={b.you ? pet?.face : undefined} onAnnounce={setAnnounce} />
+        ) : (
+          <BattleStage b={b} mine={mine} face={b.you ? pet?.face : undefined} onAnnounce={setAnnounce} />
+        )}
 
         {/* open challenge */}
         {b.status === "open" && (
