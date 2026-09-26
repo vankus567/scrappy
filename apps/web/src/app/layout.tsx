@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   title: "Scrappy",
   manifest: "/manifest.webmanifest",
   description:
-    "A pocket pet that earns real money doing tiny jobs for AI agents, with a little help from you.",
+    "Mimic: hear a sound, copy it into your mic, and beat up to 3 friends. A voice battle game with your pet on Solana.",
 };
 
 export const viewport: Viewport = {
