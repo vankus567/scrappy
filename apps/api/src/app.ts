@@ -6,8 +6,7 @@ import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
 import { type Db, toUsdc, uid } from "./db";
 import { type Rpc, verifyDeposit, verifyRevive, type WorkerPush } from "./payments";
 import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
-import { createBattleService, MAX_STAKE } from "./battles";
-import { GAMES } from "./games";
+import { createMimicService } from "./mimicBattles";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
@@ -59,7 +58,7 @@ const body = async (c: Context) => c.req.json().catch(() => null);
 export function createApp(deps: AppDeps) {
   const { db, tasks, auth } = deps;
   const proofs = deps.proofs ?? createProofStore(db);
-  const battles = createBattleService(db, deps.workerPush);
+  const mimic = createMimicService(db, { push: deps.workerPush });
   const app = new Hono<Env>();
 
   app.use("*", cors({
@@ -469,90 +468,110 @@ export function createApp(deps: AppDeps) {
   });
 
   // ================= public network data =================
-  // ================= battles =================
+  // ================= Mimic battles (2-4 players, three clips) =================
 
   const me = (c: Context) => {
     const w = worker(c);
     if (w) tickPet(db, w);
     return w;
   };
-  const battleOut = (c: Context, r: { ok: true; battle: Parameters<typeof battles.view>[0] } | { ok: false; status: number; error: string }, w: { id: string }, code = 200) =>
-    r.ok ? c.json(battles.view(r.battle, w.id), code as 200) : c.json({ error: r.error }, r.status as 409);
+  type Out = { ok: true; battle: NonNullable<ReturnType<typeof mimic.get>> } | { ok: false; status: number; error: string };
+  const out = (c: Context, r: Out, w: { id: string }, code = 200) =>
+    r.ok ? c.json(mimic.view(r.battle, w.id), code as 200) : c.json({ error: r.error }, r.status as 409);
 
-  /** Challenge a friend (share the link) with an optional food stake. */
-  app.post("/v1/battles", rateLimit("battle", 30), async (c) => {
+  /** Start a lobby for 2-4 players and share the link. */
+  app.post("/v1/mimic", rateLimit("battle", 30), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const p = z.object({ stake_food: z.number().int().min(0).max(MAX_STAKE).default(0), game: z.enum(GAMES).default("duel") }).safeParse((await body(c)) ?? {});
+    const p = z.object({ players: z.number().int().min(2).max(4).default(2) }).safeParse((await body(c)) ?? {});
     if (!p.success) return bad(c, p.error);
-    return battleOut(c, battles.create(w, "friend", p.data.stake_food, p.data.game), w, 201);
+    return out(c, mimic.create(w, "friend", p.data.players), w, 201);
   });
 
-  /** Fight whoever is looking for a match right now, or wait for the next one. */
-  app.post("/v1/battles/quick", rateLimit("battle", 30), async (c) => {
+  /** Join whoever's waiting, or open a lobby the next player joins. */
+  app.post("/v1/mimic/quick", rateLimit("battle", 30), (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const p = z.object({ game: z.enum(GAMES).default("duel") }).safeParse((await body(c)) ?? {});
-    if (!p.success) return bad(c, p.error);
-    return battleOut(c, battles.quick(w, p.data.game), w);
+    return out(c, mimic.quick(w), w);
   });
 
-  app.get("/v1/battles", (c) => {
+  app.get("/v1/mimic", (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    return c.json({ battles: battles.listFor(w), record: battles.record(w.id), food: w.pet_food });
+    return c.json({ battles: mimic.listFor(w), record: mimic.record(w.id) });
   });
 
-  app.get("/v1/battles/leaderboard", rateLimit("read", 600), (c) => {
-    const city = c.req.query("city")?.trim();
-    return c.json({ entries: battles.leaderboard(worker(c)?.id ?? null, city || undefined) });
-  });
+  app.get("/v1/mimic/leaderboard", rateLimit("read", 600), (c) => c.json({ entries: mimic.leaderboard(worker(c)?.id ?? null) }));
 
-  /** Anyone with the link can see a battle (to accept it); moves stay hidden until each round closes. */
-  app.get("/v1/battles/:id", rateLimit("read", 600), (c) => {
-    const b = battles.get(c.req.param("id"));
+  /** Anyone with the link can look (to join); scores show only for rounds that closed. */
+  app.get("/v1/mimic/:id", rateLimit("read", 600), (c) => {
+    const b = mimic.get(c.req.param("id"));
     if (!b) return c.json({ error: "battle not found" }, 404);
-    return c.json(battles.view(b, worker(c)?.id ?? null));
+    return c.json(mimic.view(b, worker(c)?.id ?? null));
   });
 
-  app.post("/v1/battles/:id/join", rateLimit("battle", 30), (c) => {
+  app.post("/v1/mimic/:id/join", rateLimit("battle", 30), (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    return battleOut(c, battles.join(c.req.param("id"), w), w);
+    return out(c, mimic.join(c.req.param("id"), w), w);
   });
 
-  /** No one showed up: play Scrappy Bot, the computer opponent. */
-  app.post("/v1/battles/:id/bot", rateLimit("battle", 30), (c) => {
+  /** Host: start now with who's here, or fill empty seats with Scrappy Bots and start. */
+  app.post("/v1/mimic/:id/start", rateLimit("battle", 30), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    return battleOut(c, battles.playBot(c.req.param("id"), w), w);
+    const p = z.object({ fill_with_bots: z.boolean().default(false) }).safeParse((await body(c)) ?? {});
+    if (!p.success) return bad(c, p.error);
+    return out(c, mimic.hostStart(c.req.param("id"), w, p.data.fill_with_bots), w);
   });
 
-  app.post("/v1/battles/:id/cancel", (c) => {
+  app.post("/v1/mimic/:id/leave", (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const r = battles.cancel(c.req.param("id"), w);
+    const r = mimic.leave(c.req.param("id"), w);
     return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 409);
   });
 
-  const roundBody = z.object({ round: z.number().int().min(1).max(5) });
-
-  app.post("/v1/battles/:id/commit", rateLimit("move", 120), async (c) => {
+  /** Lock in this round's recording: the phone's pitch line. The server scores it. */
+  app.post("/v1/mimic/:id/submit", rateLimit("move", 60), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const p = roundBody.extend({ hash: z.string().trim().toLowerCase() }).safeParse(await body(c));
+    const p = z.object({ round: z.number().int().min(1).max(3), contour: z.string().min(1).max(2000) }).safeParse(await body(c));
     if (!p.success) return bad(c, p.error);
-    const r = battles.commit(c.req.param("id"), w, p.data.round, p.data.hash);
-    if (!r.ok) return c.json({ error: r.error }, r.status as 409);
-    return c.json(battles.view(battles.get(c.req.param("id"))!, w.id));
+    return out(c, mimic.submit(c.req.param("id"), w, p.data.round, p.data.contour), w);
   });
 
-  app.post("/v1/battles/:id/reveal", rateLimit("move", 120), async (c) => {
+  // ---- clips ----
+  app.get("/v1/clips/:id", rateLimit("read", 600), (c) => {
+    const v = mimic.clipView(c.req.param("id"));
+    return v ? c.json(v) : c.json({ error: "clip not found" }, 404);
+  });
+
+  app.get("/v1/clips/:id/audio", rateLimit("read", 600), async (c) => {
+    const a = mimic.clipAudio(c.req.param("id"));
+    if (!a || !(await a.file.exists())) return c.json({ error: "clip not found" }, 404);
+    return new Response(a.file, { headers: { "content-type": a.mime, "cache-control": "public, max-age=86400" } });
+  });
+
+  /** Add a sound to the library: the audio plus its pitch line (worked out on the uploader's phone). */
+  app.post("/v1/clips", rateLimit("clip", 10), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const p = roundBody.extend({ move: z.string(), salt: z.string() }).safeParse(await body(c));
+    const p = z.object({
+      title: z.string().trim().min(2).max(60),
+      mime: z.string().max(60),
+      audio: z.string().max(2_100_000),
+      contour: z.string().min(1).max(2000),
+      duration_ms: z.number().min(300).max(12_000),
+    }).safeParse(await body(c));
     if (!p.success) return bad(c, p.error);
-    return battleOut(c, await battles.reveal(c.req.param("id"), w, p.data.round, p.data.move, p.data.salt), w);
+    const r = await mimic.uploadClip(w, p.data.title, p.data.mime, p.data.audio, p.data.contour, p.data.duration_ms);
+    return r.ok ? c.json(r.clip, 201) : c.json({ error: r.error }, r.status as 400);
+  });
+
+  app.post("/v1/clips/:id/report", rateLimit("report", 20), (c) => {
+    mimic.reportClip(c.req.param("id"));
+    return c.json({ ok: true });
   });
 
   app.get("/v1/stats", (c) => {
