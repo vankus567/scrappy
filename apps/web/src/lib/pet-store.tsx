@@ -52,6 +52,8 @@ export type PetRecord = {
   /** set once the owner registers a payout wallet with the Human API */
   workerId?: string;
   payoutAddress?: string;
+  /** the owner's real pet photo, cropped square (JPEG data URL). Stays on this phone. */
+  face?: string;
   /** real earnings from the API (owed + paid), in USDC */
   earnedUsdc?: number;
   name: string;

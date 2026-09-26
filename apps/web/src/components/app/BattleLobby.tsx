@@ -8,6 +8,7 @@ import { Pet, type Species } from "@/components/Pet";
 import { type BattleRecord, type BattleView, challengeFriend, cancelBattle, getBattles, quickMatch } from "@/lib/api";
 import { ELEMENT_INFO } from "@/lib/battle";
 import { stageFor, usePet } from "@/lib/pet-store";
+import { FacePicker } from "./FacePicker";
 
 /** Battle home: your record, quick match, challenge a friend, and every battle waiting on you. */
 export function BattleLobby() {
@@ -53,7 +54,7 @@ export function BattleLobby() {
   if (!token) {
     return (
       <div className="grid items-center gap-8 rounded-[28px] bg-ground-deep p-8 md:grid-cols-[260px_1fr] md:p-12">
-        <Pet species={pet?.species} stage={stage} mood="curious" dance="wave" className="mx-auto w-48 md:w-full" title={name} />
+        <Pet species={pet?.species} face={pet?.face} stage={stage} mood="curious" dance="wave" className="mx-auto w-48 md:w-full" title={name} />
         <div>
           <h1 className="font-display text-[clamp(1.8rem,3vw,2.4rem)] font-bold leading-[1.1]">One step before battles</h1>
           <p className="mt-3 text-ink-soft">Connect your wallet so your pet has a home on Solana. It takes ten seconds.</p>
@@ -72,7 +73,7 @@ export function BattleLobby() {
   return (
     <div className="space-y-5">
       <section className="grid items-center gap-8 rounded-[28px] bg-ground-deep p-8 md:grid-cols-[260px_1fr] md:p-12">
-        <Pet species={pet?.species} stage={stage} mood="excited" dance="hop" watchPointer className="mx-auto w-48 md:w-full" title={name} />
+        <Pet species={pet?.species} face={pet?.face} stage={stage} mood="excited" dance="hop" watchPointer className="mx-auto w-48 md:w-full" title={name} />
         <div>
           <h1 className="font-display text-[clamp(1.8rem,3vw,2.6rem)] font-bold leading-[1.1]">{name} is ready to fight</h1>
           <p className="mt-2 text-ink-soft">
@@ -113,20 +114,23 @@ export function BattleLobby() {
             </button>
           </div>
           {error && <p role="alert" className="mt-3 text-[15px] text-[#c2410c]">{error}</p>}
+          <div className="mt-4">
+            <FacePicker />
+          </div>
         </div>
       </section>
 
       {waiting.length > 0 && (
         <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
           <h2 className="font-display text-[24px] font-bold">Your move</h2>
-          <BattleList items={waiting} />
+          <BattleList items={waiting} face={pet?.face} />
         </section>
       )}
 
       {others.length > 0 && (
         <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
           <h2 className="font-display text-[24px] font-bold">Your battles</h2>
-          <BattleList items={others} onCancel={async (id) => { await cancelBattle(id, token).catch(() => {}); load(); }} />
+          <BattleList items={others} face={pet?.face} onCancel={async (id) => { await cancelBattle(id, token).catch(() => {}); load(); }} />
         </section>
       )}
     </div>
@@ -142,7 +146,7 @@ function elementLabel(species: string) {
   return ELEMENT_INFO[map[species] ?? "spirit"];
 }
 
-function BattleList({ items, onCancel }: { items: BattleView[]; onCancel?: (id: string) => void }) {
+function BattleList({ items, onCancel, face }: { items: BattleView[]; onCancel?: (id: string) => void; face?: string }) {
   return (
     <ol className="mt-4 divide-y divide-edge">
       {items.map((b) => {
@@ -160,7 +164,7 @@ function BattleList({ items, onCancel }: { items: BattleView[]; onCancel?: (id: 
         return (
           <li key={b.id} className="flex items-center gap-4 py-3">
             <div className="flex -space-x-3">
-              <Pet species={me?.species as Species} dance="none" className="h-12 w-12" title={me?.name ?? "You"} />
+              <Pet species={me?.species as Species} face={face} dance="none" className="h-12 w-12" title={me?.name ?? "You"} />
               {them ? <Pet species={them.species as Species} dance="none" className="h-12 w-12" title={them.name} /> : null}
             </div>
             <Link href={`/app/battle/${b.id}`} className="min-w-0 flex-1">

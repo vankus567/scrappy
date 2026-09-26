@@ -49,6 +49,8 @@ type PetProps = {
   watchPointer?: boolean;
   className?: string;
   title?: string;
+  /** The owner's real pet photo (square data URL). Replaces the drawn face; the body, limbs and animations stay. */
+  face?: string;
 };
 
 const STONE = { light: "#e2dfe8", mid: "#c3c0cc", dark: "#9d99a8" };
@@ -60,7 +62,7 @@ const DROP = "M120 34c30 34 90 62 90 112 0 46-36 72-90 72s-90-26-90-72c0-50 60-7
  * A squishy chibi creature. Big sparkly eyes, glossy body, blush, one signature detail per species.
  * Each evolution adds arms and a bud/flower. Always visible; motion only animates what is on screen.
  */
-export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance = "none", watchPointer = false, className, title = "A Scrappy pet" }: PetProps) {
+export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance = "none", watchPointer = false, className, title = "A Scrappy pet", face }: PetProps) {
   const ref = useRef<SVGSVGElement>(null);
   const uid = useId().replace(/:/g, "");
   const [look, setLook] = useState({ x: 0, y: 0 });
@@ -128,6 +130,12 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
         </radialGradient>
         <filter id={g("soft")} x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="3" />
+        </filter>
+        <clipPath id={g("face")}>
+          <circle cx="120" cy="130" r="58" />
+        </clipPath>
+        <filter id={g("stone")}>
+          <feColorMatrix type="saturate" values="0" />
         </filter>
       </defs>
 
@@ -357,6 +365,33 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
           )}
         </g>
 
+        {face ? (
+          <g transform={bodyT}>
+            {/* the owner's real pet, framed by the body's own colour so it reads as part of the creature */}
+            <g filter={dead ? `url(#${g("stone")})` : undefined}>
+              <image
+                href={face}
+                x="62"
+                y="72"
+                width="116"
+                height="116"
+                preserveAspectRatio="xMidYMid slice"
+                clipPath={`url(#${g("face")})`}
+              />
+              <circle cx="120" cy="130" r="58" fill={c.light} opacity="0.1" />
+            </g>
+            <circle cx="120" cy="130" r="58" fill="none" stroke={c.dark} strokeWidth="5" />
+            <path d="M80 96a58 58 0 0 1 40-24" stroke="#fff" strokeOpacity="0.55" strokeWidth="5" strokeLinecap="round" fill="none" />
+            {!dead && mood === "excited" && (
+              <g fill="#ffcc33" stroke="#e0a800" strokeWidth="2" strokeLinejoin="round">
+                <path d="M62 92l4 8 9 1.3-6.5 6.3 1.5 8.9L62 112l-8 4.2 1.5-8.9L49 101l9-1.3z" />
+                <path d="M180 88l4 8 9 1.3-6.5 6.3 1.5 8.9-8-4.2-8 4.2 1.5-8.9-6.5-6.3 9-1.3z" />
+              </g>
+            )}
+            {!dead && mood === "sad" && <path d="M170 150c4 7 6 11 6 13a6 6 0 01-12 0c0-2 2-6 6-13z" fill="#7cc0ff" />}
+            {!dead && mood === "surprised" && <path d="M176 96l10-10M184 108h12M170 88l2-14" stroke="#1d1d1f" strokeWidth="4" strokeLinecap="round" />}
+          </g>
+        ) : (
         <g transform={bodyT}>
           {/* face */}
           {dead ? (
@@ -467,6 +502,7 @@ export function Pet({ mood = "happy", stage = "mochi", species = "mochi", dance 
 
           {mood === "hungry" && <path d="M188 92c6 10 8 15 8 18a8 8 0 01-16 0c0-3 2-8 8-18z" fill="#7cc0ff" />}
         </g>
+        )}
       </g>
 
       </g>

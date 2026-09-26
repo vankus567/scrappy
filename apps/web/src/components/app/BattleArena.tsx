@@ -164,7 +164,7 @@ export function BattleArena({ id }: { id: string }) {
         <p className="text-center font-display text-[clamp(1.6rem,3.2vw,2.4rem)] font-bold leading-tight" aria-live="polite">{headline}</p>
 
         <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-6">
-          <Fighter p={left} {...moodFor(mine)} you={!!b.you} />
+          <Fighter p={left} {...moodFor(mine)} you={!!b.you} face={b.you ? pet?.face : undefined} />
           <p className="font-display text-[clamp(2.4rem,7vw,4.4rem)] font-bold tabular-nums tracking-wide">
             {b.score[mine]}<span className="px-2 text-ink-faint sm:px-4">:</span>{b.score[theirs]}
           </p>
@@ -279,7 +279,7 @@ export function BattleArena({ id }: { id: string }) {
   );
 }
 
-function Fighter({ p, mood, dance, mirrored, you }: { p: BattlePet | null; mood: PetMood; dance: PetDance; mirrored?: boolean; you?: boolean }) {
+function Fighter({ p, mood, dance, mirrored, you, face }: { p: BattlePet | null; mood: PetMood; dance: PetDance; mirrored?: boolean; you?: boolean; face?: string }) {
   if (!p) {
     return (
       <div className="flex flex-col items-center text-center">
@@ -292,7 +292,7 @@ function Fighter({ p, mood, dance, mirrored, you }: { p: BattlePet | null; mood:
   return (
     <div className="flex flex-col items-center text-center">
       <div className={`w-full max-w-[220px] ${mirrored ? "-scale-x-100" : ""}`}>
-        <Pet species={p.species as Species} mood={mood} dance={dance} className="w-full" title={p.name} />
+        <Pet species={p.species as Species} face={face} mood={mood} dance={dance} className="w-full" title={p.name} />
       </div>
       <p className="mt-1 font-display text-[clamp(1rem,2.2vw,1.35rem)] font-bold">{p.name}{you ? " (you)" : ""}</p>
       <p className="text-[13px] text-ink-soft">{el.label}</p>

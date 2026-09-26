@@ -80,7 +80,7 @@ export function Home() {
 
           <div className="mt-2 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center gap-3">
             <button type="button" onClick={play} aria-label={`Play with ${pet.name}`} className="group relative rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-leaf">
-              <Pet mood={trick?.mood ?? "happy"} dance={trick?.dance ?? "none"} stage={current.id} species={pet.species} watchPointer className="w-full max-w-[260px]" />
+              <Pet mood={trick?.mood ?? "happy"} dance={trick?.dance ?? "none"} stage={current.id} species={pet.species} face={pet.face} watchPointer className="w-full max-w-[260px]" />
               <span className="mt-1 block text-center text-[13px] font-medium text-ink-faint">Tap {pet.name} to play</span>
             </button>
             <div className="space-y-4">

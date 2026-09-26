@@ -190,7 +190,7 @@ export function JobsWaiting() {
       <div className="grid gap-5 lg:grid-cols-[320px_1fr] lg:items-start">
         <div className="space-y-5 rounded-[28px] bg-ground-deep p-6">
           <div className="app-bob">
-            <Pet species={pet?.species} stage={stage} mood="focused" dance="none" watchPointer className="mx-auto w-40" title={`${name} found a job`} />
+            <Pet species={pet?.species} face={pet?.face} stage={stage} mood="focused" dance="none" watchPointer className="mx-auto w-40" title={`${name} found a job`} />
           </div>
           <div className="rounded-[20px] bg-field p-4">
             <p className="text-[13px] font-semibold text-ink-faint">{job.qualification ? "Skill check from Scrappy" : "An AI agent is stuck"}</p>
@@ -390,7 +390,7 @@ function Shell({ pet, stage, mood, dance, name, children }: {
 }) {
   return (
     <div className="grid items-center gap-8 rounded-[28px] bg-ground-deep p-8 md:grid-cols-[260px_1fr] md:p-12">
-      <Pet species={pet?.species} stage={stage} mood={mood} dance={dance} watchPointer className="mx-auto w-48 md:w-full" title={name} />
+      <Pet species={pet?.species} face={pet?.face} stage={stage} mood={mood} dance={dance} watchPointer className="mx-auto w-48 md:w-full" title={name} />
       <div>{children}</div>
     </div>
   );
