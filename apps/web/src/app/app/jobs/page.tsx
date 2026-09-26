@@ -1,5 +1,6 @@
-import { JobsWaiting } from "@/components/app/JobsWaiting";
+import { redirect } from "next/navigation";
 
+// Scrappy is a battle game now; old job links land on battles.
 export default function Jobs() {
-  return <JobsWaiting />;
+  redirect("/app/battle");
 }

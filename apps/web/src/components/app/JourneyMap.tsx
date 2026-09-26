@@ -11,8 +11,8 @@ function milestones(pet: PetRecord): Milestone[] {
   const ageDays = (Date.now() - pet.bornAt) / 86_400_000;
   return [
     { label: "Hatched", done: true, x: 70, y: 470 },
-    { label: "First job", done: pet.jobsDone >= 1, x: 250, y: 400 },
-    { label: "10 jobs", done: pet.jobsDone >= 10, x: 110, y: 300 },
+    { label: "First win", done: pet.jobsDone >= 1, x: 250, y: 400 },
+    { label: "10 wins", done: pet.jobsDone >= 10, x: 110, y: 300 },
     { label: "First ₹100", done: pet.earnedPaise >= 10_000, x: 270, y: 215 },
     { label: "7 days alive", done: ageDays >= 7, x: 120, y: 120 },
     { label: "Invite a friend", done: false, x: 255, y: 45 },

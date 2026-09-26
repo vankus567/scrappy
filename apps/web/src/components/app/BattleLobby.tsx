@@ -5,30 +5,35 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { GlossButton } from "@/components/GlossButton";
 import { Pet, type Species } from "@/components/Pet";
-import { type BattleRecord, type BattleView, challengeFriend, cancelBattle, getBattles, quickMatch } from "@/lib/api";
-import { ELEMENT_INFO } from "@/lib/battle";
+import { type BattleRecord, type BattleView, challengeFriend, cancelBattle, type Game, getBattles, quickMatch } from "@/lib/api";
+import { ELEMENT_INFO, GAME_INFO } from "@/lib/battle";
 import { stageFor, usePet } from "@/lib/pet-store";
 import { FacePicker } from "./FacePicker";
 import { TurnAlerts } from "./TurnAlerts";
+import { GAME_ICON } from "./GameModes";
 
 /** Battle home: your record, quick match, challenge a friend, and every battle waiting on you. */
 export function BattleLobby() {
-  const { pet } = usePet();
+  const { pet, update } = usePet();
   const router = useRouter();
   const token = pet?.workerId;
   const [data, setData] = useState<{ battles: BattleView[]; record: BattleRecord; food: number } | null>(null);
   const [stake, setStake] = useState(0);
+  const [game, setGame] = useState<Game>("duel");
   const [busy, setBusy] = useState<"" | "quick" | "friend">("");
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      setData(await getBattles(token));
+      const d = await getBattles(token);
+      setData(d);
+      // the pet evolves from battle wins
+      if (pet && pet.jobsDone !== d.record.wins) update({ jobsDone: d.record.wins });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Can't reach Scrappy right now.");
     }
-  }, [token]);
+  }, [token, pet, update]);
 
   useEffect(() => {
     load();
@@ -41,7 +46,7 @@ export function BattleLobby() {
     setBusy(kind);
     setError("");
     try {
-      const b = kind === "quick" ? await quickMatch(token) : await challengeFriend(token, stake);
+      const b = kind === "quick" ? await quickMatch(token, game) : await challengeFriend(token, stake, game);
       router.push(`/app/battle/${b.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start a battle.");
@@ -82,7 +87,30 @@ export function BattleLobby() {
             {data ? `${data.record.wins} wins · ${data.record.losses} losses · ${data.record.draws} draws · ${data.food} food` : "Loading your record..."}
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <fieldset className="mt-6">
+            <legend className="font-semibold">Pick a battle</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(Object.keys(GAME_INFO) as Game[]).map((g) => {
+                const Icon = GAME_ICON[g];
+                const on = game === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setGame(g)}
+                    className={`flex min-h-24 flex-col items-center justify-center gap-1 rounded-[18px] px-2 py-3 text-center transition-colors ${on ? "bg-[#007aff] text-white" : "bg-field hover:bg-field-hover"}`}
+                  >
+                    <Icon size={28} weight={on ? "fill" : "duotone"} className={on ? "text-white" : "text-[#007aff]"} />
+                    <span className="font-display text-[16px] font-bold leading-tight">{GAME_INFO[g].name}</span>
+                    <span className={`text-[12px] leading-snug ${on ? "text-white/85" : "text-ink-soft"}`}>{GAME_INFO[g].blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             <GlossButton type="button" onClick={() => go("quick")} disabled={!!busy}>
               {busy === "quick" ? "Finding a pet..." : "Quick match"}
             </GlossButton>
@@ -173,6 +201,7 @@ function BattleList({ items, onCancel, face }: { items: BattleView[]; onCancel?:
             </div>
             <Link href={`/app/battle/${b.id}`} className="min-w-0 flex-1">
               <p className="truncate font-semibold">{me?.name ?? "You"} vs {them?.name ?? "?"}</p>
+              <p className="text-[13px] font-semibold text-[#007aff]">{GAME_INFO[b.game ?? "duel"].name}</p>
               <p className="text-[14px] text-ink-soft">
                 {result}
                 {b.status !== "open" ? ` · ${myScore}-${theirScore}` : ""}

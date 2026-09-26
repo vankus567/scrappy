@@ -168,7 +168,7 @@ export function Hatch() {
 
         <div className="space-y-2">
           <GlossButton type="submit" disabled={cracking}>Hatch {sp.name}</GlossButton>
-          <p className="text-[13px] text-ink-faint">Saved on this device for now. Wallet sign-in comes with paid jobs.</p>
+          <p className="text-[13px] text-ink-faint">Saved on this device. Connect a wallet in the Wallet tab to battle.</p>
         </div>
       </form>
     </div>

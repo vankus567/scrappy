@@ -5,7 +5,7 @@ import { Pet, SPECIES, type Species } from "@/components/Pet";
 import { API_URL } from "@/lib/api";
 import { usePet } from "@/lib/pet-store";
 
-type Entry = { id: string; pet_name: string | null; species: string | null; city: string | null; jobs_done: number; owed_usdc: number };
+type Entry = { id: string; pet_name: string | null; species: string | null; city: string | null; wins: number; battles: number };
 
 export function RanksBoard() {
   const { pet } = usePet();
@@ -17,12 +17,12 @@ export function RanksBoard() {
   useEffect(() => {
     let alive = true;
     const q = scope === "city" && city ? `?city=${encodeURIComponent(city)}` : "";
-    fetch(`${API_URL}/v1/leaderboard${q}`, { headers: pet?.workerId ? { authorization: `Bearer ${pet.workerId}` } : {} })
+    fetch(`${API_URL}/v1/battles/leaderboard${q}`, { headers: pet?.workerId ? { authorization: `Bearer ${pet.workerId}` } : {} })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {
         if (!alive) return;
-        const rows = (d.entries ?? []) as { rank: number; pet_name: string | null; species: string | null; city: string | null; tasks_done: number; earned_usdc: number; you: boolean }[];
-        setEntries(rows.map((r) => ({ id: r.you && pet?.workerId ? pet.workerId : `rank-${r.rank}`, pet_name: r.pet_name, species: r.species, city: r.city, jobs_done: r.tasks_done, owed_usdc: r.earned_usdc })));
+        const rows = (d.entries ?? []) as { rank: number; pet_name: string | null; species: string | null; city: string | null; wins: number; battles: number; you: boolean }[];
+        setEntries(rows.map((r) => ({ id: r.you && pet?.workerId ? pet.workerId : `rank-${r.rank}`, pet_name: r.pet_name, species: r.species, city: r.city, wins: r.wins, battles: r.battles })));
         setError(false);
       })
       .catch(() => alive && setError(true));
@@ -55,7 +55,7 @@ export function RanksBoard() {
         {error && <p className="p-6 text-ink-soft">Can't reach Scrappy right now.</p>}
         {!error && entries === null && <div aria-busy="true" className="h-40 animate-pulse rounded-[20px] bg-field" />}
         {!error && entries?.length === 0 && (
-          <p className="p-6 text-ink-soft">No ranks yet. The first paid human answer puts someone on the board.</p>
+          <p className="p-6 text-ink-soft">No ranks yet. Win a battle to be first on the board.</p>
         )}
         {!error && !!entries?.length && (
           <ol className="divide-y divide-edge">
@@ -68,9 +68,9 @@ export function RanksBoard() {
                   <Pet species={species} stage="mochi" mood={i === 0 ? "excited" : "happy"} className="size-12 shrink-0" title={e.pet_name ?? "pet"} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{e.pet_name ?? "Unnamed pet"}{mine && " (you)"}</p>
-                    <p className="truncate text-[13px] text-ink-soft">{e.city || "Somewhere"} · {e.jobs_done} jobs</p>
+                    <p className="truncate text-[13px] text-ink-soft">{e.city || "Somewhere"} · {e.battles} {e.battles === 1 ? "battle" : "battles"}</p>
                   </div>
-                  <span className="font-display text-[18px] font-bold tabular-nums">${e.owed_usdc.toFixed(2)}</span>
+                  <span className="font-display text-[18px] font-bold tabular-nums">{e.wins} {e.wins === 1 ? "win" : "wins"}</span>
                 </li>
               );
             })}

@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HandFist, MagicWand, ShieldCheck } from "@phosphor-icons/react";
 import { GlossButton } from "@/components/GlossButton";
 import { type BattleView, commitMove, getBattle, joinBattle, type Move, type Play, quickMatch, revealMove } from "@/lib/api";
-import { commitHash, loadLocked, MOVE_INFO, newSalt, saveLocked } from "@/lib/battle";
+import { commitHash, GAME_INFO, loadLocked, newSalt, saveLocked } from "@/lib/battle";
 import { usePet } from "@/lib/pet-store";
 import { BattleStage } from "./BattleStage";
+import { MovePicker, playLabel } from "./GameModes";
 
-const MOVE_ICON = { attack: HandFist, guard: ShieldCheck, trick: MagicWand } as const;
-const playLabel = (p: Play) => (p === null ? "no move" : p === "locked" ? "hid its move" : MOVE_INFO[p].label);
 
 /** One battle: accept, pick moves round by round (commit-reveal), watch the pets fight, see who won. */
 export function BattleArena({ id }: { id: string }) {
@@ -58,7 +56,7 @@ export function BattleArena({ id }: { id: string }) {
       });
   }, [b, token]);
 
-  const lockIn = async (move: Move) => {
+  const lockIn = async (move: string) => {
     if (!b || !token) return;
     setBusy(true);
     setError("");
@@ -91,7 +89,7 @@ export function BattleArena({ id }: { id: string }) {
     if (!token) return;
     setBusy(true);
     try {
-      router.push(`/app/battle/${(await quickMatch(token)).id}`);
+      router.push(`/app/battle/${(await quickMatch(token, b?.game ?? "duel")).id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start a battle.");
       setBusy(false);
@@ -100,7 +98,7 @@ export function BattleArena({ id }: { id: string }) {
 
   const share = async () => {
     const url = `${window.location.origin}/app/battle/${id}`;
-    const text = `${b?.a?.name ?? "My pet"} challenges your pet on Scrappy`;
+    const text = `${b?.a?.name ?? "My pet"} challenges your pet to ${GAME_INFO[b?.game ?? "duel"].name} on Scrappy`;
     try {
       if (navigator.share) await navigator.share({ title: "Scrappy battle", text, url });
       else {
@@ -125,7 +123,7 @@ export function BattleArena({ id }: { id: string }) {
     : b.status === "cancelled" ? "This challenge expired"
     : done ? (b.winner === "draw" ? "It's a draw" : b.you ? (b.winner === b.you ? "You won!" : "You lost") : `${b[b.winner as "a" | "b"]?.name} won`)
     : announce ? announce
-    : `Round ${b.round} of 5`;
+    : `${GAME_INFO[b.game].name} · round ${b.round} of 5`;
 
   const deadline = b.round_deadline ? Math.max(0, new Date(b.round_deadline).getTime() - Date.now()) : null;
 
@@ -167,25 +165,8 @@ export function BattleArena({ id }: { id: string }) {
           <div className="mx-auto mt-8 max-w-xl">
             {b.turn.next === "lock" ? (
               <>
-                <p className="text-center text-ink-soft">Pick a move. It stays secret until you both lock in.</p>
-                <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-                  {(["attack", "guard", "trick"] as Move[]).map((m) => {
-                    const Icon = MOVE_ICON[m];
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => lockIn(m)}
-                        disabled={busy}
-                        className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-[20px] bg-field px-2 py-3 transition-colors hover:bg-field-hover active:scale-[0.98] disabled:opacity-60"
-                      >
-                        <Icon size={30} weight="duotone" className="text-[#007aff]" />
-                        <span className="font-display text-[18px] font-bold">{MOVE_INFO[m].label}</span>
-                        <span className="text-[13px] text-ink-soft">{MOVE_INFO[m].beats}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className="text-center text-ink-soft">{GAME_INFO[b.game].how} Your move stays secret until you both lock in.</p>
+                <MovePicker b={b} mine={mine} busy={busy} onLock={lockIn} />
               </>
             ) : (
               <p className="text-center text-ink-soft">
@@ -231,7 +212,7 @@ export function BattleArena({ id }: { id: string }) {
               <li key={r.round} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-3">
                 <span className="font-display text-[18px] font-bold tabular-nums text-ink-faint">{r.round}</span>
                 <span className="text-[15px]">
-                  {left?.name}: <strong>{playLabel(r[mine])}</strong> · {right?.name}: <strong>{playLabel(r[theirs])}</strong>
+                  {left?.name}: <strong>{playLabel(b.game, r[mine])}</strong> · {right?.name}: <strong>{playLabel(b.game, r[theirs])}</strong>
                   {r.by === "element" ? " · element decided it" : ""}
                 </span>
                 <span className="font-semibold">{r.winner === null ? "Tie" : r.winner === mine ? (b.you ? "You" : left?.name) : right?.name}</span>

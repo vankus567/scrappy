@@ -78,34 +78,32 @@ export function WalletPanel() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
-        <p className="text-[14px] font-semibold text-ink-soft">Earned by {pet.name}</p>
+        <p className="text-[14px] font-semibold text-ink-soft">{pet.name}'s record</p>
         <p className="mt-1 font-display text-[clamp(2.6rem,6vw,3.6rem)] font-bold leading-none tabular-nums">
-          ${(pet.earnedUsdc ?? 0).toFixed(2)}
+          {pet.jobsDone} {pet.jobsDone === 1 ? "win" : "wins"}
         </p>
-        <p className="mt-2 text-ink-soft">
-          {pet.jobsDone} {pet.jobsDone === 1 ? "job" : "jobs"} done. Earnings are paid in USDC to your payout wallet.
-        </p>
+        <p className="mt-2 text-ink-soft">Your wallet is {pet.name}'s home on Solana. It's how friends challenge you and how battles are recorded.</p>
         <div className="app-bob mt-4 w-32">
           <Pet species={pet.species} stage={stageFor(pet).current.id} mood="happy" dance="none" className="w-full" title={pet.name} />
         </div>
       </section>
 
       <section className="space-y-4 rounded-[28px] bg-ground-deep p-6 sm:p-8">
-        <h2 className="font-display text-[26px] font-bold">Payout wallet</h2>
+        <h2 className="font-display text-[26px] font-bold">Wallet</h2>
         <p className="text-ink-soft">
-          Connect Phantom, Solflare, Backpack or Seed Vault. This registers you for jobs in your languages and is where your pay goes.
+          Connect Phantom, Solflare, Backpack or Seed Vault. It signs you in so {pet.name} can battle.
           Scrappy never asks your wallet to approve payments.
         </p>
 
         {pet.payoutAddress && (
           <p className="rounded-[14px] bg-field px-4 py-3 text-[15px]">
-            Paid to <span className="font-mono font-semibold">{short(pet.payoutAddress)}</span>
+            Connected <span className="font-mono font-semibold">{short(pet.payoutAddress)}</span>
             {connected && wallet && <span className="text-ink-soft"> · {wallet.adapter.name}</span>}
           </p>
         )}
 
         {error && <p role="alert" className="text-[15px] font-semibold text-[#c2410c]">{error}</p>}
-        {pet.workerId && !error && !busy && <p className="text-[15px] font-semibold text-[#15803d]">Registered. Jobs in your languages will reach {pet.name}.</p>}
+        {pet.workerId && !error && !busy && <p className="text-[15px] font-semibold text-[#15803d]">Connected. {pet.name} is ready to battle.</p>}
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <GlossButton type="button" onClick={connect} disabled={busy}>

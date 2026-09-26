@@ -144,13 +144,18 @@ export const savePush = (token: string, sub: PushSubscriptionJSON) =>
 // ================= battles =================
 
 export type Move = "attack" | "guard" | "trick";
-export type Play = Move | "locked" | null;
+/** A revealed move string (per game), "locked" (hid its move) or null (no-show). */
+export type Play = string | null;
+export type Game = "duel" | "penalty" | "cards" | "towers";
 export type Element = "blaze" | "tide" | "spirit";
 export type BattlePet = { name: string; species: string; element: Element };
-export type RoundResult = { round: number; a: Play; b: Play; winner: "a" | "b" | null; by: "move" | "element" | "timeout" | "tie" };
+export type RoundResult = { round: number; a: Play; b: Play; winner: "a" | "b" | null; by: string; detail?: { a_goal?: boolean; b_goal?: boolean; dealt_a?: number; dealt_b?: number } };
+export type Castle = { left: number; right: number; king: number };
 export type BattleView = {
   id: string;
   mode: "friend" | "quick";
+  game: Game;
+  state?: { used?: { a: string[]; b: string[] }; hp?: { a: Castle; b: Castle } };
   status: "open" | "active" | "done" | "cancelled";
   you: "a" | "b" | null;
   a: BattlePet | null;
@@ -168,12 +173,12 @@ export type BattleRecord = { wins: number; losses: number; draws: number };
 
 export const getBattles = (token: string) => call<{ battles: BattleView[]; record: BattleRecord; food: number }>("/v1/battles", { token });
 export const getBattle = (id: string, token?: string) => call<BattleView>(`/v1/battles/${id}`, { token });
-export const challengeFriend = (token: string, stake_food: number) =>
-  call<BattleView>("/v1/battles", { method: "POST", token, body: JSON.stringify({ stake_food }) });
-export const quickMatch = (token: string) => call<BattleView>("/v1/battles/quick", { method: "POST", token });
+export const challengeFriend = (token: string, stake_food: number, game: Game) =>
+  call<BattleView>("/v1/battles", { method: "POST", token, body: JSON.stringify({ stake_food, game }) });
+export const quickMatch = (token: string, game: Game) => call<BattleView>("/v1/battles/quick", { method: "POST", token, body: JSON.stringify({ game }) });
 export const joinBattle = (id: string, token: string) => call<BattleView>(`/v1/battles/${id}/join`, { method: "POST", token });
 export const cancelBattle = (id: string, token: string) => call<{ ok: true }>(`/v1/battles/${id}/cancel`, { method: "POST", token });
 export const commitMove = (id: string, token: string, round: number, hash: string) =>
   call<BattleView>(`/v1/battles/${id}/commit`, { method: "POST", token, body: JSON.stringify({ round, hash }) });
-export const revealMove = (id: string, token: string, round: number, move: Move, salt: string) =>
+export const revealMove = (id: string, token: string, round: number, move: string, salt: string) =>
   call<BattleView>(`/v1/battles/${id}/reveal`, { method: "POST", token, body: JSON.stringify({ round, move, salt }) });

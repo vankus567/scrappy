@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, CalendarBlank, Briefcase } from "@phosphor-icons/react";
+import Link from "next/link";
+import { Heart, CalendarBlank, Sword } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Pet, type PetDance, type PetMood } from "@/components/Pet";
 
@@ -28,7 +29,7 @@ const IDLES: { mood: PetMood; dance: PetDance }[] = [
   { mood: "curious", dance: "none" },
   { mood: "happy", dance: "wiggle" },
 ];
-import { JOBS_LIVE, STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
+import { STAGES, stageFor, stageName, usePet } from "@/lib/pet-store";
 import { JourneyMap } from "./JourneyMap";
 
 export function Home() {
@@ -60,7 +61,6 @@ export function Home() {
     window.setTimeout(() => { busy.current = false; setTrick(null); }, 2600);
   };
   const days = Math.max(0, Math.floor((Date.now() - pet.bornAt) / 86_400_000));
-  // Hunger only ticks once paid jobs are live; until then the bowl is honestly full.
   const bowl = 100;
   const { current, next } = stageFor(pet);
 
@@ -74,7 +74,7 @@ export function Home() {
               <Heart size={26} weight="fill" className="text-[#ff7a59]" /> {bowl}%
             </p>
             <p className="rounded-[12px] bg-leaf px-3 py-1.5 text-[14px] font-bold tabular-nums text-on-leaf">
-              ${(pet.earnedUsdc ?? 0).toFixed(2)} earned
+              {pet.jobsDone} {pet.jobsDone === 1 ? "win" : "wins"}
             </p>
           </div>
 
@@ -92,28 +92,27 @@ export function Home() {
                   <dd><span className="font-semibold tabular-nums">{days}</span> {days === 1 ? "day" : "days"} old</dd>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Briefcase size={20} className="text-ink-soft" />
-                  <dt className="sr-only">Jobs done</dt>
-                  <dd><span className="font-semibold tabular-nums">{pet.jobsDone}</span> {pet.jobsDone === 1 ? "job" : "jobs"} done</dd>
+                  <Sword size={20} className="text-ink-soft" />
+                  <dt className="sr-only">Battles won</dt>
+                  <dd><span className="font-semibold tabular-nums">{pet.jobsDone}</span> {pet.jobsDone === 1 ? "battle" : "battles"} won</dd>
                 </div>
               </dl>
               <p className="text-[14px] text-ink-soft">
                 <span className="font-semibold text-ink">{stageName(pet.species, current.id)}</span>
-                {next ? `, evolves at ${next.jobs} jobs${next.days ? ` and ${next.days} days` : ""}` : ", fully grown"}
+                {next ? `, evolves at ${next.jobs} wins${next.days ? ` and ${next.days} days` : ""}` : ", fully grown"}
               </p>
             </div>
           </div>
         </div>
 
         <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
-          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">
-            {JOBS_LIVE ? "Jobs are open" : `${pet.name} is waiting for work`}
-          </h2>
+          <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">{pet.name} wants to battle</h2>
           <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
-            {JOBS_LIVE
-              ? `Answer a few and ${pet.name} eats.`
-              : `Paid jobs from AI teams open soon. Until then the bowl stays full, so ${pet.name} will not get hungry.`}
+            Pet Duel, Penalty Shootout, Card Clash or Tower Rush. Every win brings {pet.name} closer to its next form.
           </p>
+          <Link href="/app/battle" className="mt-3 inline-flex min-h-11 items-center rounded-[14px] bg-[#007aff] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#0060cc]">
+            Battle now
+          </Link>
         </div>
         <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
           <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">Forms</h2>
@@ -126,7 +125,7 @@ export function Home() {
                     <Pet mood={reached ? "happy" : "focused"} stage={st.id} species={pet.species} className="mx-auto w-full max-w-[96px]" title={stageName(pet.species, st.id)} />
                   </div>
                   <p className={`mt-1 text-[13px] ${reached ? "font-semibold" : "text-ink-soft"}`}>{stageName(pet.species, st.id)}</p>
-                  <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} jobs`}</p>
+                  <p className="text-[12px] text-ink-faint">{st.jobs === 0 ? "Start" : `${st.jobs} wins`}</p>
                 </li>
               );
             })}
