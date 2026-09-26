@@ -17,8 +17,13 @@ export type WorkerJob = {
   city: string | null;
   phone: string | null;
   qualification: boolean;
+  place: Place | null;
+  proof: ProofReq;
 };
-export type TaskKind = "judgment" | "call" | "photo_check" | "price_check";
+export type TaskKind = "judgment" | "call" | "photo_check" | "price_check" | "visit";
+export type Place = { lat: number; lng: number; radius_m: number; name?: string; distance_m?: number };
+export type ProofReq = { photo: boolean; gps: boolean };
+export type ProofSubmit = { photo?: string; lat?: number; lng?: number; accuracy_m?: number; captured_at?: string };
 export type HistoryItem = { prompt: string; answer: string; earned_usdc: number; at: string; qualification: boolean; matched_consensus: boolean | null; agent: string | null; kind: TaskKind; outcome: string | null };
 
 type ResponseSchema =
@@ -40,6 +45,8 @@ type WorkerTask = {
   agent?: { name: string; reason: string | null } | null;
   city?: string | null;
   phone?: string | null;
+  place?: Place | null;
+  proof_required?: ProofReq;
 };
 
 export class ApiError extends Error {
@@ -93,8 +100,9 @@ export async function getWorker(token: string): Promise<WorkerStats> {
 }
 
 /** Next job for this worker, or null when none is waiting. */
-export async function nextJob(token: string): Promise<WorkerJob | null> {
-  const t = await call<WorkerTask | null>("/v1/worker/next", { token });
+export async function nextJob(token: string, near?: { lat: number; lng: number } | null): Promise<WorkerJob | null> {
+  const q = near ? `?lat=${near.lat.toFixed(5)}&lng=${near.lng.toFixed(5)}` : "";
+  const t = await call<WorkerTask | null>(`/v1/worker/next${q}`, { token });
   if (!t) return null;
   return {
     job_id: t.task_id,
@@ -109,6 +117,8 @@ export async function nextJob(token: string): Promise<WorkerJob | null> {
     city: t.city ?? null,
     phone: t.phone ?? null,
     qualification: t.qualification,
+    place: t.place ?? null,
+    proof: t.proof_required ?? { photo: false, gps: false },
   };
 }
 
@@ -117,11 +127,11 @@ export async function getHistory(token: string) {
   return (await call<{ answers: HistoryItem[] }>("/v1/worker/history", { token })).answers;
 }
 
-export async function submitAnswer(jobId: string, token: string, answer: string, confidence: number) {
-  return call<{ ok: true; earned_usdc: number }>(`/v1/tasks/${jobId}/respond`, {
+export async function submitAnswer(jobId: string, token: string, answer: string, confidence: number, proof?: ProofSubmit) {
+  return call<{ ok: true; earned_usdc: number; location_verified?: boolean; distance_m?: number | null }>(`/v1/tasks/${jobId}/respond`, {
     method: "POST",
     token,
-    body: JSON.stringify({ answer, confidence }),
+    body: JSON.stringify({ answer, confidence, ...(proof && { proof }) }),
   });
 }
 

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GlossButton } from "@/components/GlossButton";
 import { Pet } from "@/components/Pet";
 import { getHistory, nextJob, submitAnswer, type HistoryItem, type TaskKind, type WorkerJob } from "@/lib/api";
 import { stageFor, usePet } from "@/lib/pet-store";
+import { distanceM, type Fix, formatDistance, getFix, getRoughFix, nearbyEnabled, setNearbyEnabled, shrinkPhoto } from "@/lib/proof";
 import { useWorkerSync } from "./useWorkerSync";
 
 type Reward = { earned: number; agent: string | null } | null;
@@ -14,8 +15,9 @@ type Reward = { earned: number; agent: string | null } | null;
 const KIND_GUIDE: Record<TaskKind, { label: string; how: string }> = {
   judgment: { label: "Judgment", how: "" },
   call: { label: "Phone call", how: "Call, ask exactly this, and type what they said. Be polite and quick: most calls take under two minutes." },
-  photo_check: { label: "Photo check", how: "Look closely at what the agent sent and say what you actually see. Don't guess." },
-  price_check: { label: "Price check", how: "Open the app or site on your phone in your city and type the exact price you see right now." },
+  photo_check: { label: "Photo check", how: "Take one clear photo of exactly what the agent asked about, then say what you see. Don't guess." },
+  price_check: { label: "Price check", how: "Photograph the price tag or the screen showing the price, then type the exact price." },
+  visit: { label: "Visit", how: "Go to the place, check what the agent asked, and answer from there. Your location is checked when you send." },
 };
 
 const formatWindow = (ms: number) => (ms >= 90_000 ? `${Math.round(ms / 60_000)} min` : `${Math.max(1, Math.round(ms / 1000))} s`);
@@ -29,7 +31,43 @@ export function JobsWaiting() {
   const [error, setError] = useState("");
   const [reward, setReward] = useState<Reward>(null);
   const [offline, setOffline] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [fix, setFix] = useState<Fix | null>(null);
+  const [proofBusy, setProofBusy] = useState<"" | "photo" | "gps">("");
+  const [nearby, setNearby] = useState(false);
+  const near = useRef<{ lat: number; lng: number } | null>(null);
+  const camera = useRef<HTMLInputElement>(null);
   useWorkerSync();
+
+  // "tasks near me": refresh a rough position every 2 minutes so located tasks can find this phone
+  useEffect(() => setNearby(nearbyEnabled()), []);
+  useEffect(() => {
+    if (!nearby) {
+      near.current = null;
+      return;
+    }
+    const refresh = () => getRoughFix().then((f) => {
+      if (f) near.current = { lat: f.lat, lng: f.lng };
+    });
+    refresh();
+    const t = window.setInterval(refresh, 120_000);
+    return () => window.clearInterval(t);
+  }, [nearby]);
+
+  const toggleNearby = async () => {
+    const on = !nearby;
+    if (on) {
+      const f = await getRoughFix();
+      if (!f) {
+        setError("Location is blocked. Allow it for Scrappy to get tasks near you.");
+        return;
+      }
+      near.current = { lat: f.lat, lng: f.lng };
+    }
+    setError("");
+    setNearbyEnabled(on);
+    setNearby(on);
+  };
 
   const workerId = pet?.workerId;
   const stage = pet ? stageFor(pet).current.id : "mochi";
@@ -38,12 +76,15 @@ export function JobsWaiting() {
   const poll = useCallback(async () => {
     if (!workerId) return;
     try {
-      const next = await nextJob(workerId);
+      const next = await nextJob(workerId, near.current);
       setOffline(false);
       if (next) {
         setJob(next);
         setAnswer("");
         setConfidence(80);
+        setPhoto(null);
+        setFix(null);
+        setError("");
         if ("vibrate" in navigator) navigator.vibrate?.(120);
         if (document.hidden && "Notification" in window && Notification.permission === "granted") {
           new Notification(`${pet?.name ?? "Your pet"} found a job`, { body: `${next.task} · pays ${next.pays_usdc.toFixed(2)}`, tag: "scrappy-job" });
@@ -62,12 +103,45 @@ export function JobsWaiting() {
     return () => window.clearInterval(t);
   }, [workerId, job, reward, poll]);
 
+  const takePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setProofBusy("photo");
+    setError("");
+    try {
+      setPhoto(await shrinkPhoto(file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read that photo.");
+    } finally {
+      setProofBusy("");
+    }
+  };
+
+  const checkLocation = async () => {
+    setProofBusy("gps");
+    setError("");
+    try {
+      setFix(await getFix());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not get your location.");
+    } finally {
+      setProofBusy("");
+    }
+  };
+
+  const proofReady = !job || ((!job.proof.photo || !!photo) && (!job.proof.gps || !!fix));
+
   const submit = async () => {
-    if (!job || !workerId || !answer.trim()) return;
+    if (!job || !workerId || !answer.trim() || !proofReady) return;
     setBusy(true);
     setError("");
     try {
-      const r = await submitAnswer(job.job_id, workerId, answer.trim(), confidence);
+      // GPS is re-taken at send time so the fix is fresh and taken where the photo was
+      const sendFix = job.proof.gps ? await getFix() : fix;
+      if (sendFix) setFix(sendFix);
+      const proof = photo || sendFix
+        ? { ...(photo && { photo }), ...(sendFix && { lat: sendFix.lat, lng: sendFix.lng, accuracy_m: sendFix.accuracy_m, captured_at: sendFix.captured_at }) }
+        : undefined;
+      const r = await submitAnswer(job.job_id, workerId, answer.trim(), confidence, proof);
       update({ jobsDone: (pet?.jobsDone ?? 0) + 1, earnedUsdc: (pet?.earnedUsdc ?? 0) + r.earned_usdc });
       setJob(null);
       setReward({ earned: r.earned_usdc, agent: job.qualification ? null : job.agent?.name ?? "the agent" });
@@ -138,6 +212,7 @@ export function JobsWaiting() {
             <p lang={job.language} className="rounded-[18px] bg-field p-4 text-[18px] leading-relaxed">{job.content}</p>
           )}
           {job.kind !== "judgment" && <p className="text-[15px] leading-relaxed text-ink-soft">{guide.how}</p>}
+          {job.place && <PlaceCard place={job.place} fix={fix} />}
           {job.kind === "call" && job.phone && (
             <a
               href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}
@@ -176,8 +251,43 @@ export function JobsWaiting() {
             <input id="conf" type="range" min={0} max={100} step={5} value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} className="w-full accent-[#007aff]" />
           </div>
 
+          {(job.proof.photo || job.proof.gps) && (
+            <div className="space-y-4 rounded-[20px] bg-field p-4">
+              <p className="text-[15px] font-semibold">Proof the agent needs</p>
+              {job.proof.photo && (
+                <div className="flex items-center gap-4">
+                  <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => takePhoto(e.target.files?.[0])} />
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photo} alt="Your proof photo" className="h-20 w-20 rounded-[14px] object-cover" />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px]">{photo ? "Photo ready" : "A clear photo of what you checked"}</p>
+                    <button type="button" onClick={() => camera.current?.click()} disabled={proofBusy === "photo"} className="mt-1 text-[15px] font-semibold text-[#007aff] disabled:opacity-60">
+                      {proofBusy === "photo" ? "Reading photo..." : photo ? "Retake" : "Open camera"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {job.proof.gps && (
+                <div>
+                  <p className="text-[15px]">
+                    {fix && job.place
+                      ? `You are ${formatDistance(distanceM(fix, job.place))} away (GPS within ${fix.accuracy_m} m)`
+                      : "Your location, checked against the place when you send"}
+                  </p>
+                  <button type="button" onClick={checkLocation} disabled={proofBusy === "gps"} className="mt-1 text-[15px] font-semibold text-[#007aff] disabled:opacity-60">
+                    {proofBusy === "gps" ? "Finding you..." : fix ? "Check again" : "Check my location"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {error && <p role="alert" className="text-[15px] text-[#c2410c]">{error}</p>}
-          <GlossButton type="button" onClick={submit} disabled={busy || !answer.trim()}>Send answer</GlossButton>
+          <GlossButton type="button" onClick={submit} disabled={busy || !answer.trim() || !proofReady}>
+            {busy ? "Sending..." : proofReady ? "Send answer" : job.proof.photo && !photo ? "Add a photo to send" : "Check your location to send"}
+          </GlossButton>
         </section>
       </div>
     );
@@ -198,9 +308,42 @@ export function JobsWaiting() {
       <p className="mt-4 text-[14px] text-ink-faint">
         Payout wallet set · <Link href="/app/wallet" className="underline underline-offset-4">change</Link>
       </p>
+      <button type="button" onClick={toggleNearby} aria-pressed={nearby} className="mt-5 flex w-full items-center justify-between gap-4 rounded-[18px] bg-field px-5 py-4 text-left transition-colors hover:bg-field-hover">
+        <span>
+          <span className="block font-semibold">{nearby ? "Getting tasks near you" : "Get tasks near you"}</span>
+          <span className="block text-[14px] text-ink-soft">{nearby ? "Shelf checks, photos and visits around you. Tap to stop." : "Agents pay more for on-site checks. Your location is used only to match tasks."}</span>
+        </span>
+        <span className={`h-7 w-12 shrink-0 rounded-full p-1 transition-colors ${nearby ? "bg-[#007aff]" : "bg-ink-faint/40"}`}>
+          <span className={`block h-5 w-5 rounded-full bg-white transition-transform ${nearby ? "translate-x-5" : ""}`} />
+        </span>
+      </button>
+      {error && <p role="alert" className="mt-3 text-[15px] text-[#c2410c]">{error}</p>}
     </Shell>
     <RecentWork token={workerId} />
     </div>
+  );
+}
+
+/** Where to go: name, distance from the phone, and a one-tap route in Maps. */
+function PlaceCard({ place, fix }: { place: NonNullable<WorkerJob["place"]>; fix: Fix | null }) {
+  const dist = fix ? distanceM(fix, place) : place.distance_m;
+  const inside = fix ? distanceM(fix, place) <= place.radius_m + Math.min(fix.accuracy_m, 150) : null;
+  return (
+    <a
+      href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-h-16 items-center justify-between gap-4 rounded-[18px] bg-[#007aff] px-5 py-3 text-white transition-colors hover:bg-[#0060cc]"
+    >
+      <span className="min-w-0">
+        <span className="block truncate font-semibold">{place.name ?? "The place"}</span>
+        <span className="block text-[14px] text-white/85">
+          {inside === true ? "You're there" : `Be within ${formatDistance(place.radius_m)}`}
+          {dist !== undefined && inside !== true ? ` · ${formatDistance(dist)} away` : ""}
+        </span>
+      </span>
+      <span className="shrink-0 text-[15px] font-semibold">Directions</span>
+    </a>
   );
 }
 
