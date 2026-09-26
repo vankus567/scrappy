@@ -28,3 +28,6 @@ apps/android/app/build/
 
 # proof photos written by local runs/tests
 apps/api/proofs/
+
+# Mimic clip uploads written by local runs/tests
+apps/api/clips/
