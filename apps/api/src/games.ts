@@ -3,8 +3,9 @@
 // reveal. A move is a short string; each game validates and scores it. Missing moves are `null`,
 // locked-but-never-revealed moves are "locked" (see battle.ts Play).
 import { type Element, type Play as DuelPlay, resolveRound, score as duelScore, type Side } from "./battle";
+import { botSlices, FRUIT_ROUNDS, fruitSchedule, scoreSlices } from "./fruit";
 
-export const GAMES = ["duel", "penalty", "cards", "towers"] as const;
+export const GAMES = ["duel", "penalty", "cards", "towers", "squad", "fruit"] as const;
 export type Game = (typeof GAMES)[number];
 export const isGame = (g: unknown): g is Game => typeof g === "string" && (GAMES as readonly string[]).includes(g);
 
@@ -149,13 +150,78 @@ function towers(pairs: Pair[]): GameScore {
   return { a: total(hp.a), b: total(hp.b), rounds, done, winner: done ? winner : null, state: { hp } };
 }
 
+// ---------------- squad deathmatch ----------------
+// Each side fields 4 pets. move = "<zone>:<aim>" with zones left | center | right.
+// Aim at the zone the enemy squad moved to and you take one of them out. The zone closes behind you:
+// you can't move to the zone you held last round. A no-show squad stands exposed in the center.
+export const SQUAD = 4;
+const ZONES = ["left", "center", "right"] as const;
+const parseSquad = (m: string) => {
+  const [zone, aim] = m.split(":");
+  return (ZONES as readonly string[]).includes(zone) && (ZONES as readonly string[]).includes(aim) ? { zone, aim } : null;
+};
+
+function squad(pairs: Pair[]): GameScore {
+  let a = 0; // kills by a
+  let b = 0;
+  const rounds: GameRound[] = [];
+  for (const [i, p] of pairs.slice(0, GAME_ROUNDS).entries()) {
+    if (a >= SQUAD || b >= SQUAD) break;
+    const pa = revealed(p.a) ? parseSquad(p.a) : null;
+    const pb = revealed(p.b) ? parseSquad(p.b) : null;
+    const aZone = pa?.zone ?? "center";
+    const bZone = pb?.zone ?? "center";
+    const aHit = !!pa && pa.aim === bZone;
+    const bHit = !!pb && pb.aim === aZone;
+    a += aHit ? 1 : 0;
+    b += bHit ? 1 : 0;
+    rounds.push({
+      round: i + 1, a: p.a, b: p.b,
+      winner: aHit === bHit ? null : aHit ? "a" : "b",
+      by: aHit && bHit ? "firefight" : aHit || bHit ? (!pa || !pb ? "timeout" : "hit") : "miss",
+      detail: { a_hit: aHit, b_hit: bHit },
+    });
+  }
+  const done = a >= SQUAD || b >= SQUAD || rounds.length >= GAME_ROUNDS;
+  return { a, b, rounds, done, winner: !done ? null : a > b ? "a" : b > a ? "b" : "draw" };
+}
+
+// ---------------- fruit slash ----------------
+// move = the round's slice log (see fruit.ts). Higher score wins the round; best of 3.
+function fruit(pairs: Pair[], battleId: string): GameScore {
+  let a = 0;
+  let b = 0;
+  const rounds: GameRound[] = [];
+  for (const [i, p] of pairs.slice(0, FRUIT_ROUNDS).entries()) {
+    if (a >= 2 || b >= 2) break;
+    const sched = fruitSchedule(battleId, i + 1);
+    const pa = revealed(p.a) ? scoreSlices(sched, p.a) : null;
+    const pb = revealed(p.b) ? scoreSlices(sched, p.b) : null;
+    let winner: Side | null = null;
+    if (pa !== null || pb !== null) {
+      if (pa === null) winner = "b";
+      else if (pb === null) winner = "a";
+      else if (pa !== pb) winner = pa > pb ? "a" : "b";
+    }
+    if (winner === "a") a++;
+    if (winner === "b") b++;
+    rounds.push({
+      round: i + 1, a: p.a, b: p.b, winner,
+      by: pa === null || pb === null ? (pa === null && pb === null ? "tie" : "timeout") : winner ? "score" : "tie",
+      detail: { a_points: pa, b_points: pb },
+    });
+  }
+  const done = a >= 2 || b >= 2 || rounds.length >= FRUIT_ROUNDS;
+  return { a, b, rounds, done, winner: !done ? null : a > b ? "a" : b > a ? "b" : "draw" };
+}
+
 // ---------------- shared ----------------
 
 /**
  * Is this revealed move legal for this game, side and round, given that side's earlier revealed moves?
  * (Card reuse and tower energy can only be checked at reveal, because the commit hides the move.)
  */
-export function validMove(game: Game, move: string, round: number, earlier: Play[]): boolean {
+export function validMove(game: Game, move: string, round: number, earlier: Play[], battleId = ""): boolean {
   switch (game) {
     case "duel":
       return move === "attack" || move === "guard" || move === "trick";
@@ -167,10 +233,18 @@ export function validMove(game: Game, move: string, round: number, earlier: Play
       const t = parseTowers(move);
       return !!t && t.l + t.r <= energyFor(round);
     }
+    case "squad": {
+      const s = parseSquad(move);
+      const prev = earlier.length ? earlier[earlier.length - 1] : null;
+      const prevZone = revealed(prev) ? parseSquad(prev)?.zone : null;
+      return !!s && s.zone !== prevZone;
+    }
+    case "fruit":
+      return round <= FRUIT_ROUNDS && scoreSlices(fruitSchedule(battleId, round), move) !== null;
   }
 }
 
-export function scoreGame(game: Game, pairs: Pair[], aEl: Element, bEl: Element): GameScore {
+export function scoreGame(game: Game, pairs: Pair[], aEl: Element, bEl: Element, battleId = ""): GameScore {
   switch (game) {
     case "duel": {
       const s = duelScore(pairs as { a: DuelPlay; b: DuelPlay }[], aEl, bEl);
@@ -182,6 +256,10 @@ export function scoreGame(game: Game, pairs: Pair[], aEl: Element, bEl: Element)
       return cards(pairs);
     case "towers":
       return towers(pairs);
+    case "squad":
+      return squad(pairs);
+    case "fruit":
+      return fruit(pairs, battleId);
   }
 }
 
@@ -192,7 +270,7 @@ export { resolveRound };
 // its own earlier moves and the opponent's REVEALED earlier moves. Never the current move.
 const pick = <T>(xs: readonly T[], rand: () => number) => xs[Math.floor(rand() * xs.length)];
 
-export function botMove(game: Game, round: number, mine: Play[], theirs: Play[], rand: () => number = Math.random): string {
+export function botMove(game: Game, round: number, mine: Play[], theirs: Play[], rand: () => number = Math.random, battleId = ""): string {
   const seen = theirs.filter(revealed);
   switch (game) {
     case "duel": {
@@ -215,5 +293,15 @@ export function botMove(game: Game, round: number, mine: Play[], theirs: Play[],
       const heavy = Math.ceil(e * (0.6 + rand() * 0.4));
       return rand() < 0.5 ? `${heavy},${e - heavy}` : `${e - heavy},${heavy}`;
     }
+    case "squad": {
+      // can't reuse its own last zone; aims where the enemy can still be (they can't reuse theirs either)
+      const myLast = mine.length && revealed(mine[mine.length - 1]) ? parseSquad(mine[mine.length - 1] as string)?.zone : null;
+      const theirLast = theirs.length && revealed(theirs[theirs.length - 1]) ? parseSquad(theirs[theirs.length - 1] as string)?.zone : null;
+      const zone = pick(ZONES.filter((z) => z !== myLast), rand);
+      const aim = pick(ZONES.filter((z) => z !== theirLast), rand);
+      return `${zone}:${aim}`;
+    }
+    case "fruit":
+      return botSlices(fruitSchedule(battleId, round), rand);
   }
 }

@@ -178,8 +178,10 @@ describe("battles API", () => {
       penalty: (r) => ["left:right", "center:left", "right:center"][r % 3],
       cards: (r) => String(r),
       towers: (r) => `${2 + r},0`,
+      squad: (r) => ["left:right", "center:left", "right:center"][r % 3],
+      fruit: () => "-",
     };
-    for (const game of ["duel", "penalty", "cards", "towers"]) {
+    for (const game of ["duel", "penalty", "cards", "towers", "squad", "fruit"]) {
       const open = await s.req("POST", "/v1/battles/quick", { game }, me);
       expect(open.body).toMatchObject({ status: "open", game });
       const started = await s.req("POST", `/v1/battles/${open.body.id}/bot`, undefined, me);

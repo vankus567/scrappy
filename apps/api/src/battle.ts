@@ -90,6 +90,6 @@ export async function commitHash(move: string, salt: string) {
 
 /** A reveal is valid only if it matches the hash committed earlier. */
 export async function verifyReveal(hash: string, move: unknown, salt: unknown) {
-  if (typeof move !== "string" || move.length < 1 || move.length > 32 || typeof salt !== "string" || salt.length < 16 || salt.length > 128) return false;
+  if (typeof move !== "string" || move.length < 1 || move.length > 2000 || typeof salt !== "string" || salt.length < 16 || salt.length > 128) return false;
   return (await commitHash(move, salt)) === hash.toLowerCase();
 }

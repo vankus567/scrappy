@@ -89,7 +89,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     if (rows.some((m) => m.round === b.round && m.side === side)) return;
     const mine = rows.filter((m) => m.side === side && m.round < b.round).map((m) => m.move);
     const theirs = rows.filter((m) => m.side !== side && m.round < b.round).map((m) => m.move);
-    const move = botMove(b.game, b.round, mine, theirs);
+    const move = botMove(b.game, b.round, mine, theirs, Math.random, b.id);
     const salt = crypto.randomUUID().replace(/-/g, "");
     const hash = new Bun.CryptoHasher("sha256").update(`${move}:${salt}`).digest("hex");
     db.query(
@@ -142,7 +142,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
       const cur = get(b.id)!;
       if (cur.status !== "active") return cur;
       const played = playedRounds(cur, now);
-      const s = scoreGame(cur.game, played, ...elements(cur));
+      const s = scoreGame(cur.game, played, ...elements(cur), cur.id);
       if (s.done) {
         db.transaction(() => {
           const r = db.query("UPDATE battles SET status = 'done', winner = ?, finished_at = ? WHERE id = ? AND status = 'active'").run(s.winner, now, cur.id);
@@ -278,7 +278,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     if (mine.move) return fail(409, "already revealed");
     if (!(await verifyReveal(mine.commit_hash, move, salt))) return fail(400, "reveal does not match your locked-in move");
     const earlier = movesOf(id).filter((m) => m.side === side && m.round < round).map((m) => m.move);
-    if (!validMove(b.game, move as string, round, earlier)) return fail(400, "that move isn't allowed in this round");
+    if (!validMove(b.game, move as string, round, earlier, b.id)) return fail(400, "that move isn't allowed in this round");
     db.query("UPDATE battle_moves SET move = ?, salt = ?, revealed_at = ? WHERE battle_id = ? AND round = ? AND side = ? AND move IS NULL").run(
       move as string, salt as string, now, id, round, side,
     );
@@ -297,7 +297,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     const b = advance(b0, now);
     const side = workerId ? sideOf(b, workerId) : null;
     const played = b.status === "open" ? [] : playedRounds(b, now);
-    const s = scoreGame(b.game, played, ...elements(b));
+    const s = scoreGame(b.game, played, ...elements(b), b.id);
     const cur = movesOf(b.id).filter((m) => m.round === b.round);
     const mine = side ? cur.find((m) => m.side === side) : undefined;
     const theirs = side ? cur.find((m) => m.side !== side) : undefined;

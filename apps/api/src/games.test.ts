@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fruitSchedule, scoreSlices } from "./fruit";
 import { energyFor, KING_HP, scoreGame, TOWER_HP, validMove } from "./games";
 
 const pairs = (list: [string | null, string | null][]) => list.map(([a, b]) => ({ a, b }));
@@ -76,5 +77,60 @@ describe("duel still works through the game layer", () => {
   test("rock-paper-scissors rules unchanged", () => {
     const s = scoreGame("duel", pairs([["attack", "trick"], ["guard", "attack"], ["trick", "guard"]]), "tide", "tide");
     expect(s).toMatchObject({ a: 3, b: 0, done: true, winner: "a" });
+  });
+});
+
+describe("squad deathmatch", () => {
+  test("aim where they moved to score a kill; the zone closes behind you; no-shows stand in the center", () => {
+    const s = scoreGame("squad", pairs([
+      ["left:right", "right:center"], // a hits b (b went right); b aims center, a went left: miss
+      ["center:left", "left:center"], // both hit: firefight
+      ["right:center", null], // b no-show stands center: a hits
+    ]), "tide", "tide");
+    expect(s.rounds.map((r) => r.by)).toEqual(["hit", "firefight", "timeout"]);
+    expect(s).toMatchObject({ a: 3, b: 1, done: false });
+    expect(validMove("squad", "left:right", 2, ["left:center"])).toBe(false); // can't camp the same zone
+    expect(validMove("squad", "center:right", 2, ["left:center"])).toBe(true);
+  });
+
+  test("wiping all 4 ends it", () => {
+    const s = scoreGame("squad", pairs([["left:right", "right:left"], ["center:left", "left:right"], ["right:right", "right:center"], ["left:right", "right:center"]]), "tide", "tide");
+    expect(s.a).toBe(4);
+    expect(s).toMatchObject({ done: true, winner: "a" });
+  });
+});
+
+describe("fruit slash", () => {
+  test("both players get the same pattern; the server scores the slice log itself", () => {
+    const sched = fruitSchedule("battle-1", 1);
+    expect(fruitSchedule("battle-1", 1)).toEqual(sched); // deterministic
+    expect(fruitSchedule("battle-1", 2)).not.toEqual(sched);
+    const fruits = sched.filter((f) => f.kind === "fruit").slice(0, 3);
+    const bomb = sched.find((f) => f.kind === "bomb")!;
+    const at = (f: { id: number; t: number; life: number }) => `${f.id}.${Math.floor((f.t + f.life / 2) / 10)}`;
+    const log = [...fruits, bomb].sort((x, y) => x.t + x.life / 2 - (y.t + y.life / 2)).map(at).join(",");
+    expect(scoreSlices(sched, log)).toBe(Math.max(0, 3 - 3));
+    expect(scoreSlices(sched, fruits.map(at).join(","))).toBe(3);
+    expect(scoreSlices(sched, "-")).toBe(0);
+  });
+
+  test("impossible logs are rejected: unknown fruit, twice, off-screen, out of order", () => {
+    const sched = fruitSchedule("battle-2", 1);
+    const f = sched[0];
+    const mid = Math.floor((f.t + f.life / 2) / 10);
+    expect(scoreSlices(sched, `999.${mid}`)).toBeNull();
+    expect(scoreSlices(sched, `${f.id}.${mid},${f.id}.${mid + 1}`)).toBeNull();
+    expect(scoreSlices(sched, `${f.id}.${Math.floor((f.t + f.life + 2000) / 10)}`)).toBeNull();
+    const g = sched[3];
+    expect(scoreSlices(sched, `${g.id}.${Math.floor((g.t + g.life / 2) / 10)},${f.id}.${mid}`)).toBeNull();
+    expect(validMove("fruit", "999.10", 1, [], "battle-2")).toBe(false);
+  });
+
+  test("higher score takes the round, best of 3", () => {
+    const logFor = (id: string, round: number, n: number) =>
+      fruitSchedule(id, round).filter((f) => f.kind === "fruit").slice(0, n).map((f) => `${f.id}.${Math.floor((f.t + f.life / 2) / 10)}`).join(",") || "-";
+    const s = scoreGame("fruit", [{ a: logFor("b3", 1, 5), b: logFor("b3", 1, 2) }, { a: logFor("b3", 2, 4), b: logFor("b3", 2, 1) }], "tide", "tide", "b3");
+    expect(s).toMatchObject({ a: 2, b: 0, done: true, winner: "a" });
+    expect(s.rounds[0].detail).toEqual({ a_points: 5, b_points: 2 });
   });
 });
