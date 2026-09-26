@@ -17,7 +17,7 @@ export function RanksBoard() {
   useEffect(() => {
     let alive = true;
     const q = scope === "city" && city ? `?city=${encodeURIComponent(city)}` : "";
-    fetch(`${API_URL}/v1/battles/leaderboard${q}`, { headers: pet?.workerId ? { authorization: `Bearer ${pet.workerId}` } : {} })
+    fetch(`${API_URL}/v1/mimic/leaderboard${q}`, { headers: pet?.workerId ? { authorization: `Bearer ${pet.workerId}` } : {} })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {
         if (!alive) return;

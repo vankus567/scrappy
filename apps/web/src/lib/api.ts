@@ -146,45 +146,39 @@ export const getConfig = () => call<{ push_public_key: string | null }>("/v1/con
 export const savePush = (token: string, sub: PushSubscriptionJSON) =>
   call<{ ok: true }>("/v1/worker/push", { method: "PUT", token, body: JSON.stringify(sub) });
 
-// ================= battles =================
+// ================= Mimic battles =================
 
-export type Move = "attack" | "guard" | "trick";
-/** A revealed move string (per game), "locked" (hid its move) or null (no-show). */
-export type Play = string | null;
-export type Game = "duel" | "penalty" | "cards" | "towers" | "squad" | "fruit";
-export type Element = "blaze" | "tide" | "spirit";
-export type BattlePet = { name: string; species: string; element: Element };
-export type RoundResult = { round: number; a: Play; b: Play; winner: "a" | "b" | null; by: string; detail?: { a_goal?: boolean; b_goal?: boolean; dealt_a?: number; dealt_b?: number; a_hit?: boolean; b_hit?: boolean; a_points?: number | null; b_points?: number | null } };
-export type Castle = { left: number; right: number; king: number };
-export type BattleView = {
+export type ClipView =
+  | { id: string; kind: "tune"; title: string; notes: { semi: number; ms: number }[]; frames: number[]; duration_ms: number }
+  | { id: string; kind: "upload"; title: string; audio_url: string; frames: number[]; duration_ms: number; hidden?: boolean };
+export type MimicPlayer = { seat: number; name: string; species: string; bot: boolean; submitted: boolean; total: number; winner: boolean };
+export type MimicView = {
   id: string;
   mode: "friend" | "quick";
-  game: Game;
-  state?: { used?: { a: string[]; b: string[] }; hp?: { a: Castle; b: Castle } };
   status: "open" | "active" | "done" | "cancelled";
-  you: "a" | "b" | null;
-  a: BattlePet | null;
-  b: BattlePet | null;
-  stake_food: number;
+  host: number;
+  you: number | null;
+  max_players: number;
   round: number;
+  rounds_total: number;
   round_deadline: string | null;
-  score: { a: number; b: number };
-  rounds: RoundResult[];
-  winner: "a" | "b" | "draw" | null;
-  turn?: { you_locked: boolean; they_locked: boolean; you_revealed: boolean; they_revealed: boolean; next: "lock" | "wait_lock" | "reveal" | "wait_reveal" };
+  players: MimicPlayer[];
+  clips: (ClipView | null)[];
+  results: { round: number; scores: { seat: number; score: number }[] }[];
+  your_entry: number | null;
   created_at: string;
 };
-export type BattleRecord = { wins: number; losses: number; draws: number };
 
-export const getBattles = (token: string) => call<{ battles: BattleView[]; record: BattleRecord; food: number }>("/v1/battles", { token });
-export const getBattle = (id: string, token?: string) => call<BattleView>(`/v1/battles/${id}`, { token });
-export const challengeFriend = (token: string, stake_food: number, game: Game) =>
-  call<BattleView>("/v1/battles", { method: "POST", token, body: JSON.stringify({ stake_food, game }) });
-export const quickMatch = (token: string, game: Game) => call<BattleView>("/v1/battles/quick", { method: "POST", token, body: JSON.stringify({ game }) });
-export const joinBattle = (id: string, token: string) => call<BattleView>(`/v1/battles/${id}/join`, { method: "POST", token });
-export const playBot = (id: string, token: string) => call<BattleView>(`/v1/battles/${id}/bot`, { method: "POST", token });
-export const cancelBattle = (id: string, token: string) => call<{ ok: true }>(`/v1/battles/${id}/cancel`, { method: "POST", token });
-export const commitMove = (id: string, token: string, round: number, hash: string) =>
-  call<BattleView>(`/v1/battles/${id}/commit`, { method: "POST", token, body: JSON.stringify({ round, hash }) });
-export const revealMove = (id: string, token: string, round: number, move: string, salt: string) =>
-  call<BattleView>(`/v1/battles/${id}/reveal`, { method: "POST", token, body: JSON.stringify({ round, move, salt }) });
+export const getMimics = (token: string) => call<{ battles: MimicView[]; record: { wins: number; played: number } }>("/v1/mimic", { token });
+export const getMimic = (id: string, token?: string) => call<MimicView>(`/v1/mimic/${id}`, { token });
+export const createMimic = (token: string, players: number) => call<MimicView>("/v1/mimic", { method: "POST", token, body: JSON.stringify({ players }) });
+export const quickMimic = (token: string) => call<MimicView>("/v1/mimic/quick", { method: "POST", token });
+export const joinMimic = (id: string, token: string) => call<MimicView>(`/v1/mimic/${id}/join`, { method: "POST", token });
+export const startMimic = (id: string, token: string, fill_with_bots: boolean) =>
+  call<MimicView>(`/v1/mimic/${id}/start`, { method: "POST", token, body: JSON.stringify({ fill_with_bots }) });
+export const leaveMimic = (id: string, token: string) => call<{ ok: true }>(`/v1/mimic/${id}/leave`, { method: "POST", token });
+export const submitMimic = (id: string, token: string, round: number, contour: string) =>
+  call<MimicView>(`/v1/mimic/${id}/submit`, { method: "POST", token, body: JSON.stringify({ round, contour }) });
+export const uploadClip = (token: string, clip: { title: string; mime: string; audio: string; contour: string; duration_ms: number }) =>
+  call<ClipView>("/v1/clips", { method: "POST", token, body: JSON.stringify(clip) });
+export const reportClip = (id: string) => call<{ ok: true }>(`/v1/clips/${id}/report`, { method: "POST" });

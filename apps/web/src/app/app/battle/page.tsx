@@ -1,5 +1,5 @@
-import { BattleLobby } from "@/components/app/BattleLobby";
+import { MimicLobby } from "@/components/app/MimicLobby";
 
 export default function Battle() {
-  return <BattleLobby />;
+  return <MimicLobby />;
 }

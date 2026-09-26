@@ -108,7 +108,7 @@ export function Home() {
         <div className="rounded-[24px] bg-ground-deep p-5 sm:p-6">
           <h2 className="font-display tracking-[-0.005em] text-[22px] font-bold">{pet.name} wants to battle</h2>
           <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
-            Pet Duel, Penalty Shootout, Card Clash or Tower Rush. Every win brings {pet.name} closer to its next form.
+            Hear a sound, copy it into your mic, beat up to 3 friends. Every win brings {pet.name} closer to its next form.
           </p>
           <Link href="/app/battle" className="mt-3 inline-flex min-h-11 items-center rounded-[14px] bg-[#007aff] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#0060cc]">
             Battle now
