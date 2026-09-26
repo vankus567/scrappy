@@ -48,9 +48,10 @@ Legend: [B] build · [P] people/traction · [S] submission
 - [ ] [P] First college tournament (weekend), log real battle counts
 
 ## Day 8 (Oct 4): photo face + async battles
-- [ ] [B] Photo face: pick/take photo, circle crop, clip into Scrappy body, canvas color filter, animates with body
-- [ ] [B] Photo stays on device unless shared; report button on other pets
-- [ ] [B] Async battles: moves whenever each player opens the app, push "your turn"
+- [x] [B] Photo face: pick/take photo, circle crop, clip into Scrappy body, animates with body (browser e2e passes)
+- [x] [B] Photo stays on device (report button comes with sharing)
+- [x] [B] Async battles: moves whenever each player opens the app (12 h rounds)
+- [ ] [B] Push "your turn" notification
 - [ ] [B] "Beat my pet" open challenges
 
 ## Day 9 (Oct 5): retention + viral
