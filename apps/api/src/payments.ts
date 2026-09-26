@@ -101,6 +101,28 @@ export function webhookSender(db: Db) {
 }
 
 /** Web push to online-capable workers who qualify, when a task goes live. No-op without VAPID keys. */
+export type WorkerPush = (workerId: string, msg: { title: string; body: string; url: string; tag: string }) => void;
+
+/** Web push to one worker's phone (battle turns). Undefined when VAPID keys are not configured. */
+export function workerPusher(db: Db): WorkerPush | undefined {
+  const pub = process.env.VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (!pub || !priv) return undefined;
+  let webpush: typeof import("web-push") | null = null;
+  import("web-push").then((m) => {
+    webpush = m.default ?? (m as any);
+    webpush!.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://scrappypet.vercel.app", pub, priv);
+  });
+  return (workerId, msg) => {
+    if (!webpush) return;
+    const w = db.query("SELECT push_subscription FROM workers WHERE id = ? AND push_subscription IS NOT NULL").get(workerId) as { push_subscription: string } | null;
+    if (!w) return;
+    webpush.sendNotification(JSON.parse(w.push_subscription), JSON.stringify(msg), { TTL: 3600 }).catch((err: any) => {
+      if (err?.statusCode === 404 || err?.statusCode === 410) db.query("UPDATE workers SET push_subscription = NULL WHERE id = ?").run(workerId);
+    });
+  };
+}
+
 export function pushNotifier(db: Db) {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;

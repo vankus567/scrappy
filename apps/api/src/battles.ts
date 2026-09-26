@@ -1,5 +1,6 @@
 import { type Element, elementOf, isMove, type Move, type Play, ROUNDS, score, type Side, verifyReveal } from "./battle";
 import { type Db, uid } from "./db";
+import type { WorkerPush } from "./payments";
 import type { WorkerRow } from "./tasks";
 
 /**
@@ -58,7 +59,9 @@ export function migrateBattles(db: Db) {
 type Fail = { ok: false; status: number; error: string };
 const fail = (status: number, error: string): Fail => ({ ok: false, status, error });
 
-export function createBattleService(db: Db) {
+export function createBattleService(db: Db, push?: WorkerPush) {
+  const ping = (workerId: string, battleId: string, title: string, body: string) =>
+    push?.(workerId, { title, body, url: `/app/battle/${battleId}`, tag: `battle-${battleId}` });
   migrateBattles(db);
 
   const get = (id: string) => db.query("SELECT * FROM battles WHERE id = ?").get(id) as BattleRow | null;
@@ -165,6 +168,7 @@ export function createBattleService(db: Db) {
       ).run(w.id, w.species!, w.pet_name, now + ROUND_MS, id).changes === 1;
     })();
     if (!ok) return fail(409, "this battle was just taken");
+    ping(b.a_id, id, `${w.pet_name ?? "A pet"} accepted your challenge`, "Round 1: pick your move.");
     return { ok: true, battle: get(id)! };
   };
 
@@ -205,7 +209,11 @@ export function createBattleService(db: Db) {
       `INSERT INTO battle_moves (battle_id, round, side, commit_hash, committed_at) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(battle_id, round, side) DO NOTHING`,
     ).run(id, round, side, hash, now);
-    return r.changes ? { ok: true } : fail(409, "you already locked in this round");
+    if (!r.changes) return fail(409, "you already locked in this round");
+    const other = side === "a" ? b.b_id : b.a_id;
+    const theirMove = db.query("SELECT 1 FROM battle_moves WHERE battle_id = ? AND round = ? AND side != ?").get(id, round, side);
+    if (other && !theirMove) ping(other, id, `Your turn: round ${round}`, `${(side === "a" ? b.a_name : b.b_name) ?? "Your opponent"} locked in a move.`);
+    return { ok: true };
   };
 
   const reveal = async (id: string, w: WorkerRow, round: number, move: unknown, salt: unknown, now = Date.now()): Promise<{ ok: true; battle: BattleRow } | Fail> => {
@@ -226,7 +234,14 @@ export function createBattleService(db: Db) {
     db.query("UPDATE battle_moves SET move = ?, salt = ?, revealed_at = ? WHERE battle_id = ? AND round = ? AND side = ? AND move IS NULL").run(
       move as string, salt as string, now, id, round, side,
     );
-    return { ok: true, battle: advance(get(id)!, now) };
+    const after = advance(get(id)!, now);
+    const other = side === "a" ? after.b_id : after.a_id;
+    const me = side === "a" ? after.a_name : after.b_name;
+    if (other && after.status === "done") {
+      const won = after.winner === (side === "a" ? "b" : "a");
+      ping(other, after.id, after.winner === "draw" ? "Battle over: it's a draw" : won ? "You won the battle!" : `${me ?? "Your opponent"} won the battle`, "Tap to see how it went.");
+    } else if (other && after.round > round) ping(other, after.id, `Round ${after.round}: your move`, `${me ?? "Your opponent"} is ready.`);
+    return { ok: true, battle: after };
   };
 
   /** What one player sees. The opponent's move for the current round stays hidden until the round closes. */

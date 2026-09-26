@@ -4,7 +4,7 @@ import { decodePaymentResponseHeader } from "@x402/core/http";
 import { z } from "zod";
 import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
 import { type Db, toUsdc, uid } from "./db";
-import { type Rpc, verifyDeposit, verifyRevive } from "./payments";
+import { type Rpc, verifyDeposit, verifyRevive, type WorkerPush } from "./payments";
 import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
 import { createBattleService, MAX_STAKE } from "./battles";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
@@ -22,6 +22,8 @@ export type AppDeps = {
   platformWallet?: string;
   network?: string;
   pushPublicKey?: string;
+  /** Web push to one worker (battle turns). */
+  workerPush?: WorkerPush;
   /** Where proof photos live; defaults to PROOF_DIR on disk. */
   proofs?: ProofStore;
 };
@@ -56,7 +58,7 @@ const body = async (c: Context) => c.req.json().catch(() => null);
 export function createApp(deps: AppDeps) {
   const { db, tasks, auth } = deps;
   const proofs = deps.proofs ?? createProofStore(db);
-  const battles = createBattleService(db);
+  const battles = createBattleService(db, deps.workerPush);
   const app = new Hono<Env>();
 
   app.use("*", cors({

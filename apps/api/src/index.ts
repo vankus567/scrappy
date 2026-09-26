@@ -6,7 +6,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { createApp } from "./app";
 import { createAuth } from "./auth";
 import { openDb, toUsdc } from "./db";
-import { pushNotifier, solanaRpc, webhookSender } from "./payments";
+import { pushNotifier, solanaRpc, webhookSender, workerPusher } from "./payments";
 import { createSettler, solanaSender } from "./settle";
 import { createTaskService, taskInput } from "./tasks";
 
@@ -45,7 +45,7 @@ const paywall = paymentMiddleware(
 
 const app = createApp({
   db, tasks, auth: createAuth(db), paywall, rpc: solanaRpc, platformWallet: PAY_TO, network: NETWORK,
-  pushPublicKey: process.env.VAPID_PUBLIC_KEY,
+  pushPublicKey: process.env.VAPID_PUBLIC_KEY, workerPush: workerPusher(db),
 });
 
 // deadlines are enforced even when nobody is polling

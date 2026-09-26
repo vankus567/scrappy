@@ -12,11 +12,14 @@ import { createTaskService } from "./tasks";
 const wallets = Array.from({ length: 4 }, (_, i) => base58.encode(new Uint8Array(32).fill(i + 11)));
 const passThrough: MiddlewareHandler = async (_c, next) => next();
 
+const pings: { to: string; title: string; url: string }[] = [];
 function setup() {
+  pings.length = 0;
   const db = openDb(":memory:");
   const app = createApp({
     db, tasks: createTaskService(db), auth: createAuth(db), paywall: passThrough,
     proofs: createProofStore(db, `${process.env.TEMP ?? "/tmp"}/scrappy-battle-proofs`),
+    workerPush: (to, m) => pings.push({ to, title: m.title, url: m.url }),
   });
   const req = async (method: string, path: string, body?: unknown, token?: string) => {
     const res = await app.request(path, {
@@ -71,6 +74,9 @@ describe("battles API", () => {
     const joined = await s.req("POST", `/v1/battles/${id}/join`, undefined, luna);
     expect(joined.body).toMatchObject({ status: "active", you: "b", b: { name: "Luna", element: "tide" }, round: 1, turn: { next: "lock" } });
     expect(s.food(1)).toBe(3);
+    const brunoId = (s.db.query("SELECT id FROM workers WHERE wallet = ?").get(wallets[0]) as any).id;
+    const lunaId = (s.db.query("SELECT id FROM workers WHERE wallet = ?").get(wallets[1]) as any).id;
+    expect(pings.at(-1)).toEqual({ to: brunoId, title: "Luna accepted your challenge", url: `/app/battle/${id}` });
 
     // round 1: moves stay hidden until both reveal
     const salt = crypto.randomUUID();
@@ -81,6 +87,7 @@ describe("battles API", () => {
     const lunaView = await s.req("GET", `/v1/battles/${id}`, undefined, luna);
     expect(lunaView.body.turn).toMatchObject({ you_locked: true, they_locked: true, next: "reveal" });
     expect(lunaView.body.rounds).toHaveLength(0); // Bruno's attack not visible yet
+    expect(pings.some((p) => p.to === lunaId && p.title === "Your turn: round 1")).toBe(true);
     // changing your move after locking in is rejected
     expect((await s.req("POST", `/v1/battles/${id}/reveal`, { round: 1, move: "trick", salt: lunaSalt }, luna)).status).toBe(400);
     await s.req("POST", `/v1/battles/${id}/reveal`, { round: 1, move: "attack", salt }, bruno);
@@ -95,6 +102,7 @@ describe("battles API", () => {
     const r4 = await playRound(s, id, 4, [bruno, "trick"], [luna, "attack"]);
     expect(r4).toMatchObject({ status: "done", winner: "b", score: { a: 1, b: 3 } });
     expect(s.food(1)).toBe(7); // 3 + pot of 4
+    expect(pings.at(-1)).toMatchObject({ to: brunoId, title: "Luna won the battle" });
     expect(s.food(0)).toBe(3);
 
     const list = await s.req("GET", "/v1/battles", undefined, luna);
