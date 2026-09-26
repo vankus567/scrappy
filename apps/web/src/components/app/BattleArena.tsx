@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GlossButton } from "@/components/GlossButton";
-import { type BattleView, commitMove, getBattle, joinBattle, type Move, type Play, quickMatch, revealMove } from "@/lib/api";
+import { type BattleView, commitMove, getBattle, joinBattle, playBot, type Move, type Play, quickMatch, revealMove } from "@/lib/api";
 import { commitHash, GAME_INFO, loadLocked, newSalt, saveLocked } from "@/lib/battle";
 import { usePet } from "@/lib/pet-store";
 import { BattleStage } from "./BattleStage";
@@ -71,6 +71,35 @@ export function BattleArena({ id }: { id: string }) {
       setBusy(false);
     }
   };
+
+  const vsBot = useCallback(async () => {
+    if (!token) return;
+    setBusy(true);
+    setError("");
+    try {
+      setB(await playBot(id, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start a bot battle.");
+    } finally {
+      setBusy(false);
+    }
+  }, [id, token]);
+
+  // quick match with nobody around: Scrappy Bot steps in after 10 seconds
+  const waitingQuick = !!b && b.status === "open" && b.you === "a" && b.mode === "quick" && b.stake_food === 0;
+  const [botIn, setBotIn] = useState<number | null>(null);
+  useEffect(() => {
+    if (!waitingQuick) {
+      setBotIn(null);
+      return;
+    }
+    setBotIn(10);
+    const t = window.setInterval(() => setBotIn((s) => (s === null ? null : Math.max(0, s - 1))), 1000);
+    return () => window.clearInterval(t);
+  }, [waitingQuick]);
+  useEffect(() => {
+    if (botIn === 0 && waitingQuick && !busy) vsBot();
+  }, [botIn, waitingQuick, busy, vsBot]);
 
   const accept = async () => {
     if (!token) return;
@@ -139,9 +168,20 @@ export function BattleArena({ id }: { id: string }) {
           <div className="mx-auto mt-8 max-w-md text-center">
             {b.you === "a" ? (
               <>
-                <p className="text-ink-soft">Send this link to a friend. The battle starts when they accept.{b.stake_food ? ` Stake: ${b.stake_food} food each.` : ""}</p>
-                <div className="mt-4">
-                  <GlossButton type="button" onClick={share}>{copied ? "Link copied" : "Share challenge"}</GlossButton>
+                <p className="text-ink-soft">
+                  {b.mode === "quick"
+                    ? botIn !== null && botIn > 0
+                      ? `Looking for a player... Scrappy Bot jumps in ${botIn}s.`
+                      : "Calling Scrappy Bot..."
+                    : `Send this link to a friend. The battle starts when they accept.${b.stake_food ? ` Stake: ${b.stake_food} food each.` : ""}`}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+                  {b.mode === "friend" && <GlossButton type="button" onClick={share}>{copied ? "Link copied" : "Share challenge"}</GlossButton>}
+                  {b.stake_food === 0 && (
+                    <button type="button" onClick={vsBot} disabled={busy} className="min-h-12 rounded-[14px] bg-field px-5 text-[15px] font-semibold transition-colors hover:bg-field-hover disabled:opacity-60">
+                      {b.mode === "quick" ? "Play Scrappy Bot now" : "Play Scrappy Bot instead"}
+                    </button>
+                  )}
                 </div>
               </>
             ) : token ? (

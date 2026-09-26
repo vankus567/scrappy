@@ -65,6 +65,11 @@ async function call<T>(path: string, init: RequestInit & { token?: string } = {}
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (body.error === "wallet_registered") throw new ApiError("This wallet already has a Scrappy. Connect it to sign in.", "wallet_registered");
+    // a saved login the server no longer knows (older app version, reset server): drop it and ask to reconnect
+    if (res.status === 401 && token) {
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("scrappy:signed-out"));
+      throw new ApiError("Your sign-in expired. Connect your wallet again to keep battling.", "unauthorized");
+    }
     throw new ApiError(body.message ?? (typeof body.error === "string" ? body.error : `API error ${res.status}`));
   }
   return body as T;
@@ -177,6 +182,7 @@ export const challengeFriend = (token: string, stake_food: number, game: Game) =
   call<BattleView>("/v1/battles", { method: "POST", token, body: JSON.stringify({ stake_food, game }) });
 export const quickMatch = (token: string, game: Game) => call<BattleView>("/v1/battles/quick", { method: "POST", token, body: JSON.stringify({ game }) });
 export const joinBattle = (id: string, token: string) => call<BattleView>(`/v1/battles/${id}/join`, { method: "POST", token });
+export const playBot = (id: string, token: string) => call<BattleView>(`/v1/battles/${id}/bot`, { method: "POST", token });
 export const cancelBattle = (id: string, token: string) => call<{ ok: true }>(`/v1/battles/${id}/cancel`, { method: "POST", token });
 export const commitMove = (id: string, token: string, round: number, hash: string) =>
   call<BattleView>(`/v1/battles/${id}/commit`, { method: "POST", token, body: JSON.stringify({ round, hash }) });

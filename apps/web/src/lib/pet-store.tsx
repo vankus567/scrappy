@@ -105,6 +105,16 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setPet(read());
     setReady(true);
+    // the API rejected the saved login: forget it so the app shows "connect wallet" instead of errors
+    const signedOut = () =>
+      setPet((p) => {
+        if (!p?.workerId) return p;
+        const next = { ...p, workerId: undefined };
+        write(next);
+        return next;
+      });
+    window.addEventListener("scrappy:signed-out", signedOut);
+    return () => window.removeEventListener("scrappy:signed-out", signedOut);
   }, []);
 
   const hatch = useCallback<Store["hatch"]>((p) => {
