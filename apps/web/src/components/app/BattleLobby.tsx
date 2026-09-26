@@ -9,6 +9,7 @@ import { type BattleRecord, type BattleView, challengeFriend, cancelBattle, getB
 import { ELEMENT_INFO } from "@/lib/battle";
 import { stageFor, usePet } from "@/lib/pet-store";
 import { FacePicker } from "./FacePicker";
+import { TurnAlerts } from "./TurnAlerts";
 
 /** Battle home: your record, quick match, challenge a friend, and every battle waiting on you. */
 export function BattleLobby() {
@@ -116,6 +117,9 @@ export function BattleLobby() {
           {error && <p role="alert" className="mt-3 text-[15px] text-[#c2410c]">{error}</p>}
           <div className="mt-4">
             <FacePicker />
+          </div>
+          <div className="mt-3">
+            <TurnAlerts token={token} />
           </div>
         </div>
       </section>

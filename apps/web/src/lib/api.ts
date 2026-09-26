@@ -137,6 +137,10 @@ export async function submitAnswer(jobId: string, token: string, answer: string,
 
 export const formatUsd = (n: number) => `$${n.toFixed(2)}`;
 
+export const getConfig = () => call<{ push_public_key: string | null }>("/v1/config");
+export const savePush = (token: string, sub: PushSubscriptionJSON) =>
+  call<{ ok: true }>("/v1/worker/push", { method: "PUT", token, body: JSON.stringify(sub) });
+
 // ================= battles =================
 
 export type Move = "attack" | "guard" | "trick";
