@@ -16,6 +16,26 @@ export const ROUND_MS = 12 * 3_600_000; // async: a round stays open up to 12 h
 export const OPEN_MS = 48 * 3_600_000; // an unstarted lobby expires after 2 days
 export const QUICK_MS = 10 * 60_000; // quick-match lobbies older than this aren't joined
 export const MAX_CLIP_BYTES = 1_500_000;
+/** Practice opponents for when nobody else is online: pet-style names from around the world. */
+export const PRACTICE_BOTS = [
+  { key: "mango", name: "Mango · India", species: "ember" },
+  { key: "taco", name: "Taco · Mexico", species: "zap" },
+  { key: "kiwi", name: "Kiwi · New Zealand", species: "pip" },
+  { key: "sushi", name: "Sushi · Japan", species: "kitsu" },
+  { key: "baguette", name: "Baguette · France", species: "bun" },
+  { key: "samba", name: "Samba · Brazil", species: "goo" },
+  { key: "kimchi", name: "Kimchi · Korea", species: "neko" },
+  { key: "maple", name: "Maple · Canada", species: "kumo" },
+  { key: "pierogi", name: "Pierogi · Poland", species: "boo" },
+  { key: "jollof", name: "Jollof · Nigeria", species: "drako" },
+  { key: "gelato", name: "Gelato · Italy", species: "mochi" },
+  { key: "koala", name: "Koala · Australia", species: "pengu" },
+  { key: "biryani", name: "Biryani · Hyderabad", species: "ember" },
+  { key: "dosa", name: "Dosa · Chennai", species: "pip" },
+  { key: "churro", name: "Churro · Spain", species: "zap" },
+  { key: "tulip", name: "Tulip · Netherlands", species: "bun" },
+] as const;
+
 const TUNE_NAMES = ["Bubble Pop", "Moon Hop", "Sleepy Cat", "Rocket Ride", "Jelly Wobble", "Rain Dance", "Bee Buzz", "Star Skip", "Frog Choir", "Snack Time", "Tiny Parade", "Cloud Nap"];
 
 type Battle = {
@@ -255,27 +275,24 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
     if (!b || b.host_id !== w.id) return fail(404, "battle not found");
     if (b.status !== "open") return fail(409, "this battle already started");
     if (fill) {
-      const bot = { id: BOT_ID, pet_name: "Scrappy Bot", species: "mochi" };
-      // one bot account fills one seat; more seats get bot "cousins" that share it
+      // practice bots with pet-style names from around the world; always flagged as bots in the view
       let n = playersOf(id).length;
-      const species = ["kumo", "zap", "boo", "pip", "ember", "neko"];
-      for (let i = 0; n < b.max_players; i++, n++) {
-        const seatBot = i === 0 ? bot : ensureBot(i, species[i % species.length]);
-        seatUp(b, seatBot, true, now);
-      }
+      const pool = [...PRACTICE_BOTS].sort(() => Math.random() - 0.5);
+      for (let i = 0; n < b.max_players; i++, n++) seatUp(b, ensureBot(pool[i]), true, now);
     }
-    if (playersOf(id).length < 2) return fail(409, "you need at least 2 players (or fill with Scrappy Bots)");
+    if (playersOf(id).length < 2) return fail(409, "you need at least 2 players (or fill with practice bots)");
     start(b, now);
     return { ok: true as const, battle: get(id)! };
   };
 
-  const ensureBot = (i: number, species: string) => {
-    const id = `${BOT_ID}-${i}`;
+  /** One account per practice bot so each keeps its name and pet. They can never log in or join staked battles. */
+  const ensureBot = (p: (typeof PRACTICE_BOTS)[number]) => {
+    const id = `${BOT_ID}-${p.key}`;
     db.query(
       `INSERT OR IGNORE INTO workers (id, wallet, token_hash, languages, pet_name, species, created_at)
        VALUES (?, ?, ?, '[]', ?, ?, ?)`,
-    ).run(id, `ScrappyBot${i}`.padEnd(43, "1"), `bot:no-login:${i}`, `Scrappy Bot ${i + 1}`, species, Date.now());
-    return { id, pet_name: `Scrappy Bot ${i + 1}`, species };
+    ).run(id, `Bot${p.key}`.padEnd(43, "1").slice(0, 44), `bot:no-login:${p.key}`, p.name, p.species, Date.now());
+    return { id, pet_name: p.name, species: p.species };
   };
 
   const leave = (id: string, w: WorkerRow) => {

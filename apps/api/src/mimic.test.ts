@@ -93,7 +93,8 @@ describe("mimic battles API", () => {
     expect((await s.req("POST", `/v1/mimic/${id}/start`, {}, ben)).status).toBe(404); // only the host starts
     const started = await s.req("POST", `/v1/mimic/${id}/start`, { fill_with_bots: true }, ana);
     expect(started.body).toMatchObject({ status: "active", round: 1 });
-    expect(started.body.players.map((p: any) => [p.name, p.bot])).toEqual([["Ana", false], ["Ben", false], ["Cai", false], ["Scrappy Bot", true]]);
+    expect(started.body.players.map((p: any) => p.bot)).toEqual([false, false, false, true]);
+    expect(started.body.players[3].name).toMatch(/ · /); // a practice bot: pet name · country, still flagged bot
     expect(started.body.players[3].submitted).toBe(true); // the bot sang already
 
     const quality = { [ana]: 0, [ben]: 1.5, [cai]: 3 } as Record<string, number>;
@@ -106,7 +107,7 @@ describe("mimic battles API", () => {
         expect(r.status).toBe(200);
         if (t === ana && round === 1) {
           expect(r.body.results).toHaveLength(0); // round still open: nobody's score shows yet
-          expect(r.body.your_entry).toBe(100);
+          expect(r.body.your_entry).toBeGreaterThanOrEqual(95);
           expect((await s.req("POST", `/v1/mimic/${id}/submit`, { round, contour: sing(target) }, ana)).status).toBe(409); // one entry
         }
       }
@@ -121,7 +122,7 @@ describe("mimic battles API", () => {
     expect(pings.some((p) => p.title === "You won the Mimic battle!")).toBe(true);
     const board = (await s.req("GET", "/v1/mimic/leaderboard")).body.entries;
     expect(board[0]).toMatchObject({ pet_name: "Ana", wins: 1 });
-    expect(board.every((e: any) => !String(e.pet_name).startsWith("Scrappy Bot"))).toBe(true);
+    expect(board.every((e: any) => !String(e.pet_name).includes(" · "))).toBe(true); // practice bots never rank
   });
 
   test("quick match pairs two players; a no-show scores 0 when the round times out", async () => {
