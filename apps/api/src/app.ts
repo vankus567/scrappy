@@ -563,9 +563,12 @@ export function createApp(deps: AppDeps) {
       audio: z.string().max(2_100_000),
       contour: z.string().min(1).max(2000),
       duration_ms: z.number().min(300).max(12_000),
+      category: z.enum(["sound", "dialogue", "animal"]).default("sound"),
+      quote: z.string().trim().min(2).max(140).optional(),
+      movie: z.string().trim().min(1).max(80).optional(),
     }).safeParse(await body(c));
     if (!p.success) return bad(c, p.error);
-    const r = await mimic.uploadClip(w, p.data.title, p.data.mime, p.data.audio, p.data.contour, p.data.duration_ms);
+    const r = await mimic.uploadClip(w, p.data.title, p.data.mime, p.data.audio, p.data.contour, p.data.duration_ms, { category: p.data.category, quote: p.data.quote, movie: p.data.movie });
     return r.ok ? c.json(r.clip, 201) : c.json({ error: r.error }, r.status as 400);
   });
 

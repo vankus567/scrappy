@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join as pathJoin } from "node:path";
 import { type Db, uid } from "./db";
-import { botContour, framesFromContour, melody, melodyFrames, MIMIC_ROUNDS, scoreContour } from "./mimic";
+import { ANIMALS, animalByKey, animalFrames, animalMs, botContour, framesFromContour, melody, melodyFrames, MIMIC_ROUNDS, scoreContour } from "./mimic";
 import type { WorkerPush } from "./payments";
 import type { WorkerRow } from "./tasks";
 
@@ -24,7 +24,12 @@ type Battle = {
 };
 type Player = { battle_id: string; worker_id: string; seat: number; name: string | null; species: string | null; is_bot: number; joined_at: number };
 type Entry = { battle_id: string; round: number; worker_id: string; contour: string; score: number; submitted_at: number };
-type Clip = { id: string; title: string; kind: "tune" | "upload"; owner_id: string | null; file: string | null; mime: string | null; frames: string; duration_ms: number; reports: number; hidden: number; created_at: number };
+export const CATEGORIES = ["sound", "dialogue", "animal"] as const;
+export type Category = (typeof CATEGORIES)[number];
+type Clip = {
+  id: string; title: string; kind: "tune" | "upload"; owner_id: string | null; file: string | null; mime: string | null; frames: string; duration_ms: number;
+  reports: number; hidden: number; created_at: number; category: Category | null; quote: string | null; movie: string | null; owner_name: string | null;
+};
 
 type Fail = { ok: false; status: number; error: string };
 const fail = (status: number, error: string): Fail => ({ ok: false, status, error });
@@ -58,6 +63,9 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
     CREATE INDEX IF NOT EXISTS mimic_open ON mimic_battles(status, mode, created_at);
     CREATE INDEX IF NOT EXISTS mimic_players_w ON mimic_players(worker_id);
   `);
+  // clip categories (famous-line performances, animal impressions) arrived after clips first shipped
+  const clipCols = (db.query("PRAGMA table_info(clips)").all() as { name: string }[]).map((c) => c.name);
+  for (const col of ["category TEXT", "quote TEXT", "movie TEXT"]) if (!clipCols.includes(col.split(" ")[0])) db.exec(`ALTER TABLE clips ADD COLUMN ${col}`);
   db.query(
     `INSERT OR IGNORE INTO workers (id, wallet, token_hash, languages, pet_name, species, created_at)
      VALUES (?, 'ScrappyBot1111111111111111111111111111111', 'bot:no-login', '[]', 'Scrappy Bot', 'mochi', ?)`,
@@ -79,11 +87,16 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
 
   // ---------------- clips ----------------
 
-  const clipRow = (id: string) => db.query("SELECT * FROM clips WHERE id = ?").get(id) as Clip | null;
+  const clipRow = (id: string) =>
+    db.query("SELECT c.*, w.pet_name AS owner_name FROM clips c LEFT JOIN workers w ON w.id = c.owner_id WHERE c.id = ?").get(id) as Clip | null;
 
   /** A clip's pitch line (the scoring target). Tunes are generated; uploads are stored. */
   const targetOf = (clipId: string): number[] | null => {
     if (clipId.startsWith("tune:")) return melodyFrames(melody(clipId.slice(5)));
+    if (clipId.startsWith("animal:")) {
+      const a = animalByKey(clipId.slice(7));
+      return a ? animalFrames(a) : null;
+    }
     const c = clipRow(clipId);
     return c && !c.hidden ? (JSON.parse(c.frames) as number[]) : null;
   };
@@ -95,23 +108,38 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
       const name = TUNE_NAMES[parseInt(seed.slice(0, 6), 36) % TUNE_NAMES.length] ?? "Scrappy Tune";
       return { id: clipId, kind: "tune" as const, title: name, notes, frames: melodyFrames(notes), duration_ms: notes.reduce((s, n) => s + n.ms, 0) };
     }
+    if (clipId.startsWith("animal:")) {
+      const a = animalByKey(clipId.slice(7));
+      if (!a) return null;
+      return { id: clipId, kind: "animal" as const, title: `${a.name}: ${a.call}`, animal: a, frames: animalFrames(a), duration_ms: animalMs(a) };
+    }
     const c = clipRow(clipId);
     if (!c) return null;
-    return { id: c.id, kind: "upload" as const, title: c.title, audio_url: `/v1/clips/${c.id}/audio`, frames: JSON.parse(c.frames) as number[], duration_ms: c.duration_ms, hidden: !!c.hidden };
+    return {
+      id: c.id, kind: "upload" as const, title: c.title, audio_url: `/v1/clips/${c.id}/audio`, frames: JSON.parse(c.frames) as number[], duration_ms: c.duration_ms,
+      hidden: !!c.hidden, category: c.category ?? "sound", quote: c.quote, movie: c.movie, by: c.owner_name,
+    };
   };
 
-  /** Three clips for a battle: player uploads when there are any, topped up with fresh Scrappy Tunes. */
+  /** Three different clips for a battle: player recordings when there are any, mixed with animal calls and fresh Scrappy Tunes. */
   const pickClips = () => {
     const uploads = (db.query("SELECT id FROM clips WHERE kind = 'upload' AND hidden = 0 ORDER BY RANDOM() LIMIT 3").all() as { id: string }[]).map((r) => r.id);
+    const animals = [...ANIMALS].sort(() => Math.random() - 0.5);
     const out: string[] = [];
     for (let i = 0; i < MIMIC_ROUNDS; i++) {
-      out.push(uploads[i] && Math.random() < 0.6 ? uploads[i] : `tune:${Math.random().toString(36).slice(2, 10)}`);
+      const r = Math.random();
+      if (uploads[i] && r < 0.5) out.push(uploads[i]);
+      else if (r < 0.75) out.push(`animal:${animals[i].key}`);
+      else out.push(`tune:${Math.random().toString(36).slice(2, 10)}`);
     }
     return out;
   };
 
   const IMAGE_OK = new Set(["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-wav", "audio/aac"]);
-  const uploadClip = async (w: WorkerRow, title: string, mime: string, base64: string, contour: string, durationMs: number) => {
+  const uploadClip = async (
+    w: WorkerRow, title: string, mime: string, base64: string, contour: string, durationMs: number,
+    meta: { category?: Category; quote?: string; movie?: string } = {},
+  ) => {
     if (!IMAGE_OK.has(mime.split(";")[0])) return fail(400, "clip must be an audio file");
     const frames = framesFromContour(contour);
     if (!frames) return fail(400, "we couldn't hear a clear sound in that clip; try one with a voice or a tune");
@@ -121,8 +149,8 @@ export function createMimicService(db: Db, opts: { push?: WorkerPush; clipDir?: 
     const file = `${id}.${mime.split("/")[1].split(";")[0]}`;
     await Bun.write(pathJoin(clipDir, file), bytes);
     db.query(
-      "INSERT INTO clips (id, title, kind, owner_id, file, mime, frames, duration_ms, created_at) VALUES (?, ?, 'upload', ?, ?, ?, ?, ?, ?)",
-    ).run(id, title, w.id, file, mime.split(";")[0], JSON.stringify(frames), Math.round(durationMs), Date.now());
+      "INSERT INTO clips (id, title, kind, owner_id, file, mime, frames, duration_ms, created_at, category, quote, movie) VALUES (?, ?, 'upload', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run(id, title, w.id, file, mime.split(";")[0], JSON.stringify(frames), Math.round(durationMs), Date.now(), meta.category ?? "sound", meta.quote ?? null, meta.movie ?? null);
     return { ok: true as const, clip: clipView(id)! };
   };
 

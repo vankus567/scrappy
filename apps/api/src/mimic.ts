@@ -125,7 +125,8 @@ export function scoreContour(target: number[], text: string): number | null {
   const pitch = Math.max(0, 100 - avgErr * 36);
   // sang for roughly as long as the melody lasts
   const ratio = voiced.length / n;
-  const length = ratio < 1 ? 0.55 + 0.45 * ratio : ratio > 1.7 ? Math.max(0.6, 1 - (ratio - 1.7) * 0.4) : 1;
+  // rhythm: much longer or shorter than the sound loses points (a slow moo is not a quick meow)
+  const length = Math.min(1, Math.max(0.35, 1 - Math.max(0, Math.abs(Math.log2(ratio)) - 0.15) * 0.75));
   return Math.round(pitch * length);
 }
 
@@ -145,6 +146,37 @@ export function botContour(target: number[], rand: () => number = Math.random): 
   }
   return out.slice(0, MAX_FRAMES).join(",");
 }
+
+// ---------------- animal calls ----------------
+// Built-in, synthesized by the app (no recordings): each call is a few pitch glides.
+export type Glide = { from: number; to: number; ms: number; wobble?: number } | { gap: number };
+export type Animal = { key: string; name: string; call: string; wave: "sine" | "triangle" | "sawtooth" | "square"; root: number; glides: Glide[] };
+
+export const ANIMALS: Animal[] = [
+  { key: "cat", name: "Cat", call: "Meow", wave: "sawtooth", root: 660, glides: [{ from: 0, to: 5, ms: 250 }, { from: 5, to: -3, ms: 500 }] },
+  { key: "dog", name: "Dog", call: "Woof woof", wave: "square", root: 300, glides: [{ from: 3, to: -4, ms: 200 }, { gap: 160 }, { from: 3, to: -4, ms: 220 }] },
+  { key: "cow", name: "Cow", call: "Moo", wave: "sawtooth", root: 160, glides: [{ from: 0, to: 2, ms: 300 }, { from: 2, to: -4, ms: 900 }] },
+  { key: "owl", name: "Owl", call: "Hoo hoo", wave: "sine", root: 420, glides: [{ from: 0, to: 0, ms: 320 }, { gap: 140 }, { from: -3, to: -4, ms: 560 }] },
+  { key: "rooster", name: "Rooster", call: "Cock-a-doodle-doo", wave: "sawtooth", root: 520, glides: [{ from: 0, to: 4, ms: 180 }, { from: 4, to: 4, ms: 150 }, { from: 5, to: 7, ms: 260 }, { from: 7, to: 0, ms: 600 }] },
+  { key: "wolf", name: "Wolf", call: "Awoooo", wave: "triangle", root: 300, glides: [{ from: -5, to: 7, ms: 700 }, { from: 7, to: 7, ms: 500, wobble: 0.4 }, { from: 7, to: -1, ms: 700 }] },
+  { key: "duck", name: "Duck", call: "Quack quack", wave: "square", root: 480, glides: [{ from: 3, to: 0, ms: 220 }, { gap: 110 }, { from: 3, to: 0, ms: 240 }] },
+  { key: "sheep", name: "Sheep", call: "Baa", wave: "sawtooth", root: 400, glides: [{ from: 2, to: 1, ms: 800, wobble: 0.6 }] },
+  { key: "bird", name: "Bird", call: "Tweet tweet", wave: "sine", root: 1400, glides: [{ from: 0, to: 4, ms: 130 }, { from: 4, to: 0, ms: 130 }, { gap: 90 }, { from: 0, to: 4, ms: 130 }, { from: 4, to: 0, ms: 130 }] },
+  { key: "lion", name: "Lion", call: "Roar", wave: "sawtooth", root: 140, glides: [{ from: 0, to: 3, ms: 350 }, { from: 3, to: -5, ms: 800, wobble: 0.3 }] },
+];
+export const animalByKey = (key: string) => ANIMALS.find((a) => a.key === key) ?? null;
+
+/** An animal call as a pitch line (semitones relative to its root, voiced frames only). */
+export function animalFrames(a: Animal): number[] {
+  const out: number[] = [];
+  for (const g of a.glides) {
+    if ("gap" in g) continue;
+    const steps = Math.max(1, Math.round(g.ms / FRAME_MS));
+    for (let i = 0; i < steps; i++) out.push(g.from + ((g.to - g.from) * i) / Math.max(1, steps - 1) + (g.wobble ? (i % 2 ? g.wobble : -g.wobble) : 0));
+  }
+  return out;
+}
+export const animalMs = (a: Animal) => a.glides.reduce((s, g) => s + ("gap" in g ? g.gap : g.ms), 0);
 
 /** An uploaded clip's pitch line (from the uploader's phone): voiced frames only, semitones. */
 export function framesFromContour(text: string): number[] | null {
