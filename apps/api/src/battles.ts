@@ -1,4 +1,5 @@
-import { type Element, elementOf, isMove, type Move, type Play, ROUNDS, score, type Side, verifyReveal } from "./battle";
+import { type Element, elementOf, type Side, verifyReveal } from "./battle";
+import { type Game, GAME_ROUNDS as ROUNDS, type Play, scoreGame, validMove } from "./games";
 import { type Db, uid } from "./db";
 import type { WorkerPush } from "./payments";
 import type { WorkerRow } from "./tasks";
@@ -16,7 +17,7 @@ export const QUICK_MATCH_MS = 10 * 60_000; // quick-match invites older than thi
 export const MAX_STAKE = 3;
 
 export type BattleRow = {
-  id: string; mode: "friend" | "quick"; a_id: string; b_id: string | null; a_species: string; b_species: string | null;
+  id: string; mode: "friend" | "quick"; game: Game; a_id: string; b_id: string | null; a_species: string; b_species: string | null;
   a_name: string | null; b_name: string | null; stake_food: number; status: "open" | "active" | "done" | "cancelled";
   winner: "a" | "b" | "draw" | null; round: number; round_deadline: number | null; created_at: number; finished_at: number | null;
 };
@@ -54,6 +55,9 @@ export function migrateBattles(db: Db) {
       PRIMARY KEY (battle_id, round, side)
     );
   `);
+  // game modes arrived after battles first shipped
+  const cols = (db.query("PRAGMA table_info(battles)").all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes("game")) db.exec("ALTER TABLE battles ADD COLUMN game TEXT NOT NULL DEFAULT 'duel'");
 }
 
 type Fail = { ok: false; status: number; error: string };
@@ -87,11 +91,11 @@ export function createBattleService(db: Db, push?: WorkerPush) {
   const playedRounds = (b: BattleRow, now: number) => {
     const rows = movesOf(b.id);
     const out: { a: Play; b: Play }[] = [];
-    const play = (m: MoveRow | undefined): Play => (isMove(m?.move) ? (m!.move as Move) : m?.commit_hash ? "locked" : null);
+    const play = (m: MoveRow | undefined): Play => (m?.move ? m.move : m?.commit_hash ? "locked" : null);
     for (let r = 1; r <= b.round; r++) {
       const a = play(rows.find((m) => m.round === r && m.side === "a"));
       const bm = play(rows.find((m) => m.round === r && m.side === "b"));
-      const bothRevealed = isMove(a) && isMove(bm);
+      const bothRevealed = !!a && a !== "locked" && !!bm && bm !== "locked";
       const closed = r < b.round || bothRevealed || (b.round_deadline !== null && now >= b.round_deadline);
       if (closed) out.push({ a, b: bm });
     }
@@ -113,7 +117,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
       const cur = get(b.id)!;
       if (cur.status !== "active") return cur;
       const played = playedRounds(cur, now);
-      const s = score(played, ...elements(cur));
+      const s = scoreGame(cur.game, played, ...elements(cur));
       if (s.done) {
         db.transaction(() => {
           const r = db.query("UPDATE battles SET status = 'done', winner = ?, finished_at = ? WHERE id = ? AND status = 'active'").run(s.winner, now, cur.id);
@@ -139,15 +143,15 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     }
   };
 
-  const create = (w: WorkerRow, mode: "friend" | "quick", stake: number, now = Date.now()): { ok: true; battle: BattleRow } | Fail => {
+  const create = (w: WorkerRow, mode: "friend" | "quick", stake: number, game: Game = "duel", now = Date.now()): { ok: true; battle: BattleRow } | Fail => {
     const bad = canFight(w, stake);
     if (bad) return bad;
     const id = uid();
     const ok = db.transaction(() => {
       if (!takeFood(w.id, stake)) return false;
       db.query(
-        `INSERT INTO battles (id, mode, a_id, a_species, a_name, stake_food, status, round, created_at) VALUES (?, ?, ?, ?, ?, ?, 'open', 1, ?)`,
-      ).run(id, mode, w.id, w.species!, w.pet_name, stake, now);
+        `INSERT INTO battles (id, mode, game, a_id, a_species, a_name, stake_food, status, round, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 1, ?)`,
+      ).run(id, mode, game, w.id, w.species!, w.pet_name, stake, now);
       return true;
     })();
     return ok ? { ok: true, battle: get(id)! } : fail(409, "not enough food");
@@ -173,16 +177,16 @@ export function createBattleService(db: Db, push?: WorkerPush) {
   };
 
   /** Join the oldest recent quick-match invite from someone else, or open a new one. */
-  const quick = (w: WorkerRow, now = Date.now()) => {
+  const quick = (w: WorkerRow, game: Game = "duel", now = Date.now()) => {
     const waiting = db.query(
-      "SELECT id FROM battles WHERE status = 'open' AND mode = 'quick' AND stake_food = 0 AND a_id != ? AND created_at >= ? ORDER BY created_at LIMIT 1",
-    ).get(w.id, now - QUICK_MATCH_MS) as { id: string } | null;
+      "SELECT id FROM battles WHERE status = 'open' AND mode = 'quick' AND game = ? AND stake_food = 0 AND a_id != ? AND created_at >= ? ORDER BY created_at LIMIT 1",
+    ).get(game, w.id, now - QUICK_MATCH_MS) as { id: string } | null;
     if (waiting) {
       const r = join(waiting.id, w, now);
       if (r.ok) return r;
     }
-    const mine = db.query("SELECT * FROM battles WHERE status = 'open' AND mode = 'quick' AND a_id = ? AND created_at >= ?").get(w.id, now - QUICK_MATCH_MS) as BattleRow | null;
-    return mine ? { ok: true as const, battle: mine } : create(w, "quick", 0, now);
+    const mine = db.query("SELECT * FROM battles WHERE status = 'open' AND mode = 'quick' AND game = ? AND a_id = ? AND created_at >= ?").get(game, w.id, now - QUICK_MATCH_MS) as BattleRow | null;
+    return mine ? { ok: true as const, battle: mine } : create(w, "quick", 0, game, now);
   };
 
   const cancel = (id: string, w: WorkerRow, now = Date.now()): { ok: true } | Fail => {
@@ -231,6 +235,8 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     if (!theirs?.commit_hash) return fail(409, "wait for your opponent to lock in");
     if (mine.move) return fail(409, "already revealed");
     if (!(await verifyReveal(mine.commit_hash, move, salt))) return fail(400, "reveal does not match your locked-in move");
+    const earlier = movesOf(id).filter((m) => m.side === side && m.round < round).map((m) => m.move);
+    if (!validMove(b.game, move as string, round, earlier)) return fail(400, "that move isn't allowed in this round");
     db.query("UPDATE battle_moves SET move = ?, salt = ?, revealed_at = ? WHERE battle_id = ? AND round = ? AND side = ? AND move IS NULL").run(
       move as string, salt as string, now, id, round, side,
     );
@@ -249,7 +255,7 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     const b = advance(b0, now);
     const side = workerId ? sideOf(b, workerId) : null;
     const played = b.status === "open" ? [] : playedRounds(b, now);
-    const s = score(played, ...elements(b));
+    const s = scoreGame(b.game, played, ...elements(b));
     const cur = movesOf(b.id).filter((m) => m.round === b.round);
     const mine = side ? cur.find((m) => m.side === side) : undefined;
     const theirs = side ? cur.find((m) => m.side !== side) : undefined;
@@ -258,6 +264,8 @@ export function createBattleService(db: Db, push?: WorkerPush) {
     return {
       id: b.id,
       mode: b.mode,
+      game: b.game,
+      ...(s.state && { state: s.state }),
       status: b.status,
       you: side,
       a: pet(b.a_species, b.a_name),

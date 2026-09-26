@@ -83,13 +83,13 @@ export function score(moves: { a: Play; b: Play }[], aEl: Element, bEl: Element)
 // ---- commit-reveal: a move is locked in as sha256(move:salt) before either side reveals ----
 
 /** Hex sha256 of "move:salt". The same function runs on the phone, the server and (later) on-chain. */
-export async function commitHash(move: Move, salt: string) {
+export async function commitHash(move: string, salt: string) {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${move}:${salt}`)));
   return [...bytes].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 /** A reveal is valid only if it matches the hash committed earlier. */
 export async function verifyReveal(hash: string, move: unknown, salt: unknown) {
-  if (!isMove(move) || typeof salt !== "string" || salt.length < 16 || salt.length > 128) return false;
+  if (typeof move !== "string" || move.length < 1 || move.length > 32 || typeof salt !== "string" || salt.length < 16 || salt.length > 128) return false;
   return (await commitHash(move, salt)) === hash.toLowerCase();
 }

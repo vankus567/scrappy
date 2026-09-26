@@ -7,6 +7,7 @@ import { type Db, toUsdc, uid } from "./db";
 import { type Rpc, verifyDeposit, verifyRevive, type WorkerPush } from "./payments";
 import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
 import { createBattleService, MAX_STAKE } from "./battles";
+import { GAMES } from "./games";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
@@ -482,16 +483,18 @@ export function createApp(deps: AppDeps) {
   app.post("/v1/battles", rateLimit("battle", 30), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    const p = z.object({ stake_food: z.number().int().min(0).max(MAX_STAKE).default(0) }).safeParse((await body(c)) ?? {});
+    const p = z.object({ stake_food: z.number().int().min(0).max(MAX_STAKE).default(0), game: z.enum(GAMES).default("duel") }).safeParse((await body(c)) ?? {});
     if (!p.success) return bad(c, p.error);
-    return battleOut(c, battles.create(w, "friend", p.data.stake_food), w, 201);
+    return battleOut(c, battles.create(w, "friend", p.data.stake_food, p.data.game), w, 201);
   });
 
   /** Fight whoever is looking for a match right now, or wait for the next one. */
-  app.post("/v1/battles/quick", rateLimit("battle", 30), (c) => {
+  app.post("/v1/battles/quick", rateLimit("battle", 30), async (c) => {
     const w = me(c);
     if (!w) return c.json({ error: "unauthorized" }, 401);
-    return battleOut(c, battles.quick(w), w);
+    const p = z.object({ game: z.enum(GAMES).default("duel") }).safeParse((await body(c)) ?? {});
+    if (!p.success) return bad(c, p.error);
+    return battleOut(c, battles.quick(w, p.data.game), w);
   });
 
   app.get("/v1/battles", (c) => {
