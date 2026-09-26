@@ -1,6 +1,6 @@
 # Scrappy: project rules
 
-Product: Scrappy, the Human API. When AI needs a human, Scrappy finds one. The human shadow for AI agents. Human-in-the-loop infrastructure for AI agents; students are the first workers, the pet app is the worker front end. Source of truth: `docs/POSITIONING.md`. Specs: `docs/PRD.md`, `docs/ARCHITECTURE.md`. Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
+Product (decided 2026-09-26): **Scrappy Battles**, pet PvP for Seeker. Your real pet's photo face on a Scrappy fighter; async + live battles settle on Solana. No AI anywhere (commit-reveal, escrow of food/XP, no real-money wagers). Spec: `docs/SCRAPPY-BATTLES.md`, plan: `TODO.md`. The earlier verified-checks idea (`docs/POSITIONING.md`, proof API) is paused. Live web app: `../scrappy-classic` (branch site-classic, blue UI) deploys to scrappypet.vercel.app. Source of truth: `docs/SCRAPPY-BATTLES.md` (older specs `docs/PRD.md`, `docs/ARCHITECTURE.md` describe the paused idea). Research log: `ideas/colosseum-cwf-2026-superteam-india/IDEAS.md`.
 
 Deadlines: CLOCK IN (Solana Mobile) **Oct 8, 2026** · Colosseum + Superteam India **Oct 11** (hard deadline Oct 12).
 

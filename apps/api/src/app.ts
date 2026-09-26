@@ -6,6 +6,7 @@ import { type Auth, bearer, rateLimit, SOLANA_ADDRESS } from "./auth";
 import { type Db, toUsdc, uid } from "./db";
 import { type Rpc, verifyDeposit, verifyRevive } from "./payments";
 import { checkProof, createProofStore, type ProofStore, proofSubmit } from "./proofs";
+import { createBattleService, MAX_STAKE } from "./battles";
 import { EXPERT_LEVEL, feedPet, HIGH_REWARD_LEVEL, isFinal, levelOf, nextLevelAt, petView, PRIORITY_LEVEL, responseSchema, REVIVE_MICRO, type TaskInput, taskInput, type TaskService, type TaskStatus, tickPet, WORKER_SHARE } from "./tasks";
 
 type Billing = { mode: "x402" } | { mode: "balance"; projectId: string };
@@ -55,6 +56,7 @@ const body = async (c: Context) => c.req.json().catch(() => null);
 export function createApp(deps: AppDeps) {
   const { db, tasks, auth } = deps;
   const proofs = deps.proofs ?? createProofStore(db);
+  const battles = createBattleService(db);
   const app = new Hono<Env>();
 
   app.use("*", cors({
@@ -464,6 +466,78 @@ export function createApp(deps: AppDeps) {
   });
 
   // ================= public network data =================
+  // ================= battles =================
+
+  const me = (c: Context) => {
+    const w = worker(c);
+    if (w) tickPet(db, w);
+    return w;
+  };
+  const battleOut = (c: Context, r: { ok: true; battle: Parameters<typeof battles.view>[0] } | { ok: false; status: number; error: string }, w: { id: string }, code = 200) =>
+    r.ok ? c.json(battles.view(r.battle, w.id), code as 200) : c.json({ error: r.error }, r.status as 409);
+
+  /** Challenge a friend (share the link) with an optional food stake. */
+  app.post("/v1/battles", rateLimit("battle", 30), async (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = z.object({ stake_food: z.number().int().min(0).max(MAX_STAKE).default(0) }).safeParse((await body(c)) ?? {});
+    if (!p.success) return bad(c, p.error);
+    return battleOut(c, battles.create(w, "friend", p.data.stake_food), w, 201);
+  });
+
+  /** Fight whoever is looking for a match right now, or wait for the next one. */
+  app.post("/v1/battles/quick", rateLimit("battle", 30), (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    return battleOut(c, battles.quick(w), w);
+  });
+
+  app.get("/v1/battles", (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    return c.json({ battles: battles.listFor(w), record: battles.record(w.id), food: w.pet_food });
+  });
+
+  /** Anyone with the link can see a battle (to accept it); moves stay hidden until each round closes. */
+  app.get("/v1/battles/:id", rateLimit("read", 600), (c) => {
+    const b = battles.get(c.req.param("id"));
+    if (!b) return c.json({ error: "battle not found" }, 404);
+    return c.json(battles.view(b, worker(c)?.id ?? null));
+  });
+
+  app.post("/v1/battles/:id/join", rateLimit("battle", 30), (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    return battleOut(c, battles.join(c.req.param("id"), w), w);
+  });
+
+  app.post("/v1/battles/:id/cancel", (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const r = battles.cancel(c.req.param("id"), w);
+    return r.ok ? c.json(r) : c.json({ error: r.error }, r.status as 409);
+  });
+
+  const roundBody = z.object({ round: z.number().int().min(1).max(5) });
+
+  app.post("/v1/battles/:id/commit", rateLimit("move", 120), async (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = roundBody.extend({ hash: z.string().trim().toLowerCase() }).safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    const r = battles.commit(c.req.param("id"), w, p.data.round, p.data.hash);
+    if (!r.ok) return c.json({ error: r.error }, r.status as 409);
+    return c.json(battles.view(battles.get(c.req.param("id"))!, w.id));
+  });
+
+  app.post("/v1/battles/:id/reveal", rateLimit("move", 120), async (c) => {
+    const w = me(c);
+    if (!w) return c.json({ error: "unauthorized" }, 401);
+    const p = roundBody.extend({ move: z.string(), salt: z.string() }).safeParse(await body(c));
+    if (!p.success) return bad(c, p.error);
+    return battleOut(c, await battles.reveal(c.req.param("id"), w, p.data.round, p.data.move, p.data.salt), w);
+  });
+
   app.get("/v1/stats", (c) => {
     const now = Date.now();
     const answers = db.query("SELECT COUNT(*) AS n FROM task_responses r JOIN tasks t ON t.id = r.task_id WHERE t.is_gold = 0").get() as any;
