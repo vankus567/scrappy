@@ -154,7 +154,7 @@ Signed by your wallet. Solana devnet.`}
       <footer className="bg-ground-deep px-4 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center text-[14px] text-ink-soft">
           <p>
-            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">TIDEPOOL</span> · by scrappy · built on Solana
+            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">scrappypet</span> · home of TIDEPOOL · built on Solana
           </p>
           <a href={REPO_URL} className="transition-colors hover:text-ink">Source on GitHub</a>
         </div>

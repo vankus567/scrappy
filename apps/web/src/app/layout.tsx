@@ -23,7 +23,7 @@ const switzer = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "TIDEPOOL",
+  title: "scrappypet",
   manifest: "/manifest.webmanifest",
   description:
     "Crypto is hard, so we made it a game. TIDEPOOL is a pocket arcade game where every move is a real Solana action.",

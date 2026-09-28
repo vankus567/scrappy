@@ -1,6 +1,6 @@
 {
-  "name": "TIDEPOOL",
-  "short_name": "TIDEPOOL",
+  "name": "scrappypet",
+  "short_name": "scrappypet",
   "description": "Crypto is hard, so we made it a game.",
   "start_url": "/tidepool",
   "scope": "/",
