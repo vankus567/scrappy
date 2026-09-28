@@ -6,22 +6,30 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 type Ctx = { open: () => void };
+export interface PickerCopy {
+  title: string;
+  body: string;
+}
+const DEFAULT_COPY: PickerCopy = {
+  title: "Connect a wallet",
+  body: "This is where your USDC lands. You sign once to prove it's yours; tasks never ask for approval.",
+};
 const PickerCtx = createContext<Ctx>({ open: () => {} });
 export const useWalletPicker = () => useContext(PickerCtx);
 
 /** Scrappy's wallet picker: a bottom sheet on phones, a centred panel on desktop. Replaces the stock adapter modal. */
-export function WalletPickerProvider({ children }: { children: React.ReactNode }) {
+export function WalletPickerProvider({ children, copy = DEFAULT_COPY }: { children: React.ReactNode; copy?: PickerCopy }) {
   const [isOpen, setOpen] = useState(false);
   const open = useCallback(() => setOpen(true), []);
   return (
     <PickerCtx.Provider value={{ open }}>
       {children}
-      <Sheet open={isOpen} onClose={() => setOpen(false)} />
+      <Sheet open={isOpen} onClose={() => setOpen(false)} copy={copy} />
     </PickerCtx.Provider>
   );
 }
 
-function Sheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function Sheet({ open, onClose, copy }: { open: boolean; onClose: () => void; copy: PickerCopy }) {
   const { wallets, select, connecting } = useWallet();
   const reduce = useReducedMotion();
   const [picked, setPicked] = useState<string | null>(null);
@@ -60,8 +68,8 @@ function Sheet({ open, onClose }: { open: boolean; onClose: () => void }) {
             exit={reduce ? { opacity: 0 } : { y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 420, damping: 36 }}
           >
-            <h2 id="wallet-title" className="font-display text-[26px] font-bold">Connect a wallet</h2>
-            <p className="mt-1 text-[15px] text-ink-soft">This is where your USDC lands. You sign once to prove it&apos;s yours; tasks never ask for approval.</p>
+            <h2 id="wallet-title" className="font-display text-[26px] font-bold">{copy.title}</h2>
+            <p className="mt-1 text-[15px] text-ink-soft">{copy.body}</p>
 
             {ready.length ? (
               <ul className="mt-5 space-y-2">

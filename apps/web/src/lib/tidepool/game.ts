@@ -1,7 +1,9 @@
-import type { KeyPairSigner } from "@solana/kit";
+import type { TransactionSigner } from "@solana/kit";
 import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, type Console, Image } from "@/lib/console";
-import { insertCartridge, shortId } from "./cartridge";
 import * as chain from "./chain";
+import { type MapPool, mapPools, nextPin } from "./pools";
+
+const shortId = (a: string) => `${a.slice(0, 4)}..${a.slice(-4)}`;
 import { type Candle, candles as fetchCandles, lastPrice, PRICE_SOURCE } from "./prices";
 
 /**
@@ -23,11 +25,14 @@ const TICK_FRAMES = FPS * 2; // live price every 2 s
 const FEE_FRAMES = FPS * 10; // fees every 10 s
 const FED = BigInt(250_000_000);
 
-type Scene = "boot" | "card" | "pools" | "pick" | "range" | "round" | "results" | "disk";
+type Scene = "boot" | "insert" | "card" | "map" | "pick" | "range" | "round" | "results" | "disk";
 
 export interface GameEvents {
   onTx?: (label: string, signature: string) => void;
-  onSlot?: (address: string) => void;
+  /** The player pressed A with no cartridge: the host opens its wallet picker. */
+  onConnect?: () => void;
+  /** EJECT: the host disconnects the wallet. */
+  onEject?: () => void;
 }
 
 // palette indices
@@ -63,7 +68,7 @@ const SPRITES: Record<number, string[][]> = {
   ],
 };
 
-const CARD_MENU = ["NEW ROUND", "MY DISK", "GET FOOD", "SAVE BACKUP"] as const;
+const CARD_MENU = ["NEW ROUND", "MY DISK", "TEST SOL", "EJECT"] as const;
 const DISK_MENU = ["COLLECT COINS", "RELEASE DISK", "BACK"] as const;
 
 export class Tidepool {
@@ -73,10 +78,11 @@ export class Tidepool {
   private note: string | null = null;
   private t = 0;
 
-  private signer?: KeyPairSigner;
+  private signer?: TransactionSigner;
   private balance = BigInt(0);
-  private pools: chain.ListedPool[] = [];
-  private poolIdx = 0;
+  private pins: MapPool[] = [];
+  private pinIdx = 0;
+  private rebalances = 0;
   private disk?: chain.Creature;
   private diskPool?: chain.Pool;
   private food: chain.Food = { sol: 0, usdc: 0 };
@@ -136,15 +142,32 @@ export class Tidepool {
     fn().catch(() => {});
   }
 
-  private get pool(): chain.ListedPool | undefined {
-    return this.pools[this.poolIdx];
+  private get pin(): MapPool | undefined {
+    return this.pins[this.pinIdx];
+  }
+
+  /** The host calls this when the player's wallet connects (or with undefined when it disconnects). */
+  setSigner(signer: TransactionSigner | undefined): void {
+    if (signer?.address === this.signer?.address) return;
+    this.signer = signer;
+    this.disk = undefined;
+    this.food = { sol: 0, usdc: 0 };
+    if (!signer) {
+      this.scene = "boot";
+      this.con.stopAll();
+      return;
+    }
+    if (this.scene === "boot" || this.scene === "insert") this.boot();
   }
 
   private boot(): void {
+    if (!this.signer) {
+      this.scene = "insert";
+      this.events.onConnect?.();
+      return;
+    }
+    const signer = this.signer;
     this.run("READING CARTRIDGE", async () => {
-      const { signer } = await insertCartridge();
-      this.signer = signer;
-      this.events.onSlot?.(signer.address);
       this.balance = await chain.withRetry(() => chain.solBalance(signer.address));
       await this.loadDisk();
       this.hist = await fetchCandles(50);
@@ -163,37 +186,18 @@ export class Tidepool {
     if (this.disk && this.diskPool) this.food = await chain.foodInBowl(this.signer!, this.disk, this.diskPool.solIsA);
   }
 
-  private openPools(): void {
-    this.run("SCANNING THE SEA FOR POOLS", async () => {
-      if (this.balance < FED) throw new Error("you need food first: pick GET FOOD");
-      if (this.pools.length === 0) this.pools = await chain.listPools();
-      this.poolIdx = 0;
-      this.scene = "pools";
-    });
-  }
-
-  private getFood(): void {
-    this.run("FETCHING STARTER FOOD", async () => {
-      const res = await fetch("/api/tidepool/food", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: this.signer!.address }),
-      });
-      const body = (await res.json()) as { signature?: string; error?: string };
-      if (!res.ok || !body.signature) throw new Error(body.error ?? "no food today");
-      this.events.onTx?.("starter food (0.3 test SOL)", body.signature);
-      for (let i = 0; i < 40 && this.balance < FED; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        this.balance = await chain.withRetry(() => chain.solBalance(this.signer!.address));
-      }
-      if (this.balance < FED) throw new Error("food is still on its way, try again");
-      this.con.play(0, 1);
-      this.note = "FOOD IN THE BOAT";
+  private openMap(): void {
+    this.run("CHARTING THE SEA", async () => {
+      this.balance = await chain.withRetry(() => chain.solBalance(this.signer!.address));
+      if (this.balance < FED) throw new Error("you need 0.25 test SOL. pick TEST SOL on the card");
+      this.pins = await mapPools();
+      this.pinIdx = 0;
+      this.scene = "map";
     });
   }
 
   private cast(): void {
-    const pool = this.pool!;
+    const pool = this.pin!;
     const cr = CREATURES[this.pick]!;
     const offset = this.offset;
     this.run("CASTING YOUR DISK", async () => {
@@ -219,6 +223,7 @@ export class Tidepool {
     this.hp = 100;
     this.inFrames = 0;
     this.scoredFrames = 0;
+    this.rebalances = 0;
     this.scene = "round";
     this.con.playm(1, true);
   }
@@ -259,18 +264,27 @@ export class Tidepool {
     });
   }
 
-  private backup(): void {
-    this.run("WRITING SAVE BACKUP", async () => {
-      const { exportSave } = await import("./cartridge");
-      const json = await exportSave();
-      if (!json) throw new Error("no save to back up");
-      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "tidepool-save.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      this.note = "SAVE BACKUP DOWNLOADED. KEEP IT SECRET";
+  /**
+   * REBALANCE mid-round: pull the disk in and re-cast it centred on where the price is now.
+   * Two real transactions (close, then swap+open); the round clock pauses while they sign.
+   */
+  private rebalance(): void {
+    const d = this.disk;
+    const pool = this.pin;
+    if (!d || !pool) return;
+    const cr = CREATURES[this.pick]!;
+    this.run("RE-CASTING THE NET", async () => {
+      const closeSig = await chain.release(this.signer!, d);
+      this.events.onTx?.("rebalance: close old position", closeSig);
+      const fresh = await chain.readPool(pool.address);
+      const h = await chain.hatch(this.signer!, fresh, HATCH_SOL, { low: fresh.price * (1 - cr.half), high: fresh.price * (1 + cr.half) });
+      this.events.onTx?.("rebalance: trade half", h.swapSig);
+      this.events.onTx?.("rebalance: open new position", h.openSig);
+      await this.loadDisk();
+      this.offset = 0;
+      this.lastRange = { low: this.live * (1 - cr.half), high: this.live * (1 + cr.half) };
+      this.rebalances++;
+      this.con.play(0, 2);
     });
   }
 
@@ -306,6 +320,15 @@ export class Tidepool {
     }
 
     if (this.scene === "round") {
+      if (this.error) {
+        if (a || b) this.error = null;
+        return;
+      }
+      if (this.busy) return; // clock pauses while the wallet signs
+      if (a) {
+        this.rebalance();
+        return;
+      }
       this.updateRound(b);
       return;
     }
@@ -322,6 +345,7 @@ export class Tidepool {
     const blip = () => this.con.play(0, 0);
     switch (this.scene) {
       case "boot":
+      case "insert":
         if (a) {
           blip();
           this.boot();
@@ -333,25 +357,27 @@ export class Tidepool {
         if (a) {
           blip();
           const item = CARD_MENU[this.menuIdx];
-          if (item === "NEW ROUND") this.openPools();
+          if (item === "NEW ROUND") this.openMap();
           else if (item === "MY DISK") {
             if (this.disk) { this.scene = "disk"; this.menuIdx = 0; }
             else this.note = "NO DISK YET. PLAY A NEW ROUND TO SAVE ONE";
-          } else if (item === "GET FOOD") this.getFood();
-          else if (item === "SAVE BACKUP") this.backup();
+          } else if (item === "TEST SOL") {
+            this.note = "SET YOUR WALLET TO DEVNET, THEN GET FREE TEST SOL AT FAUCET.SOLANA.COM";
+          } else if (item === "EJECT") this.events.onEject?.();
         }
         break;
-      case "pools":
-        if (up) { this.poolIdx = (this.poolIdx + this.pools.length - 1) % this.pools.length; blip(); }
-        if (down) { this.poolIdx = (this.poolIdx + 1) % this.pools.length; blip(); }
+      case "map": {
+        const dir = up ? "UP" : down ? "DOWN" : left ? "LEFT" : right ? "RIGHT" : null;
+        if (dir) { this.pinIdx = nextPin(this.pins, this.pinIdx, dir); blip(); }
         if (a) { blip(); this.scene = "pick"; }
         if (b) { this.scene = "card"; this.menuIdx = 0; }
         break;
+      }
       case "pick":
         if (left) { this.pick = (this.pick + 2) % 3; blip(); }
         if (right) { this.pick = (this.pick + 1) % 3; blip(); }
         if (a) { blip(); this.offset = 0; this.scene = "range"; }
-        if (b) this.scene = "pools";
+        if (b) this.scene = "map";
         break;
       case "range":
         if (up) { this.offset = Math.min(0.05, this.offset + 0.001); blip(); }
@@ -583,21 +609,59 @@ export class Tidepool {
         this.foot("UP/DN CHOOSE   A OK");
         break;
       }
-      case "pools": {
+      case "insert": {
         this.sea();
-        this.hud("PICK A POOL", "DEVNET");
-        this.pools.forEach((p, i) => {
-          const sel = i === this.poolIdx;
-          const y = 14 + i * 18;
-          s.rect(8, y, 144, 15, sel ? INK : NAVY);
-          if (sel) s.rectb(8, y, 144, 15, GOLD);
-          s.text(14, y + 2, p.label, sel ? GOLD : WHITE);
-          s.text(14, y + 8, `FEE ${(p.feeRate / 10000).toFixed(2)}%`, GREY);
-          const depth = Math.min(5, Math.max(1, Math.round(Math.log10(Number(p.liquidity) + 1) - 7)));
-          s.text(84, y + 8, "DEPTH", GREY);
-          this.bars(106, y + 9, depth, MINT);
+        this.bigCenter(28, "INSERT", GOLD, 2);
+        this.bigCenter(44, "CARTRIDGE", GOLD, 2);
+        // a cartridge sliding into a slot
+        const cy = 66 + Math.round(Math.abs(Math.sin(this.t / 12)) * 6);
+        s.rect(64, cy, 32, 26, GREY);
+        s.rect(68, cy + 4, 24, 12, NAVY);
+        s.text(70, cy + 7, "SOL", GOLD);
+        for (let i = 0; i < 6; i++) s.rect(66 + i * 5, cy + 22, 3, 4, GOLD);
+        s.rect(56, 96, 48, 4, INK);
+        this.center(108, "APPROVE IN YOUR WALLET", WHITE);
+        this.center(118, "(SET IT TO DEVNET)", GREY);
+        this.foot("A TRY AGAIN");
+        break;
+      }
+      case "map": {
+        s.cls(NAVY);
+        this.hud("WORLD MAP", `${this.pinIdx + 1}/${this.pins.length}`);
+        // chart area: x = safety, y = heat
+        const mx = 16, my = 14, mw = 138, mh = 78;
+        s.rect(mx, my, mw, mh, INK);
+        // three risk zones, left to right
+        s.rect(mx, my, mw * 0.3, mh, PLUM);
+        s.rect(mx + mw * 0.3, my, mw * 0.4, mh, 5);
+        s.rect(mx + mw * 0.7, my, mw * 0.3, mh, TEAL);
+        for (let gx = mx; gx < mx + mw; gx += 4) s.pset(gx, my + mh / 2, NAVY);
+        s.text(mx + 2, my + mh + 2, "RISKY", PINK);
+        s.text(mx + mw - 18, my + mh + 2, "SAFE", MINT);
+        s.text(2, my + 1, "HOT", GOLD);
+        s.text(2, my + mh - 6, "CALM", GREY);
+        this.pins.forEach((p, i) => {
+          const px = mx + 3 + Math.round((p.safety / 100) * (mw - 6));
+          const py = my + 3 + Math.round(((100 - p.heat) / 100) * (mh - 6)) + (i % 3) - 1;
+          const col = p.safety >= 70 ? MINT : p.safety >= 30 ? GOLD : PINK;
+          if (i === this.pinIdx) {
+            s.circb(px, py, 4 + (this.t % 20 < 10 ? 1 : 0), WHITE);
+            s.circ(px, py, 2, col);
+          } else s.circ(px, py, 1, col);
         });
-        this.foot("REAL ORCA POOLS  A PICK  B BACK");
+        const p = this.pin;
+        if (p) {
+          s.rect(0, 102, SCREEN_W, 33, INK);
+          s.text(4, 105, p.label, GOLD);
+          s.text(60, 105, `FEE ${(p.feeRate / 10000).toFixed(2)}%`, WHITE);
+          s.text(4, 114, `TVL $${p.tvl < 1000 ? p.tvl.toFixed(2) : Math.round(p.tvl)}`, WHITE);
+          s.text(72, 114, `24H VOL $${p.vol24 < 1000 ? p.vol24.toFixed(1) : Math.round(p.vol24)}`, WHITE);
+          s.text(4, 123, "SAFETY", GREY);
+          this.bars(32, 124, Math.max(1, Math.round(p.safety / 20)), MINT);
+          s.text(64, 123, "HEAT", GREY);
+          this.bars(84, 124, Math.max(0, Math.round(p.heat / 20)), GOLD);
+        }
+        this.foot("ORCA DEVNET  DPAD MOVE  A GO");
         break;
       }
       case "pick": {
@@ -645,7 +709,7 @@ export class Tidepool {
         const pct = this.scoredFrames ? Math.round((this.inFrames / this.scoredFrames) * 100) : 100;
         s.text(84, 114, `IN NET ${pct}%`, inside ? MINT : PINK);
         s.text(4, 124, this.feedOk ? `LIVE ${PRICE_SOURCE}` : "PRICE FEED LOST: PAUSED", this.feedOk ? GREY : PINK);
-        this.foot("B END ROUND");
+        this.foot(`A REBALANCE (${this.rebalances})   B END ROUND`);
         break;
       }
       case "results": {
@@ -659,6 +723,7 @@ export class Tidepool {
         s.text(52, 24, `IN THE NET  ${pct}%`, WHITE);
         s.text(52, 34, `TIME  ${Math.round(this.scoredFrames / FPS)}S`, WHITE);
         s.text(52, 44, `HP LEFT  ${this.hp}`, this.hp > 40 ? MINT : PINK);
+        s.text(52, 54, `REBALANCES  ${this.rebalances}`, WHITE);
         s.text(14, 62, "YOUR DISK (DEVNET ORCA)", GREY);
         s.text(14, 72, this.disk ? `ID ${shortId(this.disk.mint)}` : "NO DISK", WHITE);
         s.text(14, 82, `COINS WAITING $${this.coins().toFixed(4)}`, GOLD);

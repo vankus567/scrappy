@@ -1,24 +1,30 @@
-/* The device is the brand: an oxidised sea-green shell, a deep bezel, coral face buttons.
-   Depth comes from tone and one directional light (top-left), never a halo. */
+/* A physical handheld: moulded warm-grey ABS, a dark lens bezel, one light source from the top-left.
+   Depth comes from tone, bevels and tight directional shadows; nothing glows, nothing floats. */
 
 .room {
-  --shell: #2f5a50;
-  --shell-hi: #3d6e62;
-  --shell-lo: #24463e;
-  --bezel: #12241f;
-  --coral: #c0654f;
-  --coral-lo: #9b4d3b;
-  --ink: #e8efe9;
-  --dim: #97ada5;
+  --plastic: #cdc9c0;
+  --plastic-hi: #dcd8d0;
+  --plastic-lo: #b5b1a8;
+  --seam: #a39f96;
+  --bezel: #52566a;
+  --bezel-lo: #3f4254;
+  --ink-navy: #e6fbf6;
+  --plum: #8a1f4c;
+  --plum-lo: #5e1233;
+  --rubber: #7d7a74;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
-  background: #0d1a17;
-  color: var(--ink);
+  gap: 16px;
+  padding: 28px 16px calc(28px + env(safe-area-inset-bottom));
+  perspective: 1400px;
+  /* a sea backdrop with texture, so the glass shell has something real to refract */
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'><path d='M0 60 Q30 40 60 60 T120 60 T180 60 T240 60' fill='none' stroke='%23ffffff' stroke-opacity='.05' stroke-width='2'/><path d='M0 100 Q30 80 60 100 T120 100 T180 100 T240 100' fill='none' stroke='%23ffffff' stroke-opacity='.035' stroke-width='2'/></svg>"),
+    linear-gradient(170deg, #0f3b3f 0%, #0b2a33 45%, #081a22 100%);
+  color: #e8e4dc;
   font-family: var(--font-switzer), system-ui, sans-serif;
   touch-action: manipulation;
   user-select: none;
@@ -26,144 +32,385 @@
 }
 
 .device {
-  width: min(380px, 100%);
-  padding: 22px 22px 18px;
-  border-radius: 22px 22px 56px 22px;
-  background: linear-gradient(160deg, var(--shell-hi), var(--shell) 38%, var(--shell-lo));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 2px 3px rgba(5, 14, 12, 0.5);
+  position: relative;
+  width: min(372px, 100%);
+  padding: 30px 22px 26px;
+  border-radius: 14px 14px 78px 14px;
+  /* translucent smoked-teal plastic: faint circuit traces show through, like a clear shell */
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><path d='M10 20 H60 V70 H110 M20 110 V80 H50 M80 10 V40 H100' fill='none' stroke='%23d8fff6' stroke-opacity='.07' stroke-width='1.5'/><circle cx='60' cy='70' r='2.5' fill='%23d8fff6' fill-opacity='.1'/><circle cx='50' cy='80' r='2.5' fill='%23d8fff6' fill-opacity='.1'/></svg>"),
+    linear-gradient(160deg, rgba(150, 214, 204, 0.42) 0%, rgba(62, 142, 138, 0.38) 45%, rgba(24, 84, 88, 0.5) 100%);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* stacked edge layers give the shell real thickness; one tight shadow from the top-left light */
+  box-shadow:
+    inset 1px 1px 0 rgba(235, 255, 250, 0.7),
+    inset 0 18px 30px -18px rgba(235, 255, 250, 0.35),
+    inset -2px -3px 0 rgba(0, 30, 30, 0.25),
+    1px 2px 0 #3d7f7a,
+    2px 4px 0 #2f6b67,
+    3px 6px 0 #245955,
+    4px 8px 0 #1b4845,
+    10px 16px 18px rgba(0, 10, 12, 0.5);
+}
+
+/* gloss: one clean specular sheen across the top-left, plus a hint of edge dispersion */
+.device::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 22%, transparent 36%),
+    linear-gradient(to right, rgba(255, 120, 160, 0.06), transparent 3%, transparent 97%, rgba(120, 200, 255, 0.07));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* moulding line across the top, like a two-part shell */
+.device::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, rgba(0, 30, 30, 0.3), rgba(235, 255, 250, 0.35));
+}
+
+.switch {
+  position: absolute;
+  top: 5px;
+  left: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.switchSlot {
+  width: 30px;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, rgba(0, 30, 30, 0.5), rgba(0, 30, 30, 0.25));
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.switchText {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: #cfeee8;
+  text-shadow: 0 1px 1px rgba(0, 30, 30, 0.45);
 }
 
 .bezel {
-  padding: 16px;
-  border-radius: 10px 10px 28px 10px;
-  background: var(--bezel);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+  border-radius: 10px 10px 40px 10px;
+  padding: 10px 16px 18px;
+  background: linear-gradient(170deg, #5b5f74, var(--bezel) 50%, var(--bezel-lo));
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.bezelTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.stripe {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #7c2b4d 0 45%, transparent 45% 60%, #2d3f8c 60%);
+}
+.bezelText {
+  font-size: 7.5px;
+  letter-spacing: 0.1em;
+  color: #c3c5d2;
+  white-space: nowrap;
+}
+
+.bezelBody {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: center;
+}
+
+.led {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-left: -8px;
+}
+.ledOn,
+.ledOff {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.ledOn {
+  background: radial-gradient(circle at 35% 30%, #ff9c8a, #e0332a 60%, #9c1d18);
+}
+.ledOff {
+  background: radial-gradient(circle at 35% 30%, #7d5a58, #4a2f2e);
+}
+.ledText {
+  font-size: 6px;
+  letter-spacing: 0.06em;
+  color: #a9abb9;
 }
 
 .screen {
+  position: relative;
   aspect-ratio: 160 / 144;
   width: 100%;
-  display: grid;
-  place-items: center;
   overflow: hidden;
+  border-radius: 2px;
   background: #2b335f;
+  box-shadow: inset 0 0 0 2px #2b2d38, 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
-
 /* The box has the game's exact 160:144 aspect, so filling it never distorts; pixelated keeps it crisp. */
 .screen canvas {
   width: 100% !important;
   height: 100% !important;
-  border-radius: 2px;
+}
+/* faint glass reflection from the top-left light */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(128deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 28%, transparent 40%);
 }
 
 .brand {
-  margin: 12px 4px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 12px 2px 0;
+  color: var(--ink-navy);
+}
+.brandName {
   font-family: var(--font-pally), var(--font-switzer), sans-serif;
   font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.18em;
-  color: #a9c8bd;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  font-style: italic;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0, 30, 30, 0.45);
+}
+.brandSub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 1px rgba(0, 30, 30, 0.45);
 }
 
 .controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 22px;
-  padding: 0 4px;
+  margin-top: 26px;
 }
 
+/* D-pad sits in a shallow moulded well */
 .dpad {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.1) 55%, transparent 70%);
 }
-
 .arm {
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 36px;
   border: 0;
   padding: 0;
-  background: #1a2d28;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, #3a3a3d, #1f1f22);
   cursor: pointer;
   touch-action: none;
 }
-.arm:active { background: #0f1c19; }
-.up { left: 40px; top: 0; border-radius: 6px 6px 0 0; }
-.down { left: 40px; bottom: 0; border-radius: 0 0 6px 6px; }
-.left { left: 0; top: 40px; border-radius: 6px 0 0 6px; }
-.right { right: 0; top: 40px; border-radius: 0 6px 6px 0; }
+.arm::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 5px solid transparent;
+  transform: translate(-50%, -50%);
+  opacity: 0.55;
+}
+.up { left: 37px; top: 2px; border-radius: 5px 5px 0 0; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.14); }
+.up::after { border-bottom-color: #5c5c61; margin-top: -3px; }
+.down { left: 37px; bottom: 2px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 0 #0e0e10; }
+.down::after { border-top-color: #5c5c61; margin-top: 3px; }
+.left { left: 2px; top: 36px; width: 36px; height: 36px; border-radius: 5px 0 0 5px; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.14), 0 2px 0 #0e0e10; }
+.left::after { border-right-color: #5c5c61; margin-left: -3px; }
+.right { right: 2px; top: 36px; width: 36px; height: 36px; border-radius: 0 5px 5px 0; box-shadow: 0 2px 0 #0e0e10; }
+.right::after { border-left-color: #5c5c61; margin-left: 3px; }
+.arm:active {
+  background: linear-gradient(160deg, #2b2b2e, #18181a);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.5);
+  transform: translateY(1px);
+}
 .hub {
   position: absolute;
-  left: 40px;
-  top: 40px;
-  width: 40px;
-  height: 40px;
-  background: #1a2d28;
+  left: 37px;
+  top: 36px;
+  width: 34px;
+  height: 36px;
+  background: #262629;
+}
+.hub::after {
+  content: "";
+  position: absolute;
+  inset: 9px 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 65%, #313135, #1a1a1c);
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .face {
   display: flex;
-  gap: 14px;
-  align-items: center;
-  transform: rotate(-22deg);
+  gap: 18px;
+  transform: rotate(-25deg);
+  margin-right: 4px;
 }
-
+.faceBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 26px;
+}
+.faceA {
+  margin-top: 0;
+}
 .round {
-  width: 58px;
-  height: 58px;
+  width: 50px;
+  height: 50px;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #d27a63, var(--coral) 55%, var(--coral-lo));
-  color: #3a1a12;
-  font-weight: 600;
-  font-size: 15px;
-  box-shadow: 0 2px 0 var(--coral-lo), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: radial-gradient(circle at 36% 30%, #b8416f 0%, var(--plum) 45%, var(--plum-lo) 100%);
+  box-shadow: 0 3px 0 #3f0b22, inset 0 1px 1px rgba(255, 255, 255, 0.35), 2px 4px 6px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   touch-action: none;
 }
 .round:active {
-  background: radial-gradient(circle at 35% 30%, #b86b56, #a95743 55%, var(--coral-lo));
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #3f0b22, inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  background: radial-gradient(circle at 36% 30%, #9c3560 0%, #7a1b43 45%, var(--plum-lo) 100%);
 }
-.b { margin-top: 22px; }
+.faceLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-navy);
+  text-shadow: 0 1px 1px rgba(0, 30, 30, 0.45);
+}
+
+.pills {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 26px 0 0 -18px;
+}
+.pillWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: rotate(-25deg);
+}
+.pill {
+  width: 42px;
+  height: 11px;
+  border: 0;
+  border-radius: 6px;
+  background: linear-gradient(to bottom, #8d8a84, var(--rubber));
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.07), 0 2px 0 #5b5853, inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  touch-action: none;
+}
+.pill:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.07), 0 1px 0 #5b5853, inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.pillLabel {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--ink-navy);
+}
+
+/* speaker grille: six recessed diagonal slots in the bottom-right corner */
+.speaker {
+  position: absolute;
+  right: 26px;
+  bottom: 30px;
+  display: flex;
+  gap: 7px;
+  transform: rotate(-28deg);
+}
+.slot {
+  width: 5px;
+  height: 44px;
+  border-radius: 3px;
+  background: linear-gradient(to right, rgba(0, 30, 30, 0.45), rgba(0, 30, 30, 0.25));
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.45);
+}
 
 .keys {
-  margin: 16px 0 0;
-  text-align: center;
+  margin: 0;
   font-size: 12px;
-  color: #bcd3cb;
+  color: #8fb3ad;
 }
 
 .log {
-  width: min(380px, 100%);
+  width: min(372px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   font-size: 13px;
 }
-
-.slot {
-  margin: 0 0 2px;
-  color: var(--dim);
+.slot2 {
+  margin: 0 0 4px;
+  color: #9fc3bd;
+  line-height: 1.45;
 }
-.slot a { color: var(--ink); }
-
+.slot2 a {
+  color: #efe9df;
+}
 .tx {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   padding: 8px 2px;
-  color: var(--ink);
+  color: #efe9df;
   text-decoration: none;
-  border-bottom: 1px solid rgba(151, 173, 165, 0.16);
+  border-bottom: 1px solid rgba(171, 165, 154, 0.16);
 }
-.tx:hover { color: #fff; background: rgba(151, 173, 165, 0.06); }
-.sig { color: var(--dim); font-variant-numeric: tabular-nums; }
+.tx:hover {
+  background: rgba(171, 165, 154, 0.07);
+}
+.sig {
+  color: #8fb3ad;
+  font-variant-numeric: tabular-nums;
+}
 
-@media (prefers-reduced-motion: reduce) {
-  .round, .arm { transition: none; }
+/* Legibility: the gloss sits BEHIND every control and label, never on top of text or the screen. */
+.device > * {
+  position: relative;
+  z-index: 1;
+}
+.device > .speaker,
+.device > .switch {
+  position: absolute;
+}
+.device::after {
+  z-index: 0;
 }

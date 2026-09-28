@@ -1,8 +1,11 @@
 "use client";
 
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useRef, useState } from "react";
+import { useWalletPicker } from "@/components/wallet/WalletPicker";
 import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, Console } from "@/lib/console";
-
+import type { Tidepool } from "@/lib/tidepool/game";
+import { walletSigner } from "@/lib/tidepool/wallet";
 import styles from "./handheld.module.css";
 
 const explorer = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
@@ -15,8 +18,15 @@ interface TxRow {
 export function Handheld() {
   const screenRef = useRef<HTMLDivElement>(null);
   const conRef = useRef<Console | null>(null);
+  const gameRef = useRef<Tidepool | null>(null);
   const [txs, setTxs] = useState<TxRow[]>([]);
-  const [slot, setSlot] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const { publicKey, signTransaction, disconnect } = useWallet();
+  const picker = useWalletPicker();
+  const pickerRef = useRef(picker);
+  pickerRef.current = picker;
+  const disconnectRef = useRef(disconnect);
+  disconnectRef.current = disconnect;
 
   useEffect(() => {
     const host = screenRef.current;
@@ -29,23 +39,33 @@ export function Handheld() {
       con = new Console(host, { width: SCREEN_W, height: SCREEN_H, fps: 30 });
       conRef.current = con;
       const game = new Tidepool(con, {
-        onTx: (label, sig) => setTxs((t) => [{ label, sig }, ...t].slice(0, 6)),
-        onSlot: setSlot,
+        onTx: (label, sig) => setTxs((t) => [{ label, sig }, ...t].slice(0, 8)),
+        onConnect: () => pickerRef.current.open(),
+        onEject: () => void disconnectRef.current(),
       });
+      gameRef.current = game;
       con.run({ update: () => game.update(), draw: () => game.draw() });
+      setReady(true);
     });
     return () => {
       dead = true;
       con?.destroy();
       conRef.current = null;
+      gameRef.current = null;
     };
   }, []);
 
-  /** Pointer handlers for an on-device button. Releasing anywhere lets go. */
+  // The player's wallet is the cartridge: every transaction is approved there.
+  useEffect(() => {
+    if (!ready) return;
+    const key = publicKey?.toBase58();
+    gameRef.current?.setSigner(key && signTransaction ? walletSigner(key, signTransaction) : undefined);
+  }, [ready, publicKey, signTransaction]);
+
   const hold = (btn: number) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
-      (e.target as Element).setPointerCapture?.(e.pointerId);
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
       conRef.current?.audio.unlock();
       conRef.current?.input.setTouch(btn, true);
     },
@@ -55,34 +75,103 @@ export function Handheld() {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
+  const player = publicKey?.toBase58();
+
+  // Tilt the handheld a few degrees toward the pointer, like holding it up to the light.
+  const deviceRef = useRef<HTMLDivElement>(null);
+  const tilt = (e: React.PointerEvent) => {
+    const el = deviceRef.current;
+    if (!el || e.pointerType !== "mouse") return;
+    const r = el.getBoundingClientRect();
+    const nx = (e.clientX - (r.left + r.width / 2)) / window.innerWidth;
+    const ny = (e.clientY - (r.top + r.height / 2)) / window.innerHeight;
+    el.style.setProperty("--ry", `${(nx * 6).toFixed(2)}deg`);
+    el.style.setProperty("--rx", `${(-ny * 5).toFixed(2)}deg`);
+  };
+
   return (
-    <main className={styles.room}>
-      <div className={styles.device}>
-        <div className={styles.bezel}>
-          <div ref={screenRef} className={styles.screen} />
+    <main
+      className={styles.room}
+      onPointerMove={tilt}
+      onPointerLeave={() => {
+        deviceRef.current?.style.setProperty("--rx", "0deg");
+        deviceRef.current?.style.setProperty("--ry", "0deg");
+      }}
+    >
+      <div ref={deviceRef} className={styles.device}>
+        <div className={styles.switch} aria-hidden>
+          <span className={styles.switchSlot} />
+          <span className={styles.switchText}>OFF · ON</span>
         </div>
-        <div className={styles.brand}>TIDEPOOL</div>
+
+        <div className={styles.bezel}>
+          <div className={styles.bezelTop} aria-hidden>
+            <span className={styles.stripe} />
+            <span className={styles.bezelText}>REFLECTIVE LCD · 4 CHANNEL SOUND</span>
+            <span className={styles.stripe} />
+          </div>
+          <div className={styles.bezelBody}>
+            <div className={styles.led} aria-hidden>
+              <span className={player ? styles.ledOn : styles.ledOff} />
+              <span className={styles.ledText}>POWER</span>
+            </div>
+            <div ref={screenRef} className={styles.screen} />
+          </div>
+        </div>
+
+        <div className={styles.brand} aria-hidden>
+          <span className={styles.brandName}>TIDEPOOL</span>
+          <span className={styles.brandSub}>POCKET</span>
+        </div>
 
         <div className={styles.controls}>
           <div className={styles.dpad} aria-label="direction pad">
             <button aria-label="up" className={`${styles.arm} ${styles.up}`} {...hold(BTN_UP)} />
             <button aria-label="left" className={`${styles.arm} ${styles.left}`} {...hold(BTN_LEFT)} />
-            <span className={styles.hub} />
+            <span className={styles.hub} aria-hidden />
             <button aria-label="right" className={`${styles.arm} ${styles.right}`} {...hold(BTN_RIGHT)} />
             <button aria-label="down" className={`${styles.arm} ${styles.down}`} {...hold(BTN_DOWN)} />
           </div>
           <div className={styles.face}>
-            <button aria-label="B" className={`${styles.round} ${styles.b}`} {...hold(BTN_B)}>B</button>
-            <button aria-label="A" className={`${styles.round} ${styles.a}`} {...hold(BTN_A)}>A</button>
+            <div className={styles.faceBtn}>
+              <button aria-label="B" className={styles.round} {...hold(BTN_B)} />
+              <span className={styles.faceLabel}>B</span>
+            </div>
+            <div className={`${styles.faceBtn} ${styles.faceA}`}>
+              <button aria-label="A" className={styles.round} {...hold(BTN_A)} />
+              <span className={styles.faceLabel}>A</span>
+            </div>
           </div>
         </div>
-        <p className={styles.keys}>Arrows move. Z is A, X is B.</p>
+
+        <div className={styles.pills}>
+          <div className={styles.pillWrap}>
+            <button aria-label="select" className={styles.pill} {...hold(BTN_B)} />
+            <span className={styles.pillLabel}>SELECT</span>
+          </div>
+          <div className={styles.pillWrap}>
+            <button aria-label="start" className={styles.pill} {...hold(BTN_A)} />
+            <span className={styles.pillLabel}>START</span>
+          </div>
+        </div>
+
+        <div className={styles.speaker} aria-hidden>
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className={styles.slot} />
+          ))}
+        </div>
       </div>
 
+      <p className={styles.keys}>Keyboard: arrows move, Z is A, X is B.</p>
+
       <section className={styles.log} aria-live="polite">
-        {slot && (
-          <p className={styles.slot}>
-            Save slot <a href={`https://explorer.solana.com/address/${slot}?cluster=devnet`} target="_blank" rel="noreferrer">{slot.slice(0, 4)}…{slot.slice(-4)}</a> on Solana devnet
+        {player && (
+          <p className={styles.slot2}>
+            Playing as{" "}
+            <a href={`https://explorer.solana.com/address/${player}?cluster=devnet`} target="_blank" rel="noreferrer">
+              {player.slice(0, 4)}…{player.slice(-4)}
+            </a>{" "}
+            on Solana devnet. Every move below was signed by your wallet.
           </p>
         )}
         {txs.map((t) => (
