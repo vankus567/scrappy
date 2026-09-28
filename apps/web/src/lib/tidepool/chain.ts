@@ -115,6 +115,40 @@ function tickToPrice(tick: number, solIsA: boolean): number {
 }
 
 /** The deepest initialized SOL/devUSDC pool. */
+/** Orca's devnet stand-in stablecoins. Only pools that exist and hold liquidity are ever shown. */
+const QUOTES: { label: string; mint: Address }[] = [
+  { label: "SOL / USDC", mint: DEV_USDC_MINT },
+  { label: "SOL / USDT", mint: address("H8UekPGwePSmQ3ttuYGPU1szyFfjZR4N53rymSFwmPaw") },
+];
+
+export interface ListedPool extends Pool {
+  label: string;
+}
+
+/** Every live SOL/stable pool on devnet, deepest first, at most one per fee tier per pair. */
+export async function listPools(): Promise<ListedPool[]> {
+  const out: ListedPool[] = [];
+  for (const q of QUOTES) {
+    let pools;
+    try {
+      pools = await withRetry(() => fetchWhirlpoolsByTokenPair(rpc, SOL_MINT, q.mint, deployment));
+    } catch {
+      continue;
+    }
+    for (const p of pools) {
+      if (!p.initialized || p.liquidity === BigInt(0)) continue;
+      try {
+        out.push({ ...(await readPool(p.address)), label: q.label });
+      } catch {
+        // skip pools we cannot price
+      }
+    }
+  }
+  out.sort((a, b) => (b.liquidity > a.liquidity ? 1 : -1));
+  if (out.length === 0) throw new Error("no live pools on devnet right now");
+  return out.slice(0, 6);
+}
+
 export async function pickPool(): Promise<Pool> {
   const pools = await fetchWhirlpoolsByTokenPair(rpc, SOL_MINT, DEV_USDC_MINT, deployment);
   const live = pools.flatMap((p) => (p.initialized && p.liquidity > 0n ? [p] : []));

@@ -2,83 +2,122 @@ import type { KeyPairSigner } from "@solana/kit";
 import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, type Console, Image } from "@/lib/console";
 import { insertCartridge, shortId } from "./cartridge";
 import * as chain from "./chain";
+import { type Candle, candles as fetchCandles, lastPrice, PRICE_SOURCE } from "./prices";
 
 /**
- * TIDEPOOL: a handheld game where the fish is the live SOL price and your net is a real
- * Orca liquidity position. Every button that changes something sends a real devnet transaction.
- * The main screens never use DeFi words; TRUE VIEW shows the real numbers.
+ * TIDEPOOL v2. You pick a pool and a creature, set a price range on a live SOL chart,
+ * and play a timed round: your creature walks on the real price and gets hurt whenever
+ * the price leaves your range. Casting saves a "disk": a real Orca position on devnet
+ * with the same range shape around the devnet pool price. Coins are that position's real fees.
+ *
+ * Honesty rules: the chart and the round use the real SOL price (Coinbase); the disk lives on
+ * devnet, whose pool price barely moves. Every screen that could blur the two says which is which.
  */
 
 export const SCREEN_W = 160;
 export const SCREEN_H = 144;
+const FPS = 30;
 const HATCH_SOL = 0.2;
-const POLL_FRAMES = 30 * 8;
-// 0.25 SOL: enough to cast the net and pay fees
+const ROUND_SECONDS = 90;
+const TICK_FRAMES = FPS * 2; // live price every 2 s
+const FEE_FRAMES = FPS * 10; // fees every 10 s
 const FED = BigInt(250_000_000);
 
-type Scene = "boot" | "food" | "net" | "tide" | "menu" | "true";
+type Scene = "boot" | "card" | "pools" | "pick" | "range" | "round" | "results" | "disk";
 
 export interface GameEvents {
   onTx?: (label: string, signature: string) => void;
   onSlot?: (address: string) => void;
 }
 
-// colours (default palette indices)
-const INK = 0, NAVY = 1, TEAL = 3, BLUE = 5, SKY = 6, WHITE = 7, PINK = 8, ORANGE = 9, GOLD = 10, MINT = 11, CORN = 12, GREY = 13, SAND = 15;
+// palette indices
+const INK = 0, NAVY = 1, PLUM = 2, TEAL = 3, BLUE = 5, SKY = 6, WHITE = 7, PINK = 8, GOLD = 10, MINT = 11, CORN = 12, GREY = 13, SAND = 15;
 
-const MENU = ["COLLECT COINS", "RECAST THE NET", "TRUE VIEW", "PULL THE NET IN", "BACK"] as const;
+interface Creature {
+  name: string;
+  half: number; // range half-width as a fraction of price
+  safety: number; // 1..5, shown as bars
+  reward: number;
+  sx: number; // sprite x in bank 0
+  blurb: string;
+}
+
+const CREATURES: Creature[] = [
+  { name: "SHELLY", half: 0.03, safety: 5, reward: 1, sx: 0, blurb: "SLOW TURTLE. WIDE NET." },
+  { name: "FINN", half: 0.012, safety: 3, reward: 3, sx: 24, blurb: "QUICK FISH. MEDIUM NET." },
+  { name: "ZIP", half: 0.004, safety: 1, reward: 5, sx: 48, blurb: "WILD EEL. TINY NET." },
+];
+
+const SPRITES: Record<number, string[][]> = {
+  0: [
+    ["000003333000", "0000333bb300", "00033bb33b30", "0ff3b33bb3b3", "f1f33bb33b33", "0ff333333330", "000f0000f000", "00ff000ff000"],
+    ["000003333000", "0000333bb300", "00033bb33b30", "0ff3b33bb3b3", "f1f33bb33b33", "0ff333333330", "0000f0000f00", "000ff000ff00"],
+  ],
+  24: [
+    ["000000000000", "000aaaa00000", "00aaaaaa00a0", "0a71aaaaa9a0", "0aaaaaaaa9a0", "00aaaaaa0099", "000aaaa00000", "000000000000"],
+    ["000000000000", "000aaaa00000", "00aaaaaa0a00", "0a71aaaaa9a0", "0aaaaaaaa9a0", "00aaaaaa09a0", "000aaaa00000", "000000000000"],
+  ],
+  48: [
+    ["000000000000", "088000000000", "871880008880", "888888088088", "022228882002", "000022200000", "000000000000", "000000000000"],
+    ["000000000000", "088000008880", "871880088088", "888888880002", "022222200000", "000000000000", "000000000000", "000000000000"],
+  ],
+};
+
+const CARD_MENU = ["NEW ROUND", "MY DISK", "GET FOOD", "SAVE BACKUP"] as const;
+const DISK_MENU = ["COLLECT COINS", "RELEASE DISK", "BACK"] as const;
 
 export class Tidepool {
   private scene: Scene = "boot";
   private busy: string | null = null;
   private error: string | null = null;
   private note: string | null = null;
+  private t = 0;
+
   private signer?: KeyPairSigner;
   private balance = BigInt(0);
-  private pool?: chain.Pool;
-  private creature?: chain.Creature;
+  private pools: chain.ListedPool[] = [];
+  private poolIdx = 0;
+  private disk?: chain.Creature;
+  private diskPool?: chain.Pool;
   private food: chain.Food = { sol: 0, usdc: 0 };
-  private polling = false;
-  private fishY = 72;
-  private netCenter = 0; // price
-  private netHalf = 0.08; // fraction of price
+
+  private hist: Candle[] = [];
+  private ticks: number[] = [];
+  private live = 0;
+  private feedOk = true;
+
   private menuIdx = 0;
-  private t = 0;
+  private pick = 1;
+  private offset = 0; // range centre relative to live price, as a fraction
+
+  private roundFrames = 0;
+  private hp = 100;
+  private inFrames = 0;
+  private scoredFrames = 0;
+  private hurtFlash = 0;
+  private lastRange: { low: number; high: number } = { low: 0, high: 0 };
+
   private readonly glyphs = new Image(160, 6);
 
   constructor(private readonly con: Console, private readonly events: GameEvents = {}) {
     const img = con.banks.images[0]!;
-    img.load(0, 0, [
-      "000aa000",
-      "00aaaa00",
-      "0aa7aaa9",
-      "aaaaaa99",
-      "0aaaaaa9",
-      "00aaaa00",
-      "000aa000",
-      "00000000",
-    ]);
-    img.load(8, 0, [
-      "000aa000",
-      "00aaaa00",
-      "0aa7aa99",
-      "aaaaaa90",
-      "0aaaaa99",
-      "00aaaa00",
-      "000aa000",
-      "00000000",
-    ]);
+    for (const [sx, frames] of Object.entries(SPRITES)) frames.forEach((rows, f) => img.load(Number(sx) + f * 12, 0, rows));
     const s = con.banks.sounds;
-    s[0]!.set("c3 e3", "p", "4", "n", 2); // select
-    s[1]!.set("g3 c4 e4 g4", "s", "5", "n n n f", 3); // coin / success
+    s[0]!.set("c3 e3", "p", "4", "n", 2); // move
+    s[1]!.set("g3 c4 e4 g4", "s", "5", "n n n f", 3); // success
     s[2]!.set("c2 a1 f1", "n", "6", "f", 6); // splash
     s[3]!.set("c2 c1", "s", "6", "n f", 8); // error
+    s[4]!.set("f1", "n", "5", "f", 3); // hurt
+    s[5]!.set("c3 g3 c4 e4 g4 c4", "p", "5", "n", 4); // round end fanfare
     s[10]!.set("c1 g0 a0 e0 f0 c0 f0 g0", "t", "4", "n", 30);
     s[11]!.set("e3 r g3 r a3 g3 e3 r f3 r a3 r g3 f3 e3 r", "t", "2", "n", 15);
+    s[12]!.set("c2 c2 g1 g1 a1 a1 e1 e1", "t", "5", "n", 12);
+    s[13]!.set("e3 g3 a3 c4 a3 g3 e3 d3", "s", "3", "n", 12);
     con.banks.musics[0]!.set([], [], [10], [11]);
+    con.banks.musics[1]!.set([], [], [12], [13]);
   }
 
-  // ---- async chain actions --------------------------------------------------
+  // ---- async ------------------------------------------------------------------
 
   private run(label: string, fn: () => Promise<void>): void {
     if (this.busy) return;
@@ -90,13 +129,15 @@ export class Tidepool {
         this.error = msg.replace(/\s+/g, " ").slice(0, 120).toUpperCase();
         this.con.play(0, 3);
       })
-      .finally(() => {
-        this.busy = null;
-      });
+      .finally(() => (this.busy = null));
   }
 
-  private tx(label: string, sig: string): void {
-    this.events.onTx?.(label, sig);
+  private bg(fn: () => Promise<void>): void {
+    fn().catch(() => {});
+  }
+
+  private get pool(): chain.ListedPool | undefined {
+    return this.pools[this.poolIdx];
   }
 
   private boot(): void {
@@ -105,29 +146,30 @@ export class Tidepool {
       this.signer = signer;
       this.events.onSlot?.(signer.address);
       this.balance = await chain.withRetry(() => chain.solBalance(signer.address));
-      this.pool = await chain.withRetry(() => chain.pickPool());
-      this.netCenter = this.pool.price;
-      await this.loadCreature();
-      if (this.creature) {
-        this.scene = "tide";
-        await this.poll();
-      } else {
-        this.scene = this.balance < FED ? "food" : "net";
-      }
+      await this.loadDisk();
+      this.hist = await fetchCandles(50);
+      this.live = this.hist[this.hist.length - 1]?.c ?? 0;
+      this.ticks = this.hist.map((c) => c.c);
+      this.scene = "card";
+      this.menuIdx = 0;
       this.con.playm(0, true);
     });
   }
 
-  private async loadCreature(): Promise<void> {
+  private async loadDisk(): Promise<void> {
     const list = await chain.creatures(this.signer!.address);
-    this.creature = list.find((c) => c.liquidity > BigInt(0)) ?? list[0];
+    this.disk = list.find((c) => c.liquidity > BigInt(0)) ?? list[0];
+    this.diskPool = this.disk ? await chain.readPool(this.disk.pool) : undefined;
+    if (this.disk && this.diskPool) this.food = await chain.foodInBowl(this.signer!, this.disk, this.diskPool.solIsA);
   }
 
-  private async poll(): Promise<void> {
-    if (!this.pool || !this.signer) return;
-    this.pool = await chain.readPool(this.pool.address);
-    if (this.creature) this.food = await chain.foodInBowl(this.signer, this.creature, this.pool.solIsA);
-    this.balance = await chain.solBalance(this.signer.address);
+  private openPools(): void {
+    this.run("SCANNING THE SEA FOR POOLS", async () => {
+      if (this.balance < FED) throw new Error("you need food first: pick GET FOOD");
+      if (this.pools.length === 0) this.pools = await chain.listPools();
+      this.poolIdx = 0;
+      this.scene = "pools";
+    });
   }
 
   private getFood(): void {
@@ -139,142 +181,228 @@ export class Tidepool {
       });
       const body = (await res.json()) as { signature?: string; error?: string };
       if (!res.ok || !body.signature) throw new Error(body.error ?? "no food today");
-      this.tx("starter food", body.signature);
+      this.events.onTx?.("starter food (0.3 test SOL)", body.signature);
       for (let i = 0; i < 40 && this.balance < FED; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         this.balance = await chain.withRetry(() => chain.solBalance(this.signer!.address));
       }
       if (this.balance < FED) throw new Error("food is still on its way, try again");
       this.con.play(0, 1);
-      this.scene = "net";
+      this.note = "FOOD IN THE BOAT";
     });
   }
 
   private cast(): void {
     const pool = this.pool!;
-    const low = this.netCenter * (1 - this.netHalf);
-    const high = this.netCenter * (1 + this.netHalf);
-    this.run("CASTING THE NET", async () => {
+    const cr = CREATURES[this.pick]!;
+    const offset = this.offset;
+    this.run("CASTING YOUR DISK", async () => {
       if (this.balance < BigInt(Math.round((HATCH_SOL + 0.03) * 1e9))) throw new Error("not enough food to cast");
-      const h = await chain.hatch(this.signer!, pool, HATCH_SOL, { low, high });
-      this.tx("trade half for USDC", h.swapSig);
-      this.tx("cast the net (open position)", h.openSig);
+      // Same range shape around the devnet pool price: centre offset and half-width carry over.
+      const fresh = await chain.readPool(pool.address);
+      const c = fresh.price * (1 + offset);
+      const h = await chain.hatch(this.signer!, fresh, HATCH_SOL, { low: c * (1 - cr.half), high: c * (1 + cr.half) });
+      this.events.onTx?.("trade half for USDC", h.swapSig);
+      this.events.onTx?.("save disk (open Orca position)", h.openSig);
       this.con.play(0, 2);
-      await this.loadCreature();
-      await this.poll();
-      this.scene = "tide";
-      this.note = "SPLASH! THE NET IS IN THE WATER";
+      this.balance = await chain.solBalance(this.signer!.address);
+      await this.loadDisk();
+      this.startRound();
+    });
+  }
+
+  private startRound(): void {
+    const cr = CREATURES[this.pick]!;
+    const centre = this.live * (1 + this.offset);
+    this.lastRange = { low: centre * (1 - cr.half), high: centre * (1 + cr.half) };
+    this.roundFrames = ROUND_SECONDS * FPS;
+    this.hp = 100;
+    this.inFrames = 0;
+    this.scoredFrames = 0;
+    this.scene = "round";
+    this.con.playm(1, true);
+  }
+
+  private endRound(): void {
+    this.scene = "results";
+    this.con.stopAll();
+    this.con.play(0, 5);
+    this.bg(async () => {
+      if (this.disk && this.diskPool) this.food = await chain.foodInBowl(this.signer!, this.disk, this.diskPool.solIsA);
     });
   }
 
   private collect(): void {
-    const c = this.creature;
-    if (!c) return;
+    const d = this.disk;
+    if (!d) return;
     this.run("COLLECTING COINS", async () => {
-      const sig = await chain.eat(this.signer!, c);
-      this.tx("collect coins (harvest fees)", sig);
+      const sig = await chain.eat(this.signer!, d);
+      this.events.onTx?.("collect coins (harvest fees)", sig);
       this.con.play(0, 1);
-      await this.poll();
+      await this.loadDisk();
       this.note = "COINS COLLECTED";
     });
   }
 
-  private pullIn(thenCast: boolean): void {
-    const c = this.creature;
-    if (!c) return;
-    this.run("PULLING THE NET IN", async () => {
-      const sig = await chain.release(this.signer!, c);
-      this.tx("pull the net in (close position)", sig);
-      this.creature = undefined;
+  private release(): void {
+    const d = this.disk;
+    if (!d) return;
+    this.run("RELEASING THE DISK", async () => {
+      const sig = await chain.release(this.signer!, d);
+      this.events.onTx?.("release disk (close position)", sig);
+      this.disk = undefined;
       this.food = { sol: 0, usdc: 0 };
-      await this.poll();
-      this.netCenter = this.pool!.price;
-      this.scene = thenCast ? "net" : this.balance < FED ? "food" : "net";
-      this.note = "THE NET IS BACK ON THE BOAT";
+      this.balance = await chain.solBalance(this.signer!.address);
+      await this.loadDisk();
+      this.scene = "card";
+      this.note = "DISK RELEASED. FOOD BACK IN THE BOAT";
     });
   }
 
-  // ---- update -----------------------------------------------------------------
+  private backup(): void {
+    this.run("WRITING SAVE BACKUP", async () => {
+      const { exportSave } = await import("./cartridge");
+      const json = await exportSave();
+      if (!json) throw new Error("no save to back up");
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "tidepool-save.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      this.note = "SAVE BACKUP DOWNLOADED. KEEP IT SECRET";
+    });
+  }
+
+  // ---- update -------------------------------------------------------------------
 
   update(): void {
     this.t++;
     const inp = this.con.input;
     const a = inp.btnp(BTN_A);
     const b = inp.btnp(BTN_B);
+    const up = inp.btnp(BTN_UP, 8, 2);
+    const down = inp.btnp(BTN_DOWN, 8, 2);
+    const left = inp.btnp(BTN_LEFT);
+    const right = inp.btnp(BTN_RIGHT);
 
+    // the live price keeps flowing on every screen after boot
+    if (this.scene !== "boot" && this.t % TICK_FRAMES === 0) {
+      this.bg(async () => {
+        try {
+          this.live = await lastPrice();
+          this.feedOk = true;
+          this.ticks.push(this.live);
+          if (this.ticks.length > 120) this.ticks.shift();
+        } catch {
+          this.feedOk = false;
+        }
+      });
+    }
+    if (this.scene === "round" && this.t % FEE_FRAMES === 0 && this.disk && this.diskPool) {
+      this.bg(async () => {
+        this.food = await chain.foodInBowl(this.signer!, this.disk!, this.diskPool!.solIsA);
+      });
+    }
+
+    if (this.scene === "round") {
+      this.updateRound(b);
+      return;
+    }
     if (this.error) {
       if (a || b) this.error = null;
       return;
     }
     if (this.busy) return;
-    if (this.note && (a || b)) {
-      this.note = null;
+    if (this.note) {
+      if (a || b) this.note = null;
       return;
     }
 
-    if (this.scene !== "boot" && this.t % POLL_FRAMES === 0 && !this.polling) {
-      this.polling = true;
-      this.poll()
-        .catch(() => {})
-        .finally(() => (this.polling = false));
-    }
-
+    const blip = () => this.con.play(0, 0);
     switch (this.scene) {
       case "boot":
         if (a) {
-          this.con.play(0, 0);
+          blip();
           this.boot();
         }
         break;
-      case "food":
-        if (a) this.getFood();
-        break;
-      case "net": {
-        const p = this.pool!.price;
-        const step = p * 0.004;
-        if (inp.btnp(BTN_UP, 6, 2)) this.netCenter = Math.min(p * 1.3, this.netCenter + step);
-        if (inp.btnp(BTN_DOWN, 6, 2)) this.netCenter = Math.max(p * 0.7, this.netCenter - step);
-        if (inp.btnp(BTN_RIGHT, 6, 2)) this.netHalf = Math.min(0.3, +(this.netHalf + 0.01).toFixed(2));
-        if (inp.btnp(BTN_LEFT, 6, 2)) this.netHalf = Math.max(0.02, +(this.netHalf - 0.01).toFixed(2));
-        if (a) this.cast();
-        if (b && this.creature) this.scene = "tide";
-        break;
-      }
-      case "tide":
-        if (a) this.collect();
-        if (b) {
-          this.menuIdx = 0;
-          this.scene = "menu";
-          this.con.play(0, 0);
-        }
-        break;
-      case "menu":
-        if (inp.btnp(BTN_UP)) this.menuIdx = (this.menuIdx + MENU.length - 1) % MENU.length;
-        if (inp.btnp(BTN_DOWN)) this.menuIdx = (this.menuIdx + 1) % MENU.length;
-        if (b) this.scene = "tide";
+      case "card":
+        if (up) { this.menuIdx = (this.menuIdx + CARD_MENU.length - 1) % CARD_MENU.length; blip(); }
+        if (down) { this.menuIdx = (this.menuIdx + 1) % CARD_MENU.length; blip(); }
         if (a) {
-          this.con.play(0, 0);
-          const item = MENU[this.menuIdx];
-          this.scene = "tide";
-          if (item === "COLLECT COINS") this.collect();
-          else if (item === "RECAST THE NET") this.pullIn(true);
-          else if (item === "TRUE VIEW") this.scene = "true";
-          else if (item === "PULL THE NET IN") this.pullIn(false);
+          blip();
+          const item = CARD_MENU[this.menuIdx];
+          if (item === "NEW ROUND") this.openPools();
+          else if (item === "MY DISK") {
+            if (this.disk) { this.scene = "disk"; this.menuIdx = 0; }
+            else this.note = "NO DISK YET. PLAY A NEW ROUND TO SAVE ONE";
+          } else if (item === "GET FOOD") this.getFood();
+          else if (item === "SAVE BACKUP") this.backup();
         }
         break;
-      case "true":
-        if (a || b) this.scene = "tide";
+      case "pools":
+        if (up) { this.poolIdx = (this.poolIdx + this.pools.length - 1) % this.pools.length; blip(); }
+        if (down) { this.poolIdx = (this.poolIdx + 1) % this.pools.length; blip(); }
+        if (a) { blip(); this.scene = "pick"; }
+        if (b) { this.scene = "card"; this.menuIdx = 0; }
+        break;
+      case "pick":
+        if (left) { this.pick = (this.pick + 2) % 3; blip(); }
+        if (right) { this.pick = (this.pick + 1) % 3; blip(); }
+        if (a) { blip(); this.offset = 0; this.scene = "range"; }
+        if (b) this.scene = "pools";
+        break;
+      case "range":
+        if (up) { this.offset = Math.min(0.05, this.offset + 0.001); blip(); }
+        if (down) { this.offset = Math.max(-0.05, this.offset - 0.001); blip(); }
+        if (a) this.cast();
+        if (b) this.scene = "pick";
+        break;
+      case "results":
+        if (a) this.collect();
+        if (b) { this.scene = "card"; this.menuIdx = 0; this.con.playm(0, true); }
+        break;
+      case "disk":
+        if (up) { this.menuIdx = (this.menuIdx + DISK_MENU.length - 1) % DISK_MENU.length; blip(); }
+        if (down) { this.menuIdx = (this.menuIdx + 1) % DISK_MENU.length; blip(); }
+        if (b) { this.scene = "card"; this.menuIdx = 1; }
+        if (a) {
+          blip();
+          const item = DISK_MENU[this.menuIdx];
+          if (item === "COLLECT COINS") this.collect();
+          else if (item === "RELEASE DISK") this.release();
+          else { this.scene = "card"; this.menuIdx = 1; }
+        }
         break;
     }
   }
 
-  // ---- draw -------------------------------------------------------------------
+  private updateRound(giveUp: boolean): void {
+    if (giveUp) {
+      this.endRound();
+      return;
+    }
+    if (!this.feedOk) return; // no price, no scoring: never score on a guess
+    this.roundFrames--;
+    this.scoredFrames++;
+    const inside = this.live >= this.lastRange.low && this.live <= this.lastRange.high;
+    if (inside) this.inFrames++;
+    else if (this.t % 15 === 0) {
+      this.hp = Math.max(0, this.hp - 3);
+      this.hurtFlash = 6;
+      this.con.play(1, 4);
+    }
+    if (this.hurtFlash > 0) this.hurtFlash--;
+    if (this.roundFrames <= 0 || this.hp <= 0) this.endRound();
+  }
+
+  // ---- drawing helpers ----------------------------------------------------------
 
   private get s() {
     return this.con.screen;
   }
 
-  /** Text scaled up by `k`, for titles. */
   private big(x: number, y: number, str: string, col: number, k: number): void {
     const g = this.glyphs;
     g.cls(0);
@@ -283,69 +411,49 @@ export class Tidepool {
       for (let i = 0; i < str.length * 4; i++) if (g.get(i, j)) this.s.rect(x + i * k, y + j * k, k, k, col);
   }
 
-  private center(y: number, str: string, col: number, shadow = true): void {
+  private bigCenter(y: number, str: string, col: number, k: number): void {
+    const x = Math.floor((SCREEN_W - str.length * 4 * k) / 2);
+    this.big(x + 1, y + 1, str, INK, k);
+    this.big(x, y, str, col, k);
+  }
+
+  private center(y: number, str: string, col: number): void {
     const x = Math.floor((SCREEN_W - str.length * 4) / 2);
-    if (shadow) this.s.text(x + 1, y + 1, str, INK);
+    this.s.text(x + 1, y + 1, str, INK);
     this.s.text(x, y, str, col);
   }
 
-  private water(): void {
-    const s = this.s;
-    const bands = [SKY, CORN, BLUE, NAVY];
-    for (let i = 0; i < bands.length; i++) s.rect(0, 12 + i * 30, SCREEN_W, 30, bands[i]!);
-    s.rect(0, 0, SCREEN_W, 12, SKY);
-    for (let x = 0; x < SCREEN_W; x++) {
-      const y = 11 + Math.round(Math.sin((x + this.t) / 6) * 1.5);
-      s.pset(x, y, WHITE);
-    }
-    for (let i = 0; i < 10; i++) {
-      const bx = (i * 37 + 11) % SCREEN_W;
-      const by = SCREEN_H - 14 - ((this.t / 2 + i * 23) % 110);
-      s.pset(bx + Math.round(Math.sin((this.t + i * 9) / 8)), by, SKY);
-    }
-    s.rect(0, SCREEN_H - 10, SCREEN_W, 10, SAND);
-    for (let x = 3; x < SCREEN_W; x += 11) s.pset(x, SCREEN_H - 7 + (x % 3), ORANGE);
-  }
-
-  /** Map a price to a y inside the water, for a view window [lo, hi]. */
-  private yOf(price: number, lo: number, hi: number): number {
-    const top = 18;
-    const bottom = SCREEN_H - 16;
-    return Math.round(bottom - ((price - lo) / (hi - lo)) * (bottom - top));
-  }
-
-  private drawNet(y1: number, y2: number, caught: boolean): void {
-    const s = this.s;
-    const top = Math.min(y1, y2);
-    const h = Math.abs(y2 - y1);
-    const col = caught ? MINT : WHITE;
-    for (let y = top; y <= top + h; y += 4) for (let x = 24; x < 136; x += 4) s.pset(x + ((y / 4) % 2) * 2, y, col);
-    s.line(22, top, 138, top, col);
-    s.line(22, top + h, 138, top + h, col);
-    // floats on the rope
-    for (let x = 30; x < 136; x += 20) s.circ(x, top, 1, ORANGE);
-  }
-
-  private drawFish(y: number, glow: boolean): void {
-    const x = 70 + Math.round(Math.sin(this.t / 20) * 30);
-    const flip = Math.cos(this.t / 20) < 0;
+  private sprite(x: number, y: number, sx: number, k = 1, flip = false): void {
     const frame = Math.floor(this.t / 8) % 2;
-    if (glow) this.s.circb(x + 4, y + 3, 7 + (this.t % 20 < 10 ? 1 : 0), GOLD);
-    this.s.blt(x, y - 3, this.con.banks.images[0]!, frame * 8, 0, flip ? -8 : 8, 8, 0);
+    const bank = this.con.banks.images[0]!;
+    if (k === 1) {
+      this.s.blt(x, y, bank, sx + frame * 12, 0, flip ? -12 : 12, 8, 0);
+      return;
+    }
+    for (let j = 0; j < 8; j++)
+      for (let i = 0; i < 12; i++) {
+        const c = bank.get(sx + frame * 12 + (flip ? 11 - i : i), j);
+        if (c) this.s.rect(x + i * k, y + j * k, k, k, c);
+      }
   }
 
-  private hud(left: string, right: string): void {
+  private hud(left: string, right: string, rightCol = GOLD): void {
     this.s.rect(0, 0, SCREEN_W, 9, INK);
     this.s.text(3, 2, left, WHITE);
-    this.s.text(SCREEN_W - 3 - right.length * 4, 2, right, GOLD);
+    this.s.text(SCREEN_W - 3 - right.length * 4, 2, right, rightCol);
   }
 
-  private box(lines: string[], col: number, fill = INK): void {
-    const w = Math.min(SCREEN_W - 12, Math.max(...lines.map((l) => l.length)) * 4 + 12);
+  private foot(text: string, col = GREY): void {
+    this.s.rect(0, SCREEN_H - 9, SCREEN_W, 9, INK);
+    this.s.text(3, SCREEN_H - 7, text, col);
+  }
+
+  private box(lines: string[], col: number): void {
+    const w = Math.min(SCREEN_W - 10, Math.max(...lines.map((l) => l.length)) * 4 + 12);
     const h = lines.length * 8 + 8;
     const x = Math.floor((SCREEN_W - w) / 2);
     const y = Math.floor((SCREEN_H - h) / 2);
-    this.s.rect(x, y, w, h, fill);
+    this.s.rect(x, y, w, h, INK);
     this.s.rectb(x, y, w, h, col);
     lines.forEach((l, i) => this.s.text(x + Math.floor((w - l.length * 4) / 2), y + 5 + i * 8, l, col));
   }
@@ -363,117 +471,234 @@ export class Tidepool {
     return out.slice(0, 8);
   }
 
-  private coinsValue(): number {
-    const price = this.pool?.price ?? 0;
-    return this.food.usdc + this.food.sol * price;
+  private sea(): void {
+    const s = this.s;
+    [SKY, CORN, BLUE, NAVY].forEach((c, i) => s.rect(0, 9 + i * 32, SCREEN_W, 32, c));
+    for (let x = 0; x < SCREEN_W; x++) s.pset(x, 20 + Math.round(Math.sin((x + this.t) / 7) * 1.5), WHITE);
+    for (let i = 0; i < 8; i++) {
+      const bx = (i * 41 + 13) % SCREEN_W;
+      const by = SCREEN_H - 20 - ((this.t / 2 + i * 29) % 100);
+      s.pset(bx + Math.round(Math.sin((this.t + i * 9) / 8)), by, SKY);
+    }
   }
+
+  private bars(x: number, y: number, n: number, col: number): void {
+    for (let i = 0; i < 5; i++) this.s.rect(x + i * 5, y, 4, 4, i < n ? col : PLUM);
+  }
+
+  /**
+   * Price chart in a box: candles for history or a line for live ticks, the range as a
+   * shaded band, the live price as a tag on the right edge. Returns the price->y mapper.
+   */
+  private chart(x: number, y: number, w: number, h: number, mode: "candles" | "line", range: { low: number; high: number } | null, inside: boolean): (p: number) => number {
+    const s = this.s;
+    s.rect(x, y, w, h, NAVY);
+    const plotW = w - 26;
+    const vals: number[] = mode === "candles" ? this.hist.flatMap((c) => [c.h, c.l]) : this.ticks.slice(-Math.floor(plotW / 2));
+    if (this.live) vals.push(this.live);
+    if (range) vals.push(range.low, range.high);
+    let lo = Math.min(...vals);
+    let hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.12 || this.live * 0.002;
+    lo -= pad;
+    hi += pad;
+    const py = (p: number) => Math.round(y + h - 1 - ((p - lo) / (hi - lo)) * (h - 1));
+
+    for (let i = 1; i <= 3; i++) {
+      const gy = y + Math.round((h * i) / 4);
+      for (let gx = x; gx < x + plotW; gx += 3) s.pset(gx, gy, PLUM);
+    }
+
+    if (range) {
+      const ry1 = py(range.high);
+      const ry2 = py(range.low);
+      for (let yy = ry1; yy <= ry2; yy++) for (let xx = x + ((yy + this.t) % 2); xx < x + plotW; xx += 2) s.pset(xx, yy, inside ? TEAL : PLUM);
+      s.line(x, ry1, x + plotW, ry1, inside ? MINT : PINK);
+      s.line(x, ry2, x + plotW, ry2, inside ? MINT : PINK);
+    }
+
+    if (mode === "candles") {
+      const n = Math.min(this.hist.length, Math.floor(plotW / 3));
+      this.hist.slice(-n).forEach((c, i) => {
+        const cx = x + 1 + i * 3;
+        const col = c.c >= c.o ? MINT : PINK;
+        s.line(cx, py(c.h), cx, py(c.l), col);
+        const top = py(Math.max(c.o, c.c));
+        const bot = py(Math.min(c.o, c.c));
+        s.rect(cx, top, 2, Math.max(1, bot - top + 1), col);
+      });
+    } else {
+      const pts = this.ticks.slice(-Math.floor(plotW / 2));
+      for (let i = 1; i < pts.length; i++) s.line(x + (i - 1) * 2, py(pts[i - 1]!), x + i * 2, py(pts[i]!), WHITE);
+    }
+
+    if (this.live) {
+      const ly = py(this.live);
+      for (let gx = x; gx < x + plotW; gx += 2) s.pset(gx, ly, GOLD);
+      s.rect(x + plotW + 1, ly - 3, 25, 7, GOLD);
+      s.text(x + plotW + 2, ly - 2, this.live.toFixed(2).slice(0, 6), INK);
+    }
+    s.text(x + plotW + 2, y + 1, hi.toFixed(1).slice(0, 6), GREY);
+    s.text(x + plotW + 2, y + h - 6, lo.toFixed(1).slice(0, 6), GREY);
+    return py;
+  }
+
+  private coins(): number {
+    return this.food.usdc + this.food.sol * (this.diskPool?.price ?? 0);
+  }
+
+  // ---- screens --------------------------------------------------------------------
 
   draw(): void {
     const s = this.s;
     s.cls(NAVY);
     switch (this.scene) {
       case "boot": {
-        this.water();
-        this.big(33, 36, "TIDEPOOL", INK, 3);
-        this.big(32, 35, "TIDEPOOL", GOLD, 3);
-        this.center(62, "CATCH THE FISH. KEEP THE COINS.", WHITE);
-        this.drawFish(84, false);
-        if (this.t % 30 < 20) this.center(108, "PRESS A", WHITE);
+        this.sea();
+        this.bigCenter(30, "TIDEPOOL", GOLD, 3);
+        this.center(56, "KEEP THE PRICE IN YOUR NET", WHITE);
+        CREATURES.forEach((c, i) => this.sprite(26 + i * 40, 78 + (i === 1 ? -4 : 0), c.sx, 2, i === 2));
+        if (this.t % 30 < 20) this.center(112, "PRESS A", WHITE);
+        s.rect(0, SCREEN_H - 8, SCREEN_W, 8, SAND);
         break;
       }
-      case "food": {
-        this.water();
-        this.hud(this.signer ? shortId(this.signer.address) : "", "NO FOOD");
-        this.box(["YOUR BOAT HAS NO FOOD", "TO CAST A NET.", "", "A: GET STARTER FOOD", "(FREE TEST FOOD)"], WHITE);
+      case "card": {
+        this.sea();
+        this.hud("SAVE CARD", this.signer ? shortId(this.signer.address) : "");
+        s.rect(10, 16, 140, 50, INK);
+        s.rectb(10, 16, 140, 50, GOLD);
+        this.sprite(16, 28, CREATURES[this.pick]!.sx, 2);
+        const food = Number(this.balance) / 1e9;
+        s.text(50, 22, `FOOD   ${food.toFixed(2)}`, food >= 0.25 ? WHITE : PINK);
+        s.text(50, 32, `DISK   ${this.disk ? shortId(this.disk.mint) : "NONE"}`, WHITE);
+        s.text(50, 42, `COINS  $${this.coins().toFixed(4)}`, GOLD);
+        s.text(50, 52, `SOL    ${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK);
+        CARD_MENU.forEach((m, i) => {
+          const sel = i === this.menuIdx;
+          const y = 76 + i * 12;
+          if (sel) s.rect(28, y - 3, 104, 11, TEAL);
+          s.text(36, y, m, sel ? WHITE : GREY);
+          if (sel) s.tri(30, y - 1, 30, y + 5, 33, y + 2, GOLD);
+        });
+        this.foot("UP/DN CHOOSE   A OK");
         break;
       }
-      case "net": {
-        this.water();
-        const p = this.pool!.price;
-        const lo = p * 0.66;
-        const hi = p * 1.34;
-        const nLo = this.netCenter * (1 - this.netHalf);
-        const nHi = this.netCenter * (1 + this.netHalf);
-        const y1 = this.yOf(nHi, lo, hi);
-        const y2 = this.yOf(nLo, lo, hi);
-        const caught = p >= nLo && p <= nHi;
-        this.drawNet(y1, y2, caught);
-        this.fishY += (this.yOf(p, lo, hi) - this.fishY) * 0.2;
-        this.drawFish(Math.round(this.fishY), caught);
-        this.hud("CAST YOUR NET", `SIZE ${Math.round(this.netHalf * 200)}`);
-        const tip = this.netHalf >= 0.15 ? "BIG NET: CATCHES OFTEN, SMALL COINS" : this.netHalf <= 0.05 ? "TINY NET: BIG COINS, FISH SLIPS OUT" : "MEDIUM NET: A BIT OF BOTH";
-        s.rect(0, SCREEN_H - 22, SCREEN_W, 22, INK);
-        s.text(3, SCREEN_H - 20, tip, caught ? MINT : PINK);
-        s.text(3, SCREEN_H - 12, caught ? "UP/DN MOVE <> SIZE  A CAST" : "FISH IS OUTSIDE! MOVE THE NET", caught ? GREY : PINK);
+      case "pools": {
+        this.sea();
+        this.hud("PICK A POOL", "DEVNET");
+        this.pools.forEach((p, i) => {
+          const sel = i === this.poolIdx;
+          const y = 14 + i * 18;
+          s.rect(8, y, 144, 15, sel ? INK : NAVY);
+          if (sel) s.rectb(8, y, 144, 15, GOLD);
+          s.text(14, y + 2, p.label, sel ? GOLD : WHITE);
+          s.text(14, y + 8, `FEE ${(p.feeRate / 10000).toFixed(2)}%`, GREY);
+          const depth = Math.min(5, Math.max(1, Math.round(Math.log10(Number(p.liquidity) + 1) - 7)));
+          s.text(84, y + 8, "DEPTH", GREY);
+          this.bars(106, y + 9, depth, MINT);
+        });
+        this.foot("REAL ORCA POOLS  A PICK  B BACK");
         break;
       }
-      case "tide":
-      case "menu":
-      case "true": {
-        this.water();
-        const p = this.pool?.price ?? 0;
-        const c = this.creature;
-        if (c) {
-          const span = Math.max(c.upperPrice - c.lowerPrice, p * 0.05);
-          const lo = Math.min(c.lowerPrice, p) - span * 0.6;
-          const hi = Math.max(c.upperPrice, p) + span * 0.6;
-          const caught = p >= c.lowerPrice && p <= c.upperPrice;
-          this.drawNet(this.yOf(c.upperPrice, lo, hi), this.yOf(c.lowerPrice, lo, hi), caught);
-          this.fishY += (this.yOf(p, lo, hi) - this.fishY) * 0.15;
-          this.drawFish(Math.round(this.fishY), caught);
-          const coins = this.coinsValue();
-          // one rising coin per tenth of a cent in the bowl, capped, so a fuller bowl looks fuller
-          const n = Math.min(12, Math.floor(coins * 1000));
-          for (let i = 0; i < n; i++) {
-            const cy = SCREEN_H - 12 - ((this.t + i * 17) % 80);
-            s.circ(30 + ((i * 29) % 100), cy, 1, GOLD);
-          }
-          this.hud(caught ? "FISH IN THE NET" : "FISH GOT AWAY", `COINS $${coins.toFixed(4)}`);
-          s.rect(0, SCREEN_H - 12, SCREEN_W, 12, INK);
-          s.text(3, SCREEN_H - 9, caught ? "A COLLECT  B MENU" : "B MENU: RECAST THE NET", caught ? GREY : PINK);
-        } else {
-          this.hud("NO NET IN THE WATER", "");
-        }
-        if (this.scene === "menu") {
-          const w = 92;
-          const x = SCREEN_W - w - 6;
-          s.rect(x, 14, w, MENU.length * 9 + 8, INK);
-          s.rectb(x, 14, w, MENU.length * 9 + 8, WHITE);
-          MENU.forEach((m, i) => {
-            const sel = i === this.menuIdx;
-            if (sel) s.tri(x + 4, 19 + i * 9, x + 4, 23 + i * 9, x + 7, 21 + i * 9, GOLD);
-            s.text(x + 10, 19 + i * 9, m, sel ? GOLD : WHITE);
-          });
-        }
-        if (this.scene === "true" && c && this.pool) {
-          const inRange = p >= c.lowerPrice && p <= c.upperPrice;
-          s.rect(4, 12, SCREEN_W - 8, SCREEN_H - 20, INK);
-          s.rectb(4, 12, SCREEN_W - 8, SCREEN_H - 20, TEAL);
-          const lines: [string, number][] = [
-            ["TRUE VIEW (ORCA, DEVNET)", TEAL],
-            ["FISH = SOL PRICE", GREY],
-            [`  ${p.toFixed(4)} USDC`, WHITE],
-            ["NET = YOUR PRICE RANGE", GREY],
-            [`  ${c.lowerPrice.toFixed(3)} - ${c.upperPrice.toFixed(3)}`, WHITE],
-            [`IN RANGE: ${inRange ? "YES, EARNING FEES" : "NO, NOT EARNING"}`, inRange ? MINT : PINK],
-            [`LIQUIDITY ${c.liquidity.toString()}`, WHITE],
-            ["COINS = FEES OWED", GREY],
-            [`  ${this.food.sol.toFixed(6)} SOL ${this.food.usdc.toFixed(4)} USDC`, WHITE],
-            [`POOL FEE ${(this.pool.feeRate / 10000).toFixed(2)}%`, WHITE],
-            [`NET ID ${shortId(c.mint)}`, WHITE],
-            ["A/B BACK", GREY],
+      case "pick": {
+        this.sea();
+        this.hud("PICK YOUR CREATURE", `${this.pick + 1}/3`);
+        const c = CREATURES[this.pick]!;
+        s.tri(10, 44, 16, 38, 16, 50, this.t % 30 < 15 ? GOLD : WHITE);
+        s.tri(150, 44, 144, 38, 144, 50, this.t % 30 < 15 ? GOLD : WHITE);
+        this.sprite(56, 26 + Math.round(Math.sin(this.t / 10) * 2), c.sx, 4, this.pick === 2);
+        this.bigCenter(64, c.name, GOLD, 2);
+        this.center(80, c.blurb, WHITE);
+        s.text(34, 94, "SAFETY", GREY);
+        this.bars(76, 95, c.safety, MINT);
+        s.text(34, 104, "REWARD", GREY);
+        this.bars(76, 105, c.reward, GOLD);
+        s.text(34, 116, `NET SIZE +-${(c.half * 100).toFixed(1)}%`, GREY);
+        this.foot("< > CHANGE   A CHOOSE   B BACK");
+        break;
+      }
+      case "range": {
+        const c = CREATURES[this.pick]!;
+        const centre = this.live * (1 + this.offset);
+        const range = { low: centre * (1 - c.half), high: centre * (1 + c.half) };
+        const inside = this.live >= range.low && this.live <= range.high;
+        this.hud("SET YOUR NET", c.name);
+        const py = this.chart(2, 11, 156, 104, "candles", range, inside);
+        this.sprite(104, py(this.live) - 9, c.sx);
+        s.text(4, 118, `NET ${range.low.toFixed(2)} - ${range.high.toFixed(2)}`, inside ? MINT : PINK);
+        s.text(4, 126, `${PRICE_SOURCE}, 1 MIN CANDLES`, GREY);
+        this.foot("UP/DN MOVE NET  A CAST  B BACK");
+        break;
+      }
+      case "round": {
+        const c = CREATURES[this.pick]!;
+        const inside = this.live >= this.lastRange.low && this.live <= this.lastRange.high;
+        const secs = Math.ceil(this.roundFrames / FPS);
+        this.hud(`TIME ${secs}`, `COINS $${this.coins().toFixed(4)}`);
+        const py = this.chart(2, 11, 156, 100, "line", this.lastRange, inside);
+        const cy = py(this.live) - 9;
+        if (!(this.hurtFlash > 0 && this.hurtFlash % 2 === 0)) this.sprite(112, cy, c.sx);
+        if (!inside && this.t % 20 < 12) this.center(Math.max(14, cy - 8), "OUCH! OUT OF THE NET", PINK);
+        s.text(4, 114, "HP", WHITE);
+        s.rect(16, 114, 60, 5, PLUM);
+        s.rect(16, 114, Math.round(this.hp * 0.6), 5, this.hp > 40 ? MINT : PINK);
+        const pct = this.scoredFrames ? Math.round((this.inFrames / this.scoredFrames) * 100) : 100;
+        s.text(84, 114, `IN NET ${pct}%`, inside ? MINT : PINK);
+        s.text(4, 124, this.feedOk ? `LIVE ${PRICE_SOURCE}` : "PRICE FEED LOST: PAUSED", this.feedOk ? GREY : PINK);
+        this.foot("B END ROUND");
+        break;
+      }
+      case "results": {
+        this.sea();
+        this.hud("ROUND OVER", CREATURES[this.pick]!.name);
+        const pct = this.scoredFrames ? Math.round((this.inFrames / this.scoredFrames) * 100) : 0;
+        const grade = pct >= 90 ? "S" : pct >= 70 ? "A" : pct >= 45 ? "B" : "C";
+        s.rect(8, 14, 144, 104, INK);
+        s.rectb(8, 14, 144, 104, GOLD);
+        this.big(20, 22, grade, grade === "S" || grade === "A" ? GOLD : WHITE, 5);
+        s.text(52, 24, `IN THE NET  ${pct}%`, WHITE);
+        s.text(52, 34, `TIME  ${Math.round(this.scoredFrames / FPS)}S`, WHITE);
+        s.text(52, 44, `HP LEFT  ${this.hp}`, this.hp > 40 ? MINT : PINK);
+        s.text(14, 62, "YOUR DISK (DEVNET ORCA)", GREY);
+        s.text(14, 72, this.disk ? `ID ${shortId(this.disk.mint)}` : "NO DISK", WHITE);
+        s.text(14, 82, `COINS WAITING $${this.coins().toFixed(4)}`, GOLD);
+        s.text(14, 96, "ROUND SCORED ON LIVE SOL PRICE.", GREY);
+        s.text(14, 104, "COINS ARE THE DISK'S REAL FEES.", GREY);
+        this.foot("A COLLECT COINS   B DONE");
+        break;
+      }
+      case "disk": {
+        this.sea();
+        this.hud("MY DISK", "DEVNET");
+        const d = this.disk;
+        const p = this.diskPool;
+        s.rect(6, 14, 148, 76, INK);
+        s.rectb(6, 14, 148, 76, TEAL);
+        if (d && p) {
+          const inside = p.price >= d.lowerPrice && p.price <= d.upperPrice;
+          const rows: [string, number][] = [
+            ["TRUE VIEW: ORCA WHIRLPOOL", TEAL],
+            [`POOL PRICE ${p.price.toFixed(4)}`, WHITE],
+            [`RANGE ${d.lowerPrice.toFixed(3)}-${d.upperPrice.toFixed(3)}`, WHITE],
+            [inside ? "IN RANGE: EARNING FEES" : "OUT OF RANGE: NO FEES", inside ? MINT : PINK],
+            [`FEES ${this.food.sol.toFixed(6)} SOL`, WHITE],
+            [`     ${this.food.usdc.toFixed(4)} USDC`, WHITE],
+            [`POSITION ${shortId(d.mint)}`, GREY],
           ];
-          lines.forEach(([l, col], i) => s.text(9, 17 + i * 9, l, col));
+          rows.forEach(([l, col], i) => s.text(11, 19 + i * 10, l, col));
         }
+        DISK_MENU.forEach((m, i) => {
+          const sel = i === this.menuIdx;
+          const y = 98 + i * 11;
+          if (sel) s.rect(28, y - 3, 104, 10, TEAL);
+          s.text(36, y, m, sel ? WHITE : GREY);
+        });
         break;
       }
     }
 
     if (this.note && !this.busy && !this.error) this.box([...this.wrap(this.note), "", "A: OK"], GOLD);
-    if (this.busy) {
-      const dots = ".".repeat(1 + (Math.floor(this.t / 8) % 3));
-      this.box([this.busy + dots, "", "SIGNING ON SOLANA"], WHITE);
-    }
+    if (this.busy) this.box([this.busy + ".".repeat(1 + (Math.floor(this.t / 8) % 3)), "", "SIGNING ON SOLANA"], WHITE);
     if (this.error) this.box(["UH OH", ...this.wrap(this.error), "", "A: OK"], PINK);
   }
 }
