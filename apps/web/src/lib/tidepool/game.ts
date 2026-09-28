@@ -4,6 +4,7 @@ import * as chain from "./chain";
 import { type MapPool, mapPools, nextPin } from "./pools";
 import { lastPrice, PRICE_SOURCE } from "./prices";
 import { SPRITES } from "./sprites";
+import { MemeDash, type MemeWallet } from "./meme";
 
 /**
  * TIDEPOOL. An endless arcade round on the REAL live SOL price: your creature rides the price line,
@@ -50,7 +51,7 @@ const CREATURES: Creature[] = [
 ];
 
 
-const CARD_MENU = ["PLAY NOW", "REAL NET", "TEST SOL", "EJECT"] as const;
+const CARD_MENU = ["MEME DASH", "PLAY NOW", "REAL NET", "TEST SOL", "EJECT"] as const;
 const DISK_MENU = ["COLLECT COINS", "RECENTRE NET", "PULL NET IN", "BACK"] as const;
 
 interface Thing {
@@ -143,6 +144,12 @@ export class Tidepool {
 
   private readonly glyphs = new Image(160, 6);
   private hud3d = false;
+  /** Cartridge 2: meme-coin trading made two-button simple. */
+  readonly meme: MemeDash;
+
+  setMemeWallet(w: MemeWallet): void {
+    this.meme.setWallet(w);
+  }
 
   /** 3D mode: the round's world is drawn by a 3D renderer; the console only draws the HUD. */
   setHud3D(on: boolean): void {
@@ -156,6 +163,7 @@ export class Tidepool {
     const h = this.netHalf();
     return {
       round,
+      meme: this.meme.active,
       t: this.t,
       creature: this.pick,
       creatureX: CREATURE_X,
@@ -195,6 +203,10 @@ export class Tidepool {
     con.banks.musics[0]!.set([], [], [12], [13]);
     con.banks.musics[1]!.set([], [], [10], [11]);
     this.best = loadBest();
+    this.meme = new MemeDash(con.input, {}, () => {
+      this.scene = "card";
+      this.menuIdx = 0;
+    });
     this.streak = readStreak().count;
   }
 
@@ -545,6 +557,10 @@ export class Tidepool {
 
   update(): void {
     this.t++;
+    if (this.meme.active) {
+      this.meme.update();
+      return;
+    }
     const inp = this.con.input;
     const a = inp.btnp(BTN_A);
     const b = inp.btnp(BTN_B);
@@ -601,6 +617,7 @@ export class Tidepool {
           blip();
           const item = CARD_MENU[this.menuIdx];
           if (item === "PLAY NOW") this.scene = "pick";
+          else if (item === "MEME DASH") this.meme.open();
           else if (item === "REAL NET") {
             if (this.disk) { this.scene = "disk"; this.menuIdx = 0; }
             else this.openMap();
@@ -638,14 +655,14 @@ export class Tidepool {
       case "disk":
         if (up) { this.menuIdx = (this.menuIdx + DISK_MENU.length - 1) % DISK_MENU.length; blip(); }
         if (down) { this.menuIdx = (this.menuIdx + 1) % DISK_MENU.length; blip(); }
-        if (b) { this.scene = "card"; this.menuIdx = 1; }
+        if (b) { this.scene = "card"; this.menuIdx = 2; }
         if (a) {
           blip();
           const item = DISK_MENU[this.menuIdx];
           if (item === "COLLECT COINS") this.collect();
           else if (item === "RECENTRE NET") this.recentre();
           else if (item === "PULL NET IN") this.release();
-          else { this.scene = "card"; this.menuIdx = 1; }
+          else { this.scene = "card"; this.menuIdx = 2; }
         }
         break;
     }
@@ -844,6 +861,10 @@ export class Tidepool {
   }
 
   draw(): void {
+    if (this.meme.active) {
+      this.meme.draw();
+      return;
+    }
     const s = this.s;
     s.cls(NAVY);
     switch (this.scene) {

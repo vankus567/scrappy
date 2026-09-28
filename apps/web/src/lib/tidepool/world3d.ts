@@ -8,6 +8,7 @@ import { PALETTE, SPRITES } from "./sprites";
 
 export type RenderState = {
   round: boolean;
+  meme: boolean;
   t: number;
   creature: number;
   creatureX: number;

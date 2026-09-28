@@ -47,6 +47,7 @@ export class Device3D {
   private readonly device = new THREE.Group();
   private readonly world = new World3D();
   private readonly hudTex: THREE.CanvasTexture;
+  private readonly memeTex: THREE.CanvasTexture;
   private readonly screenMat: THREE.ShaderMaterial;
   private readonly buttons: THREE.Object3D[] = [];
   private readonly dpad = new THREE.Group();
@@ -61,7 +62,11 @@ export class Device3D {
     private readonly host: HTMLElement,
     private readonly con: Console,
     private readonly state: () => RenderState,
+    memeCanvas?: HTMLCanvasElement,
   ) {
+    this.memeTex = new THREE.CanvasTexture(memeCanvas ?? document.createElement("canvas"));
+    this.memeTex.colorSpace = THREE.SRGBColorSpace;
+    this.memeTex.anisotropy = 8;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -95,14 +100,15 @@ export class Device3D {
     this.hudTex.minFilter = THREE.LinearFilter;
     this.hudTex.generateMipmaps = false;
     this.screenMat = new THREE.ShaderMaterial({
-      uniforms: { hud: { value: this.hudTex }, world: { value: this.world.target.texture }, use3d: { value: 0 }, key: { value: KEY } },
+      uniforms: { hud: { value: this.hudTex }, world: { value: this.world.target.texture }, meme: { value: this.memeTex }, use3d: { value: 0 }, useMeme: { value: 0 }, key: { value: KEY } },
       vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
       fragmentShader: `
-        uniform sampler2D hud; uniform sampler2D world; uniform float use3d; uniform vec3 key; varying vec2 vUv;
+        uniform sampler2D hud; uniform sampler2D world; uniform sampler2D meme; uniform float use3d; uniform float useMeme; uniform vec3 key; varying vec2 vUv;
         void main(){
           vec4 h = texture2D(hud, vUv);
           vec3 c = h.rgb;
           if (use3d > 0.5 && distance(h.rgb, key) < 0.015) c = texture2D(world, vUv).rgb;
+          if (useMeme > 0.5) c = texture2D(meme, vUv).rgb;
           gl_FragColor = vec4(c, 1.0);
           #include <colorspace_fragment>
         }`,
@@ -308,7 +314,7 @@ export class Device3D {
     const narrow = w < 640;
     this.base = narrow ? { x: 0, y: 0 } : { x: 0.06, y: -0.14 };
     const fitH = (narrow ? 6.25 : 7.0) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
-    const fitW = (narrow ? 3.75 : 4.4) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / this.camera.aspect;
+    const fitW = (narrow ? 3.95 : 4.4) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / this.camera.aspect;
     this.camera.position.set(0, 0, Math.max(fitH, fitW));
     this.camera.updateProjectionMatrix();
   }
@@ -369,6 +375,8 @@ export class Device3D {
     this.hudTex.needsUpdate = true;
     if (s.round) this.world.render(this.renderer, s);
     this.screenMat.uniforms.use3d!.value = s.round ? 1 : 0;
+    this.screenMat.uniforms.useMeme!.value = s.meme ? 1 : 0;
+    if (s.meme) this.memeTex.needsUpdate = true;
     const t = performance.now() / 1000;
     const d = this.device;
     d.rotation.y += (this.base.y + this.tilt.y + Math.sin(t * 0.5) * 0.015 - d.rotation.y) * 0.08;

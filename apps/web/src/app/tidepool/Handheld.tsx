@@ -1,6 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { useEffect, useRef, useState } from "react";
 import { useWalletPicker } from "@/components/wallet/WalletPicker";
 import { Console } from "@/lib/console";
@@ -9,7 +10,8 @@ import type { Tidepool } from "@/lib/tidepool/game";
 import { walletSigner } from "@/lib/tidepool/wallet";
 import styles from "./handheld.module.css";
 
-const explorer = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
+const explorer = (sig: string) =>
+  sig.startsWith("main:") ? `https://solscan.io/tx/${sig.slice(5)}` : `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 /**
  * Share a run: the results screen scaled up crisp (nearest-neighbour) into a square card,
@@ -57,7 +59,7 @@ export function Handheld() {
   const gameRef = useRef<Tidepool | null>(null);
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [ready, setReady] = useState(false);
-  const { publicKey, signTransaction, disconnect } = useWallet();
+  const { publicKey, signTransaction, sendTransaction, disconnect } = useWallet();
   const picker = useWalletPicker();
   const pickerRef = useRef(picker);
   pickerRef.current = picker;
@@ -85,7 +87,7 @@ export function Handheld() {
       gameRef.current = game;
       game.setHud3D(true);
       con.run({ update: () => game.update(), draw: () => game.draw() });
-      device = new Device3D(stageRef.current, con, () => game.renderState());
+      device = new Device3D(stageRef.current, con, () => game.renderState(), game.meme.canvas);
       setReady(true);
     });
     return () => {
@@ -102,7 +104,16 @@ export function Handheld() {
     if (!ready) return;
     const key = publicKey?.toBase58();
     gameRef.current?.setSigner(key && signTransaction ? walletSigner(key, signTransaction) : undefined);
-  }, [ready, publicKey, signTransaction]);
+    // MEME DASH real mode: Jupiter builds the swap, the player's wallet signs and sends it on mainnet.
+    const mainnet = new Connection("https://api.mainnet-beta.solana.com");
+    gameRef.current?.setMemeWallet({
+      address: key,
+      send: key
+        ? async (b64: string) => sendTransaction(VersionedTransaction.deserialize(Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))), mainnet)
+        : undefined,
+      onTx: (label, sig) => setTxs((t) => [{ label: `${label} (mainnet)`, sig: `main:${sig}` }, ...t].slice(0, 8)),
+    });
+  }, [ready, publicKey, signTransaction, sendTransaction]);
 
   const player = publicKey?.toBase58();
 
@@ -126,7 +137,7 @@ export function Handheld() {
         {txs.map((t) => (
           <a key={t.sig} className={styles.tx} href={explorer(t.sig)} target="_blank" rel="noreferrer">
             <span>{t.label}</span>
-            <span className={styles.sig}>{t.sig.slice(0, 8)}…</span>
+            <span className={styles.sig}>{t.sig.replace("main:", "").slice(0, 8)}…</span>
           </a>
         ))}
       </section>
