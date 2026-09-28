@@ -1,18 +1,19 @@
-import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, type Input } from "@/lib/console";
+import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, BTN_X, type Input } from "@/lib/console";
 
 /**
  * MEME DASH: meme-coin trading made as simple as two buttons.
  *   Pick a coin (big official logo, big UP/DOWN) -> watch live 1-minute candles -> A BUY, B SELL.
  *   Every buy gets an automatic SAFETY NET (sell at -8%) and TREASURE line (sell at +15%).
- * Every button press is a real Jupiter swap on Solana mainnet, signed and sent by the player's
- * own wallet. There is no practice money and nothing is simulated.
+ * Every button press is a real Jupiter swap on Solana mainnet, signed on-device by the play key
+ * (this device's session wallet). The player's real wallet only shows up to load the coin slot.
+ * There is no practice money and nothing is simulated.
  * Data: Jupiter (verified tokens, official logos, prices) and GeckoTerminal (1-minute candles).
  */
 
 export const MEME_W = 640;
 export const MEME_H = 576;
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const SYMBOLS = ["BONK", "WIF", "POPCAT", "MEW", "BOME", "PNUT"];
+const SYMBOLS = ["SKR", "BONK", "WIF", "POPCAT", "MEW", "BOME", "PNUT"];
 const STAKES = [1, 5, 10];
 const STOP = -0.08;
 const TAKE = 0.15;
@@ -41,27 +42,35 @@ interface Position {
 }
 
 export interface MemeWallet {
-  /** Mainnet: sign and send a Jupiter swap (base64 v0 transaction) with the player's wallet. Returns the signature. */
+  /** Mainnet: sign and send a Jupiter swap (base64 v0 transaction) with the play key. Returns the signature. */
   send?: (swapTxBase64: string) => Promise<string>;
-  /** Mainnet: the player's real balance of a token in raw units, so a sell swaps all of it. */
+  /** Mainnet: the play key's real balance of a token in raw units, so a sell swaps all of it. */
   tokenBalance?: (mint: string) => Promise<bigint>;
-  /** Mainnet: the player's real SOL balance in lamports. */
+  /** Mainnet: the play key's real SOL balance in lamports. */
   solBalance?: () => Promise<bigint>;
+  /** The one wallet popup in the game: move lamports of SOL from the real wallet into the coin slot. */
+  topUp?: (lamports: bigint) => Promise<string>;
+  /** The play key sends everything back to the real wallet. No popup. */
+  sweep?: () => Promise<string>;
+  /** Ask the player to connect a wallet so the coin slot can be loaded. */
+  connect?: () => void;
   address?: string;
   onTx?: (label: string, sig: string) => void;
 }
 
 type Scene = "loading" | "pick" | "chart" | "result";
 
+/** Daylight palette: lavender screen, white panels, ink text, purple accent. */
 const C = {
-  bg: "#0d1b2a",
-  panel: "#13263b",
-  ink: "#f4f7fb",
-  dim: "#8ea3b8",
-  up: "#3ddc97",
-  down: "#ff5a6e",
-  gold: "#ffd166",
-  real: "#ffb347",
+  bg: "#f4f1ff",
+  panel: "#ffffff",
+  ink: "#0e091c",
+  dim: "#4a35c4",
+  up: "#1e7a34",
+  down: "#c41a1a",
+  gold: "#d4a017",
+  real: "#6e54ff",
+  edge: "#0e091c",
 };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -80,8 +89,15 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-const fmtPrice = (p: number) => (p >= 1 ? p.toFixed(3) : p >= 0.01 ? p.toFixed(4) : p.toPrecision(3));
-const fmtUsd = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
+export const fmtPrice = (p: number) => (p >= 1 ? p.toFixed(3) : p >= 0.01 ? p.toFixed(4) : p.toPrecision(3));
+export const fmtUsd = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
+
+/** USD stake -> lamports to spend, from the live SOL price. 0 when the feed is down. */
+export const lamportsForUsd = (usd: number, solUsd: number): bigint =>
+  solUsd > 0 ? BigInt(Math.floor((usd / solUsd) * 1e9)) : BigInt(0);
+
+/** Where an open trade resolves on its own: the safety net below, the treasure line above. */
+export const autoSellAt = (pct: number): string | null => (pct <= STOP ? "SAFETY NET CAUGHT YOU" : pct >= TAKE ? "TREASURE FOUND" : null);
 
 export class MemeDash {
   readonly canvas: HTMLCanvasElement;
@@ -100,6 +116,8 @@ export class MemeDash {
   private lastPoll = 0;
   private lastCandles = 0;
   private sol = 0; // SOL price in USD, for real-mode sizing
+  private coinBal: bigint | null = null; // play key SOL balance, refreshed with the price poll
+  private lastBal = 0;
 
   constructor(private readonly input: Input, private wallet: MemeWallet, private readonly onExit: () => void) {
     this.canvas = document.createElement("canvas");
@@ -137,7 +155,7 @@ export class MemeDash {
           .filter((t) => t.symbol.toUpperCase() === sym && t.isVerified !== false)
           .sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0))[0];
         if (!best) continue;
-        found.push({ mint: best.id, symbol: sym, name: best.name, icon: best.icon ? await loadImage(best.icon) : null, decimals: best.decimals, price: 0, change24h: 0 });
+        found.push({ mint: best.id, symbol: sym, name: best.name, icon: best.icon ? await loadImage(`/api/icon?u=${encodeURIComponent(best.icon)}`) : null, decimals: best.decimals, price: 0, change24h: 0 });
       }
       if (found.length === 0) throw new Error("no coins found right now");
       this.coins = found;
@@ -183,14 +201,16 @@ export class MemeDash {
     if (this.busy) return;
     this.busy = label;
     this.error = null;
-    fn()
+    // A wallet prompt that never resolves must not hang the screen forever.
+    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("taking too long - check your wallet and try again")), 90_000));
+    Promise.race([fn(), timeout])
       .catch((e: unknown) => (this.error = (e as Error).message ?? String(e)))
       .finally(() => (this.busy = null));
   }
 
   /** One real Jupiter swap on mainnet. Returns the signature and the quoted output in raw units. */
   private async jupSwap(inputMint: string, outputMint: string, amount: bigint): Promise<{ sig: string; out: bigint }> {
-    if (!this.wallet.send || !this.wallet.address) throw new Error("insert your cartridge first: connect your wallet");
+    if (!this.wallet.send || !this.wallet.address) throw new Error("no play key on this device");
     const quote = await json<Record<string, unknown>>(
       `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=150`,
     );
@@ -209,24 +229,50 @@ export class MemeDash {
     const usd = STAKES[this.stakeIdx]!;
     const entry = this.live(c);
     if (!entry) return;
-    this.run("BUYING WITH YOUR WALLET", async () => {
+    this.run("BUYING", async () => {
       if (!this.sol) await this.pollPrices();
-      const lamports = BigInt(Math.floor((usd / this.sol) * 1e9));
-      const bal = this.wallet.solBalance ? await this.wallet.solBalance() : null;
-      if (bal !== null && bal < lamports + BigInt(2_000_000)) throw new Error(`not enough SOL in your wallet - this needs about ${(Number(lamports) / 1e9).toFixed(4)} SOL plus fees`);
+      const lamports = lamportsForUsd(usd, this.sol);
+      let bal = this.wallet.solBalance ? await this.wallet.solBalance() : null;
+      if (bal !== null && bal < lamports + BigInt(2_000_000)) {
+        // Empty coin slot: the real wallet signs one top-up, the swap itself signs silently.
+        if (!this.wallet.topUp) {
+          this.wallet.connect?.();
+          throw new Error("empty coin slot - pick a wallet to load a coin");
+        }
+        this.busy = "INSERTING COIN";
+        const sig = await this.wallet.topUp(lamports + BigInt(4_000_000)); // stake + fee headroom
+        this.wallet.onTx?.("insert coin", sig);
+        this.busy = "BUYING";
+        bal = await this.wallet.solBalance!();
+        if (bal === null || bal < lamports + BigInt(2_000_000)) throw new Error("the coin has not landed yet - press A again in a few seconds");
+      }
       const { sig, out } = await this.jupSwap(SOL_MINT, c.mint, lamports);
       this.wallet.onTx?.(`buy ${c.symbol} ($${usd})`, sig);
       this.pos = { coin: c, entry, usd, tokens: out };
+      this.coinBal = null;
+    });
+  }
+
+  /** Everything in the coin slot goes back to the player's wallet. The play key signs it itself. */
+  private cashOut(): void {
+    this.run("CASHING OUT", async () => {
+      if (!this.wallet.sweep) {
+        this.wallet.connect?.();
+        throw new Error("connect a wallet to cash out to");
+      }
+      const sig = await this.wallet.sweep();
+      this.wallet.onTx?.("cash out", sig);
+      this.coinBal = BigInt(0);
     });
   }
 
   private sell(why: string): void {
     const p = this.pos;
     if (!p) return;
-    this.run("SELLING WITH YOUR WALLET", async () => {
+    this.run("SELLING", async () => {
       // Sell the balance the wallet actually holds, not the quote estimate.
       const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(p.coin.mint) : p.tokens;
-      if (held <= BigInt(0)) throw new Error(`no ${p.coin.symbol} in your wallet yet - wait a few seconds and press A again`);
+      if (held <= BigInt(0)) throw new Error(`no ${p.coin.symbol} in the coin purse yet - wait a few seconds and press A again`);
       const before = this.wallet.solBalance ? await this.wallet.solBalance() : null;
       const { sig } = await this.jupSwap(p.coin.mint, SOL_MINT, held);
       this.wallet.onTx?.(`sell ${p.coin.symbol}`, sig);
@@ -247,6 +293,7 @@ export class MemeDash {
       this.result = { text: pnl >= 0 ? "NICE CATCH!" : "OUCH!", pnl, pct: usd / p.usd - 1, why };
       this.pos = null;
       this.scene = "result";
+      this.coinBal = null;
     });
   }
 
@@ -257,6 +304,7 @@ export class MemeDash {
     const inp = this.input;
     const a = inp.btnp(BTN_A);
     const b = inp.btnp(BTN_B);
+    const x = inp.btnp(BTN_X);
     const up = inp.btnp(BTN_UP);
     const down = inp.btnp(BTN_DOWN);
     const left = inp.btnp(BTN_LEFT);
@@ -266,6 +314,12 @@ export class MemeDash {
     if (this.scene !== "loading" && now - this.lastPoll > 4000) {
       this.lastPoll = now;
       void this.pollPrices().catch(() => {});
+    }
+    if (this.scene !== "loading" && now - this.lastBal > 5000) {
+      this.lastBal = now;
+      void this.wallet.solBalance?.()
+        .then((v) => (this.coinBal = v))
+        .catch(() => {});
     }
     if (this.scene === "chart" && this.coin && now - this.lastCandles > 30000) {
       this.lastCandles = now;
@@ -283,15 +337,15 @@ export class MemeDash {
 
     // the safety net and the treasure line sell on their own: nobody has to watch the chart
     if (this.pos && !this.busy) {
-      const pct = this.live(this.pos.coin) / this.pos.entry - 1;
-      if (pct <= STOP) this.sell("SAFETY NET CAUGHT YOU");
-      else if (pct >= TAKE) this.sell("TREASURE FOUND");
+      const reason = autoSellAt(this.live(this.pos.coin) / this.pos.entry - 1);
+      if (reason) this.sell(reason);
     }
 
     switch (this.scene) {
       case "pick":
         if (left || up) this.idx = (this.idx + this.coins.length - 1) % this.coins.length;
         if (right || down) this.idx = (this.idx + 1) % this.coins.length;
+        if (x) this.cashOut();
         if (a && this.coin) {
           this.candles = [];
           this.lastCandles = performance.now();
@@ -348,7 +402,7 @@ export class MemeDash {
     g.beginPath();
     g.arc(cx, cy, r, 0, Math.PI * 2);
     g.closePath();
-    g.fillStyle = "#223a55";
+    g.fillStyle = "#ddd7fe";
     g.fill();
     g.clip();
     if (c.icon) g.drawImage(c.icon, cx - r, cy - r, r * 2, r * 2);
@@ -378,8 +432,23 @@ export class MemeDash {
   }
 
   private modeTag(): void {
-    this.pill(MEME_W - 214, 16, 198, 36, C.real);
-    this.text("REAL MONEY", MEME_W - 115, 34, 17, C.bg, "center");
+    this.pill(MEME_W - 230, 13, 216, 44, C.real);
+    this.text("REAL MONEY", MEME_W - 122, 35, 21, C.bg, "center");
+  }
+
+  /** Error text broken into short readable lines instead of one long clipped line. */
+  private wrapError(msg: string): void {
+    const words = msg.split(" ");
+    const lines: string[] = [];
+    let line = "";
+    for (const w of words) {
+      if ((line + " " + w).trim().length > 30) {
+        if (line) lines.push(line.trim());
+        line = w;
+      } else line += " " + w;
+    }
+    if (line.trim()) lines.push(line.trim());
+    lines.slice(0, 3).forEach((l, i) => this.text(l, MEME_W / 2, MEME_H / 2 - 14 + i * 30, 22, C.ink, "center", 600));
   }
 
   private chart(x: number, y: number, w: number, h: number): (p: number) => number {
@@ -401,22 +470,22 @@ export class MemeDash {
     g.roundRect(x, y - 8, w, h + 16, 18);
     g.fill();
     // price scale on the right: four gridlines with real prices
-    g.font = `600 15px system-ui, -apple-system, sans-serif`;
+    g.font = `700 18px system-ui, -apple-system, sans-serif`;
     g.textAlign = "right";
     g.textBaseline = "middle";
     for (let i = 0; i <= 4; i++) {
       const p = lo + ((hi - lo) * i) / 4;
       const yy = py(p);
-      g.strokeStyle = "rgba(142,163,184,0.18)";
+      g.strokeStyle = "rgba(74,53,196,0.18)";
       g.lineWidth = 1;
       g.beginPath();
       g.moveTo(x + 8, yy);
-      g.lineTo(x + w - 84, yy);
+      g.lineTo(x + w - 112, yy);
       g.stroke();
       g.fillStyle = C.dim;
       g.fillText(fmtPrice(p), x + w - 8, yy);
     }
-    const cw = (w - 92) / Math.max(cs.length, 1);
+    const cw = (w - 120) / Math.max(cs.length, 1);
     cs.forEach((c, i) => {
       const cx = x + 12 + i * cw + cw / 2;
       const upc = c.c >= c.o;
@@ -436,11 +505,11 @@ export class MemeDash {
       g.setLineDash([10, 8]);
       g.beginPath();
       g.moveTo(x + 8, yy);
-      g.lineTo(x + w - 76, yy);
+      g.lineTo(x + w - 108, yy);
       g.stroke();
       g.setLineDash([]);
-      this.pill(x + w - 74, yy - 14, 70, 28, color);
-      this.text(label, x + w - 39, yy, 14, C.bg, "center");
+      this.pill(x + w - 104, yy - 17, 96, 34, color);
+      this.text(label, x + w - 56, yy, 17, C.bg, "center");
     };
     if (pos) {
       line(pos.entry * (1 + TAKE), C.up, "TREASURE");
@@ -457,15 +526,15 @@ export class MemeDash {
       g.setLineDash([4, 5]);
       g.beginPath();
       g.moveTo(x + 8, yy);
-      g.lineTo(x + w - 84, yy);
+      g.lineTo(x + w - 112, yy);
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = C.ink;
       g.beginPath();
-      g.arc(x + w - 92, yy, 5 + (this.t % 30 < 15 ? 2 : 0), 0, Math.PI * 2);
+      g.arc(x + w - 122, yy, 6 + (this.t % 30 < 15 ? 2 : 0), 0, Math.PI * 2);
       g.fill();
-      this.pill(x + w - 82, yy - 13, 78, 26, tagCol);
-      this.text(fmtPrice(live), x + w - 43, yy, 14, C.bg, "center");
+      this.pill(x + w - 104, yy - 16, 96, 32, tagCol);
+      this.text(fmtPrice(live), x + w - 56, yy, 17, C.bg, "center");
     }
     return py;
   }
@@ -474,11 +543,11 @@ export class MemeDash {
     const g = this.g;
     g.fillStyle = C.bg;
     g.fillRect(0, 0, MEME_W, MEME_H);
-    this.text("MEME DASH", 24, 34, 26, C.gold);
+    this.text("MEME DASH", 24, 36, 32, C.gold);
     this.modeTag();
 
     if (this.scene === "loading") {
-      this.text("Finding the coins...", MEME_W / 2, MEME_H / 2, 30, C.ink, "center");
+      this.text("Finding the coins...", MEME_W / 2, MEME_H / 2, 34, C.ink, "center");
     }
 
     const c = this.coin;
@@ -487,67 +556,69 @@ export class MemeDash {
       this.logo(c, MEME_W / 2, 190 + bob, 96);
       this.text("‹", 70, 190, 90, C.dim, "center", 400);
       this.text("›", MEME_W - 70, 190, 90, C.dim, "center", 400);
-      this.text(`$${c.symbol}`, MEME_W / 2, 322, 46, C.ink, "center");
+      this.text(`$${c.symbol}`, MEME_W / 2, 324, 54, C.ink, "center");
       const upc = c.change24h >= 0;
-      this.pill(MEME_W / 2 - 150, 352, 300, 56, upc ? C.up : C.down);
-      this.text(`${upc ? "▲ UP" : "▼ DOWN"} ${Math.abs(c.change24h).toFixed(1)}% TODAY`, MEME_W / 2, 380, 24, C.bg, "center");
-      this.text(`$${fmtPrice(c.price)}`, MEME_W / 2, 440, 26, C.dim, "center", 600);
-      this.text("Real trades, signed by your own wallet", MEME_W / 2, 482, 20, C.real, "center", 600);
-      this.text("◀ ▶ coins   A pick   B back", MEME_W / 2, 540, 18, C.dim, "center", 600);
+      this.pill(MEME_W / 2 - 170, 356, 340, 64, upc ? C.up : C.down);
+      this.text(`${upc ? "▲ UP" : "▼ DOWN"} ${Math.abs(c.change24h).toFixed(1)}% TODAY`, MEME_W / 2, 388, 28, C.bg, "center");
+      this.text(`$${fmtPrice(c.price)}`, MEME_W / 2, 452, 30, C.dim, "center", 600);
+      this.text("Real trades, signed on-device by your play key", MEME_W / 2, 494, 23, C.real, "center", 600);
+      const slot = this.coinBal === null ? "COIN SLOT ..." : `COIN SLOT ${(Number(this.coinBal) / 1e9).toFixed(3)} SOL`;
+      this.text(slot, MEME_W / 2, 520, 20, this.coinBal === BigInt(0) ? C.down : C.dim, "center", 600);
+      this.text("◀ ▶ coins  A pick  X cash out  B back", MEME_W / 2, 550, 21, C.dim, "center", 600);
     }
 
     if ((this.scene === "chart" || this.scene === "result") && c) {
-      this.logo(c, 44, 96, 26);
-      this.text(`$${c.symbol}`, 82, 88, 26, C.ink);
+      this.logo(c, 46, 98, 30);
+      this.text(`$${c.symbol}`, 86, 88, 32, C.ink);
       const live = this.live(c);
-      this.text(`$${fmtPrice(live)}`, 82, 114, 18, C.dim, "left", 600);
+      this.text(`$${fmtPrice(live)}`, 86, 118, 22, C.dim, "left", 600);
       this.chart(20, 142, MEME_W - 40, 250);
       const pos = this.pos;
       if (pos) {
         const pct = live / pos.entry - 1;
         const pnl = pos.usd * pct;
-        this.face(84, 468, 42, pnl);
-        this.text(`${pnl >= 0 ? "+" : ""}${fmtUsd(pnl)}`, 146, 452, 40, pnl >= 0 ? C.up : C.down);
-        this.text(`${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(1)}% on your ${fmtUsd(pos.usd)}`, 146, 490, 20, C.dim, "left", 600);
-        this.pill(MEME_W - 250, 432, 230, 72, C.down);
-        this.text("A / B  SELL", MEME_W - 135, 468, 28, C.ink, "center");
-        this.text("Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 17, C.dim, "center", 600);
+        this.face(88, 470, 46, pnl);
+        this.text(`${pnl >= 0 ? "+" : ""}${fmtUsd(pnl)}`, 152, 452, 48, pnl >= 0 ? C.up : C.down);
+        this.text(`${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(1)}% on your ${fmtUsd(pos.usd)}`, 152, 494, 24, C.dim, "left", 600);
+        this.pill(MEME_W - 258, 428, 238, 84, C.down);
+        this.text("A / B  SELL", MEME_W - 139, 470, 34, C.ink, "center");
+        this.text("Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 20, C.dim, "center", 600);
       } else if (this.scene === "chart") {
-        this.text("How much?", 24, 432, 20, C.dim, "left", 600);
+        this.text("How much?", 24, 434, 24, C.dim, "left", 600);
         STAKES.forEach((s, i) => {
           const sel = i === this.stakeIdx;
-          this.pill(24 + i * 92, 450, 82, 48, sel ? C.gold : C.panel);
-          this.text(`$${s}`, 65 + i * 92, 474, 24, sel ? C.bg : C.ink, "center");
+          this.pill(24 + i * 100, 450, 90, 58, sel ? C.gold : C.panel);
+          this.text(`$${s}`, 69 + i * 100, 479, 30, sel ? C.bg : C.ink, "center");
         });
-        this.pill(MEME_W - 270, 436, 250, 76, C.up);
-        this.text("A  BUY", MEME_W - 145, 474, 34, C.bg, "center");
-        this.text("▲▼ amount   A buy   B coins", MEME_W / 2, 546, 17, C.dim, "center", 600);
+        this.pill(MEME_W - 270, 432, 250, 84, C.up);
+        this.text("A  BUY", MEME_W - 145, 474, 40, C.bg, "center");
+        this.text("▲▼ amount   A buy   B coins", MEME_W / 2, 546, 20, C.dim, "center", 600);
       }
     }
 
     if (this.scene === "result" && this.result) {
       const r = this.result;
-      g.fillStyle = "rgba(9,18,28,0.88)";
+      g.fillStyle = "rgba(244,241,255,0.9)";
       g.fillRect(0, 0, MEME_W, MEME_H);
-      this.face(MEME_W / 2, 170, 70, r.pnl);
-      this.text(r.why, MEME_W / 2, 280, 26, C.dim, "center", 700);
-      this.text(r.text, MEME_W / 2, 330, 48, C.ink, "center");
-      this.text(`${r.pnl >= 0 ? "+" : ""}${fmtUsd(r.pnl)}  (${r.pct >= 0 ? "+" : ""}${(r.pct * 100).toFixed(1)}%)`, MEME_W / 2, 392, 36, r.pnl >= 0 ? C.up : C.down, "center");
-      this.text("A trade again   B pick a coin", MEME_W / 2, 480, 20, C.dim, "center", 600);
+      this.face(MEME_W / 2, 170, 76, r.pnl);
+      this.text(r.why, MEME_W / 2, 284, 30, C.dim, "center", 700);
+      this.text(r.text, MEME_W / 2, 336, 56, C.ink, "center");
+      this.text(`${r.pnl >= 0 ? "+" : ""}${fmtUsd(r.pnl)}  (${r.pct >= 0 ? "+" : ""}${(r.pct * 100).toFixed(1)}%)`, MEME_W / 2, 402, 42, r.pnl >= 0 ? C.up : C.down, "center");
+      this.text("A trade again   B pick a coin", MEME_W / 2, 484, 24, C.dim, "center", 600);
     }
 
     if (this.busy) {
-      g.fillStyle = "rgba(9,18,28,0.85)";
+      g.fillStyle = "rgba(244,241,255,0.88)";
       g.fillRect(0, 0, MEME_W, MEME_H);
-      this.text(this.busy + ".".repeat(1 + (Math.floor(this.t / 10) % 3)), MEME_W / 2, MEME_H / 2 - 16, 28, C.ink, "center");
-      if (this.busy.includes("WALLET")) this.text("Approve it in your wallet", MEME_W / 2, MEME_H / 2 + 26, 20, C.dim, "center", 600);
+      this.text(this.busy + ".".repeat(1 + (Math.floor(this.t / 10) % 3)), MEME_W / 2, MEME_H / 2 - 20, 34, C.ink, "center");
+      if (this.busy.includes("COIN")) this.text("Approve the top-up in your wallet", MEME_W / 2, MEME_H / 2 + 30, 24, C.dim, "center", 600);
     }
     if (this.error) {
-      g.fillStyle = "rgba(9,18,28,0.92)";
+      g.fillStyle = "rgba(244,241,255,0.94)";
       g.fillRect(0, 0, MEME_W, MEME_H);
-      this.text("Uh oh", MEME_W / 2, MEME_H / 2 - 50, 36, C.down, "center");
-      this.text(this.error.slice(0, 60), MEME_W / 2, MEME_H / 2, 20, C.ink, "center", 600);
-      this.text("A: OK", MEME_W / 2, MEME_H / 2 + 50, 20, C.dim, "center", 600);
+      this.text("Uh oh", MEME_W / 2, MEME_H / 2 - 60, 44, C.down, "center");
+      this.wrapError(this.error);
+      this.text("A: OK", MEME_W / 2, MEME_H / 2 + 62, 24, C.dim, "center", 600);
     }
   }
 }

@@ -27,12 +27,12 @@ import {
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 
 /**
- * Everything TIDEPOOL knows about the chain. Game code never imports Orca or kit directly,
+ * Everything SCRAPPY BOY knows about the chain. Game code never imports Orca or kit directly,
  * so every number on screen traces back to one function here.
  */
 
 export const NETWORK = "devnet" as const;
-const RPC_URL = process.env.NEXT_PUBLIC_TIDEPOOL_RPC ?? "https://api.devnet.solana.com";
+const RPC_URL = process.env.NEXT_PUBLIC_SCRAPPY_RPC ?? "https://api.devnet.solana.com";
 const deployment = WhirlpoolDeployment.devnet;
 
 export const SOL_MINT = address("So11111111111111111111111111111111111111112");

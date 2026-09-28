@@ -36,19 +36,20 @@ export default function Home() {
         <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center pb-20 pt-6 text-center">
           <h1 className="font-display text-balance text-[clamp(2.5rem,6vw,4.9rem)] font-bold leading-[1.04] tracking-[-0.01em]">
             Crypto is hard.
-            <span className="block text-[#007aff]">So we made it a game.</span>
+            <span className="block text-white [text-shadow:0_2px_14px_rgba(15,50,90,0.45)]">So we made it a game.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
-            TIDEPOOL is a pocket arcade game where every move is real Solana. Ride the live SOL price, keep it in your net, then cast a real one from your own wallet and collect real fees.
+            SCRAPPY BOY is a pocket arcade that plays with real money. Ride the price, press A, and a real trade
+            happens on Solana. You can play the whole thing without a wallet; drop in a coin when you want the wins to be real too.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
-            <PrimaryLink href="/tidepool">Play TIDEPOOL</PrimaryLink>
+            <PrimaryLink href="/scrappyboy">Play SCRAPPY BOY</PrimaryLink>
             <GlossButton href="/scrappy.apk" download>
-              Download the Android app
+              Get the Android app
               <Arrow />
             </GlossButton>
             <span className="-mt-1 text-[13px] font-semibold text-navy-text">APK · 1 MB</span>
-            <span className="text-[14px] font-semibold text-navy-text">Free to play. Connect your wallet on devnet.</span>
+            <span className="text-[14px] font-semibold text-navy-text">Free to play. No wallet until you put a coin in.</span>
           </div>
           <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">
             <figcaption className="text-[12px] text-ink-faint">How a round goes</figcaption>
@@ -72,13 +73,13 @@ export default function Home() {
             Play first. Then do it for real.
           </h2>
           <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-soft">
-            Every button in the game is a real Solana action underneath. You never read a manual; you just play.
+            There is no practice mode and no manual. The game is the interface: press a button and the real thing happens.
           </p>
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
-              { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless arcade round on the live SOL price. Keep your creature inside the net, build combos, chase your best score." },
-              { who: "shelly" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a real Orca pool on the world map and cast. Your own wallet signs; the net is a real liquidity position you own." },
-              { who: "zip" as const, bg: "bg-white", t: "Collect", d: "While the price stays in your net it earns real fees. Press A to collect them straight into your wallet." },
+              { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless round riding the live SOL price. Keep your creature in the net, stack combos, chase the day's best." },
+              { who: "shelly" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a pool on the sea map and press A. The net is real money in a real trading pool, opened and signed right on the device." },
+              { who: "zip" as const, bg: "bg-white", t: "Collect", d: "While the price sits in your net it earns trading fees. Press A and they drop into your coin purse." },
             ].map((s) => (
               <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
                 <Critter who={s.who} className="mx-auto w-40" title={s.who} />
@@ -98,8 +99,8 @@ export default function Home() {
               Nothing on screen is fake.
             </h2>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
-              The chart is the live SOL price. Nets are real Orca positions. Coins are real fees. Every move
-              links to Solana Explorer, and points are just points: we never turn your score into a bet.
+              The chart is the live SOL price. Nets are real liquidity positions. Coins are real trading fees.
+              Every move links out to Solana Explorer. And points are just points: the game never turns your score into a bet.
             </p>
           </div>
           <figure className="mx-auto w-full max-w-sm rounded-2xl bg-night-raise p-6 ring-1 ring-white/5">
@@ -117,7 +118,7 @@ export default function Home() {
           <div>
             <AgentOrbClient size={112} tone="light" className="-ml-3 mb-4" />
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
-              Beat your friends'<br className="hidden sm:block" /> best score.
+              Beat your friends&rsquo;<br className="hidden sm:block" /> best score.
             </h2>
             <dl className="mt-8 space-y-5 text-[15px]">
               <div>
@@ -126,27 +127,28 @@ export default function Home() {
               </div>
               <div>
                 <dt className="font-bold">A handheld in your pocket</dt>
-                <dd className="mt-1 text-ink-soft">Plays on the web and as an Android app for Solana Seeker, with a d-pad, A and B.</dd>
+                <dd className="mt-1 text-ink-soft">Runs on the web and as a 1 MB Android app for Solana Seeker. D-pad, A, B, done.</dd>
               </div>
               <div>
-                <dt className="font-bold">More cartridges coming</dt>
-                <dd className="mt-1 text-ink-soft">Liquidity is cartridge one. Staking and trading are next, each one a hard thing made playable.</dd>
+                <dt className="font-bold">Two cartridges in the box</dt>
+                <dd className="mt-1 text-ink-soft">The fishing net is secretly a liquidity position. MEME DASH is secretly a meme-coin trade. Neither screen uses those words.</dd>
               </div>
             </dl>
             <div className="mt-9">
-              <PrimaryLink href="/tidepool">Start a round</PrimaryLink>
+              <PrimaryLink href="/scrappyboy">Start a round</PrimaryLink>
             </div>
           </div>
 
           <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
 {`What each button really does
 
-  A  cast net   open an Orca position
-  A  collect    harvest fees to wallet
-  B  recentre   close + reopen at price
-  B  pull in    close position, funds back
+  A  cast net    open an Orca position
+  A  collect     harvest fees to purse
+  B  recentre    close + reopen at price
+  B  pull in     close position, funds back
+  A  buy coin    real Jupiter swap, mainnet
 
-Signed by your wallet. Solana devnet.`}
+Signed on-device by your play key.`}
           </pre>
         </div>
       </section>
@@ -154,7 +156,7 @@ Signed by your wallet. Solana devnet.`}
       <footer className="bg-ground-deep px-4 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center text-[14px] text-ink-soft">
           <p>
-            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">scrappypet</span> · home of TIDEPOOL · built on Solana
+            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">scrappypet</span> · home of SCRAPPY BOY · built on Solana
           </p>
           <a href={REPO_URL} className="transition-colors hover:text-ink">Source on GitHub</a>
         </div>

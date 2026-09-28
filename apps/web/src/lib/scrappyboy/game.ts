@@ -2,12 +2,13 @@ import type { TransactionSigner } from "@solana/kit";
 import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, type Console, Image } from "@/lib/console";
 import * as chain from "./chain";
 import { type MapPool, mapPools, nextPin } from "./pools";
-import { lastPrice, PRICE_SOURCE } from "./prices";
+import { lastPrice } from "./prices";
+import { bumpStreak, readStreak } from "./streak";
 import { SPRITES } from "./sprites";
 import { MemeDash, type MemeWallet } from "./meme";
 
 /**
- * TIDEPOOL. An endless arcade round on the REAL live SOL price: your creature rides the price line,
+ * SCRAPPY BOY. An endless arcade round on the REAL live SOL price: your creature rides the price line,
  * you steer the net to keep it inside, catch pearls, dodge jellyfish, build combos. Points are points,
  * never money. After a good run you can put a real net (an Orca liquidity position on devnet, signed by
  * your own wallet) into the sea: the same skill, now earning real fees.
@@ -78,20 +79,20 @@ interface Popup {
 
 const loadBest = (): number => {
   try {
-    return Number(localStorage.getItem("tidepool.best") ?? 0) || 0;
+    return Number(localStorage.getItem("scrappyboy.best") ?? 0) || 0;
   } catch {
     return 0;
   }
 };
 const saveBest = (n: number) => {
   try {
-    localStorage.setItem("tidepool.best", String(n));
+    localStorage.setItem("scrappyboy.best", String(n));
   } catch {
     /* private mode: best lives for this session only */
   }
 };
 
-export class Tidepool {
+export class ScrappyBoy {
   private scene: Scene = "boot";
   private busy: string | null = null;
   private error: string | null = null;
@@ -216,7 +217,9 @@ export class Tidepool {
     if (this.busy) return;
     this.busy = label;
     this.error = null;
-    fn()
+    // A wallet prompt or a dead RPC must never leave the screen stuck on "...".
+    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("taking too long - check your wallet and try again")), 90_000));
+    Promise.race([fn(), timeout])
       .catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e);
         this.error = msg.replace(/\s+/g, " ").slice(0, 120).toUpperCase();
@@ -302,6 +305,16 @@ export class Tidepool {
     });
   }
 
+  /** Free devnet SOL straight into the play key: no faucet website, no wallet popup. */
+  private freeSol(): void {
+    this.run("FREE TEST SOL", async () => {
+      const sig = await chain.starterFood(this.signer!.address, 0.5);
+      this.events.onTx?.("test sol faucet", sig);
+      this.balance = await chain.solBalance(this.signer!.address);
+      this.note = "0.5 TEST SOL LANDED IN YOUR PLAY KEY";
+    });
+  }
+
   private collect(): void {
     const d = this.disk;
     if (!d) return;
@@ -310,7 +323,7 @@ export class Tidepool {
       this.events.onTx?.("collect coins (harvest fees)", sig);
       this.con.play(0, 1);
       await this.loadDisk();
-      this.note = "COINS SENT TO YOUR WALLET";
+      this.note = "COINS SENT TO YOUR COIN PURSE";
     });
   }
 
@@ -344,7 +357,7 @@ export class Tidepool {
       this.balance = await chain.solBalance(this.signer!.address);
       await this.loadDisk();
       this.scene = "card";
-      this.note = "NET BACK ON THE BOAT. FUNDS BACK IN YOUR WALLET";
+      this.note = "NET BACK ON THE BOAT. FUNDS BACK IN YOUR PLAY KEY";
     });
   }
 
@@ -621,7 +634,7 @@ export class Tidepool {
           else if (item === "REAL NET") {
             if (this.disk) { this.scene = "disk"; this.menuIdx = 0; }
             else this.openMap();
-          } else if (item === "TEST SOL") this.note = "SET YOUR WALLET TO DEVNET, THEN GET FREE TEST SOL AT FAUCET.SOLANA.COM";
+          } else if (item === "TEST SOL") this.freeSol();
           else if (item === "EJECT") this.events.onEject?.();
         }
         break;
@@ -870,7 +883,7 @@ export class Tidepool {
     switch (this.scene) {
       case "boot": {
         this.sea();
-        this.bigCenter(26, "TIDEPOOL", GOLD, 3);
+        this.bigCenter(26, "SCRAPPY BOY", GOLD, 3);
         this.center(50, "KEEP THE PRICE IN YOUR NET", WHITE);
         CREATURES.forEach((c, i) => this.sprite(26 + i * 40, 70 + Math.round(Math.sin((this.t + i * 20) / 10) * 3), c.sx, 2, i === 2));
         if (this.t % 30 < 20) this.center(104, "PRESS A", WHITE);
@@ -904,7 +917,7 @@ export class Tidepool {
         s.text(50, 20, `BEST   `, GOLD);
         s.text(110, 20, `D`, this.streak > 1 ? ORANGE : GREY);
         s.text(50, 30, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK);
-        s.text(50, 40, `WALLET ${food.toFixed(2)} SOL`, WHITE);
+        s.text(50, 40, `PLAY KEY ${food.toFixed(2)} SOL`, WHITE); // on the ink card
         s.text(50, 50, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY);
         CARD_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
@@ -1051,28 +1064,3 @@ export class Tidepool {
 }
 
 const shortId = (a: string) => `${a.slice(0, 4)}..${a.slice(-4)}`;
-
-/** Days-in-a-row streak, stored on this device. */
-function readStreak(): { day: string; count: number } {
-  try {
-    const v = JSON.parse(localStorage.getItem("tidepool.streak") ?? "null") as { day: string; count: number } | null;
-    if (!v) return { day: "", count: 0 };
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
-    return v.day === today || v.day === yesterday ? v : { day: "", count: 0 };
-  } catch {
-    return { day: "", count: 0 };
-  }
-}
-
-function bumpStreak(): number {
-  const today = new Date().toISOString().slice(0, 10);
-  const cur = readStreak();
-  const next = cur.day === today ? cur : { day: today, count: cur.count + 1 };
-  try {
-    localStorage.setItem("tidepool.streak", JSON.stringify(next));
-  } catch {
-    /* private mode */
-  }
-  return next.count;
-}

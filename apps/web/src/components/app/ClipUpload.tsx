@@ -104,7 +104,7 @@ export function ClipUpload({ token }: { token: string }) {
   return (
     <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
       <h2 className="font-display text-[24px] font-bold">Add a sound</h2>
-      <p className="mt-1 text-ink-soft">Your recording shows up in other players' battles. Up to 8 seconds, in your own voice.</p>
+      <p className="mt-1 text-ink-soft">Your recording shows up in other players&rsquo; battles. Up to 8 seconds, in your own voice.</p>
 
       <div className="mt-4 flex gap-2">
         {tab("dialogue", "Famous line")}
@@ -114,7 +114,7 @@ export function ClipUpload({ token }: { token: string }) {
 
       {phase === "done" ? (
         <div className="mt-4">
-          <p className="font-semibold text-[#15803d]">Added! It'll show up in battles.</p>
+          <p className="font-semibold text-[#15803d]">Added! It&rsquo;ll show up in battles.</p>
           <button type="button" onClick={() => { setLine(pick(LINES)); setIdea(pick(ANIMAL_IDEAS)); setTitle(""); reset(kind); }} className="mt-2 font-semibold text-[#007aff]">
             Add another
           </button>
@@ -125,7 +125,7 @@ export function ClipUpload({ token }: { token: string }) {
             {kind === "dialogue" && (
               <>
                 <p className="text-[13px] font-semibold text-ink-soft">Say it your way</p>
-                <p className="mt-1 font-display text-[22px] font-bold leading-snug">"{line.quote}"</p>
+                <p className="mt-1 font-display text-[22px] font-bold leading-snug">&ldquo;{line.quote}&rdquo;</p>
                 <p className="text-[14px] text-ink-soft">{line.movie}</p>
                 <button type="button" onClick={() => { setLine(pick(LINES.filter((l) => l !== line))); setTake(null); setLive([]); setPhase("idle"); }} className="mt-2 flex items-center gap-1.5 text-[14px] font-semibold text-[#007aff]">
                   <ArrowsClockwise size={16} weight="bold" /> Another line

@@ -11,7 +11,7 @@ export function LandingNav() {
         { href: "#how", label: "How it works", icon: UsersThree },
         { href: "https://github.com/Venkat5599/solana_coloseum", label: "GitHub", icon: GithubLogo },
       ]}
-      cta={{ href: "/tidepool", label: "Play now", icon: ArrowUpRight }}
+      cta={{ href: "/scrappyboy", label: "Play now", icon: ArrowUpRight }}
     />
   );
 }

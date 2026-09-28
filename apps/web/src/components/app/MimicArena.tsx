@@ -148,7 +148,7 @@ export function MimicArena({ id }: { id: string }) {
                 </button>
               </>
             ) : me ? (
-              <p className="text-ink-soft">You're in. Waiting for the host to start.</p>
+              <p className="text-ink-soft">You&rsquo;re in. Waiting for the host to start.</p>
             ) : token ? (
               <GlossButton type="button" onClick={() => act(() => joinMimic(id, token))} disabled={busy || b.players.length >= b.max_players}>
                 {b.players.length >= b.max_players ? "Battle is full" : "Join the battle"}
@@ -167,7 +167,7 @@ export function MimicArena({ id }: { id: string }) {
           me.submitted ? (
             <p className="mx-auto mt-8 max-w-md text-center text-ink-soft">
               Locked in{b.your_entry !== null ? ` at ${b.your_entry}` : ""}. Waiting for {b.players.filter((p) => !p.submitted).length} more
-              {b.players.filter((p) => !p.submitted).length === 1 ? " player" : " players"}. Scores show when everyone's in.
+              {b.players.filter((p) => !p.submitted).length === 1 ? " player" : " players"}. Scores show when everyone&rsquo;s in.
             </p>
           ) : (
             <div className="mx-auto mt-6 max-w-xl">

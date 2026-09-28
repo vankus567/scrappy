@@ -1,4 +1,4 @@
-import { PALETTE, SPRITES } from "@/lib/tidepool/sprites";
+import { PALETTE, SPRITES } from "@/lib/scrappyboy/sprites";
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
 
@@ -21,7 +21,7 @@ function pathsByColour(rows: string[]): Map<number, string> {
 type Who = "shelly" | "finn" | "zip" | "jelly";
 const SX: Record<Who, number> = { shelly: 0, finn: 24, zip: 48, jelly: 72 };
 
-/** One TIDEPOOL creature, drawn from the game's own pixel rows as crisp SVG. */
+/** One SCRAPPY BOY creature, drawn from the game's own pixel rows as crisp SVG. */
 export function Critter({ who, frame = 0, flip = false, className, title }: { who: Who; frame?: 0 | 1; flip?: boolean; className?: string; title?: string }) {
   const rows = SPRITES[SX[who]]![frame]!;
   const w = rows[0]!.length;

@@ -195,7 +195,9 @@ export default function PixelCloud({
   const materialRef = useRef(null);
   const resizeTimeoutRef = useRef(null);
   const speedRef = useRef(speed);
-  speedRef.current = speed;
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   const cloudColorVector = useMemo(() => hexToVector3(cloudColor), [cloudColor]);
   const skyTopColorVector = useMemo(() => hexToVector3(skyTopColor), [skyTopColor]);

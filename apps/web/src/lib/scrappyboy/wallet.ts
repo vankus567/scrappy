@@ -3,7 +3,7 @@ import { address, getTransactionDecoder, getTransactionEncoder, type Transaction
 
 /**
  * Wraps the player's own wallet (Phantom, Solflare, Backpack, or the Seeker wallet via Mobile Wallet
- * Adapter) as a Solana Kit signer. Every TIDEPOOL transaction is approved in the player's wallet;
+ * Adapter) as a Solana Kit signer. Every SCRAPPY BOY transaction is approved in the player's wallet;
  * the game never holds a key.
  *
  * It is a "modifying" signer because wallets may add instructions (e.g. priority fees) before signing,

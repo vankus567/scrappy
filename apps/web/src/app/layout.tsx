@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   title: "scrappypet",
   manifest: "/manifest.webmanifest",
   description:
-    "Crypto is hard, so we made it a game. TIDEPOOL is a pocket arcade game where every move is a real Solana action.",
+    "Crypto is hard, so we made it a game. SCRAPPY BOY is a pocket arcade game where every move is a real Solana action.",
 };
 
 export const viewport: Viewport = {

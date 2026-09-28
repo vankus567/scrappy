@@ -1,5 +1,5 @@
 /**
- * TIDEPOOL pixel art, shared by the game (drawn into the console) and the landing page (drawn as SVG).
+ * SCRAPPY BOY pixel art, shared by the game (drawn into the console) and the landing page (drawn as SVG).
  * Each row is hex palette indices; 0 is transparent. Keyed by x offset in image bank 0.
  */
 export const SPRITES: Record<number, string[][]> = {

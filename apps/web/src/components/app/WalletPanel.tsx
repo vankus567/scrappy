@@ -78,11 +78,11 @@ export function WalletPanel() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
       <section className="rounded-[28px] bg-ground-deep p-6 sm:p-8">
-        <p className="text-[14px] font-semibold text-ink-soft">{pet.name}'s record</p>
+        <p className="text-[14px] font-semibold text-ink-soft">{pet.name}&rsquo;s record</p>
         <p className="mt-1 font-display text-[clamp(2.6rem,6vw,3.6rem)] font-bold leading-none tabular-nums">
           {pet.jobsDone} {pet.jobsDone === 1 ? "win" : "wins"}
         </p>
-        <p className="mt-2 text-ink-soft">Your wallet is {pet.name}'s home on Solana. It's how friends challenge you and how battles are recorded.</p>
+        <p className="mt-2 text-ink-soft">Your wallet is {pet.name}&rsquo;s home on Solana. It&rsquo;s how friends challenge you and how battles are recorded.</p>
         <div className="app-bob mt-4 w-32">
           <Pet species={pet.species} stage={stageFor(pet).current.id} mood="happy" dance="none" className="w-full" title={pet.name} />
         </div>

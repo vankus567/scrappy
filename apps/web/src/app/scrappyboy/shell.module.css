@@ -1,0 +1,318 @@
+/*
+  The console shell, in the PIXMON style: moulded plastic around a fixed
+  pixel screen. Daylight screen inside, ink desk outside.
+*/
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #0e091c;
+  overflow: hidden;
+}
+
+.console {
+  --shell: #6e54ff;
+  --shell-d: #4a35c4;
+  --shell-dd: #3a2a9e;
+  --shell-l: #9c89ff;
+  --btn: #e4dfff;
+  --btn-d: #b3a6ec;
+
+  /* Absolutely positioned: transform scale shrinks what you SEE but leaves the
+     layout box, which is what pushed the console off-screen on phones. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* 480 screen + 2x12 bezel + 2x16 lid = 536 */
+  width: 536px;
+  filter: drop-shadow(0 26px 40px rgba(0, 0, 0, 0.55));
+  transform-origin: center center;
+  user-select: none;
+}
+
+.lid,
+.base {
+  position: relative;
+  background: linear-gradient(178deg, var(--shell-l) 0%, var(--shell) 9%, var(--shell) 84%, var(--shell-d) 100%);
+  box-shadow:
+    inset 2px 0 0 rgba(255, 255, 255, 0.16),
+    inset -2px 0 0 rgba(0, 0, 0, 0.16);
+}
+.lid {
+  border-radius: 26px 26px 8px 8px;
+  padding: 16px;
+}
+.base {
+  border-radius: 8px 8px 34px 34px;
+  padding: 14px 22px 16px;
+}
+
+.screw {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--shell-l), var(--shell-d));
+  box-shadow:
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.screw::after {
+  content: "";
+  position: absolute;
+  inset: 4px 2px;
+  border-top: 2px solid rgba(0, 0, 0, 0.28);
+  transform: rotate(-30deg);
+}
+.tl { top: 9px; left: 9px; }
+.tr { top: 9px; right: 9px; }
+.bl { bottom: 9px; left: 9px; }
+.br { bottom: 9px; right: 9px; }
+
+.bezel {
+  position: relative;
+  padding: 12px;
+  border-radius: 14px;
+  background: #191228;
+  box-shadow:
+    inset 0 4px 12px rgba(0, 0, 0, 0.85),
+    inset 0 -2px 0 rgba(255, 255, 255, 0.05),
+    0 1px 0 var(--shell-l);
+}
+
+/* The screen. Our canvases are 10:9 (160x144 game, 640x576 meme), so the
+   viewport is 480x432 and the canvases letterbox-free fill it. */
+.viewport {
+  position: relative;
+  width: 480px;
+  height: 432px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #f4f1ff;
+}
+.viewport > div {
+  position: absolute;
+  inset: 0;
+}
+.viewport canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.wordmark {
+  color: var(--shell-l);
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  margin-right: -0.3em;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.led {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #85e6ff;
+  box-shadow:
+    0 0 12px 3px rgba(133, 230, 255, 0.8),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+}
+.mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  opacity: 0.92;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.28));
+}
+.mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hinge {
+  display: flex;
+  align-items: stretch;
+  height: 22px;
+}
+.hinge .cap {
+  width: 58px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--shell-l), var(--shell-d));
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+}
+.hinge .bar {
+  flex: 1;
+  margin: 5px 3px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--shell-dd), var(--shell-d) 55%, var(--shell-dd));
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.deck {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.dpadWell {
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  border-radius: 20px;
+  background: var(--shell-d);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42);
+}
+.dpad {
+  position: relative;
+  width: 86px;
+  height: 86px;
+}
+.dpad i {
+  position: absolute;
+  background: linear-gradient(180deg, #fff 0%, var(--btn) 30%, var(--btn-d) 100%);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+}
+.dpad .v { top: 0; left: 28px; width: 29px; height: 86px; border-radius: 7px; }
+.dpad .h { top: 28px; left: 0; width: 86px; height: 29px; border-radius: 7px; }
+.dpad .c {
+  top: 33px;
+  left: 33px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--btn-d);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.dpadHit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+}
+.dpadHit button {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  touch-action: none;
+}
+.dpad i.lit {
+  filter: brightness(1.35);
+}
+
+.mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+.startsel {
+  display: flex;
+  gap: 16px;
+}
+.startsel button {
+  width: 46px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  transform: rotate(-16deg);
+  background: linear-gradient(180deg, var(--btn), var(--btn-d));
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  touch-action: none;
+}
+.speaker {
+  display: grid;
+  grid-template-columns: repeat(5, 7px);
+  gap: 8px;
+}
+.speaker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--shell-dd);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.abWell {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 60px;
+  background: var(--shell-d);
+  transform: rotate(-18deg);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42);
+}
+.abWell button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff 0%, var(--btn) 32%, var(--btn-d) 100%);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.24);
+  color: var(--shell-d);
+  font-size: 14px;
+  font-weight: 700;
+  transform: rotate(18deg);
+  cursor: pointer;
+  touch-action: none;
+}
+.abWell button.lit {
+  filter: brightness(1.3);
+}
+
+.keyhint {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  padding-top: 10px;
+  color: var(--shell-l);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+.keyhint b {
+  color: #fff;
+}
+@media (pointer: coarse) {
+  .keyhint { display: none; }
+}
+
+@media (max-width: 640px) {
+  .console {
+    width: 520px;
+    filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.5));
+  }
+  .lid { border-radius: 16px 16px 6px 6px; padding: 10px; }
+  .bezel { padding: 10px; border-radius: 8px; }
+  .wordmark { font-size: 9px; letter-spacing: 0.24em; }
+  .base { border-radius: 6px 6px 24px 24px; padding: 14px 16px 18px; }
+  .deck { gap: 8px; }
+}

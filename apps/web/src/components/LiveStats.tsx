@@ -35,7 +35,7 @@ export function LiveStats() {
 
   return (
     <section className="mt-10">
-      {error && <p className="rounded-[24px] bg-ground-deep p-6 text-ink-soft">Can't reach the Human API right now.</p>}
+      {error && <p className="rounded-[24px] bg-ground-deep p-6 text-ink-soft">Can&rsquo;t reach the Human API right now.</p>}
       {!error && !s && <div aria-busy="true" className="h-48 animate-pulse rounded-[28px] bg-ground-deep" />}
       {!error && s && (
         <dl className="grid gap-4 sm:grid-cols-2">
