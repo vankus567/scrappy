@@ -437,3 +437,19 @@
 .device::after {
   z-index: 0;
 }
+
+/* 3D handheld stage: the canvas fills this box; aspect fits the device with a little air */
+.stage {
+  width: min(460px, 100%);
+  aspect-ratio: 0.66;
+  max-height: 82dvh;
+}
+/* the console renders here, off-screen; the 3D screen shows its pixels */
+.offscreen {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 160px;
+  height: 144px;
+  overflow: hidden;
+}

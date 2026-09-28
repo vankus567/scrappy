@@ -3,7 +3,8 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useRef, useState } from "react";
 import { useWalletPicker } from "@/components/wallet/WalletPicker";
-import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, Console } from "@/lib/console";
+import { Console } from "@/lib/console";
+import type { Device3D } from "@/lib/tidepool/device3d";
 import type { Tidepool } from "@/lib/tidepool/game";
 import { walletSigner } from "@/lib/tidepool/wallet";
 import styles from "./handheld.module.css";
@@ -50,7 +51,8 @@ interface TxRow {
 }
 
 export function Handheld() {
-  const screenRef = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null); // off-screen host for the console canvas
+  const stageRef = useRef<HTMLDivElement>(null); // the 3D handheld
   const conRef = useRef<Console | null>(null);
   const gameRef = useRef<Tidepool | null>(null);
   const [txs, setTxs] = useState<TxRow[]>([]);
@@ -68,8 +70,9 @@ export function Handheld() {
     let con: Console | null = null;
     let dead = false;
     // The Orca SDK ships wasm that must only load in the browser, so the game module is imported here.
-    void import("@/lib/tidepool/game").then(({ SCREEN_H, SCREEN_W, Tidepool }) => {
-      if (dead) return;
+    let device: Device3D | null = null;
+    void Promise.all([import("@/lib/tidepool/game"), import("@/lib/tidepool/device3d")]).then(([{ SCREEN_H, SCREEN_W, Tidepool }, { Device3D }]) => {
+      if (dead || !stageRef.current) return;
       con = new Console(host, { width: SCREEN_W, height: SCREEN_H, fps: 30 });
       conRef.current = con;
       const game = new Tidepool(con, {
@@ -80,11 +83,14 @@ export function Handheld() {
       });
       game.setChallenge(Number(new URLSearchParams(window.location.search).get("beat")));
       gameRef.current = game;
+      game.setHud3D(true);
       con.run({ update: () => game.update(), draw: () => game.draw() });
+      device = new Device3D(stageRef.current, con, () => game.renderState());
       setReady(true);
     });
     return () => {
       dead = true;
+      device?.destroy();
       con?.destroy();
       conRef.current = null;
       gameRef.current = null;
@@ -98,88 +104,14 @@ export function Handheld() {
     gameRef.current?.setSigner(key && signTransaction ? walletSigner(key, signTransaction) : undefined);
   }, [ready, publicKey, signTransaction]);
 
-  const hold = (btn: number) => ({
-    onPointerDown: (e: React.PointerEvent) => {
-      e.preventDefault();
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-      conRef.current?.audio.unlock();
-      conRef.current?.input.setTouch(btn, true);
-    },
-    onPointerUp: () => conRef.current?.input.setTouch(btn, false),
-    onPointerCancel: () => conRef.current?.input.setTouch(btn, false),
-    onLostPointerCapture: () => conRef.current?.input.setTouch(btn, false),
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
-  });
-
   const player = publicKey?.toBase58();
 
   return (
     <main className={styles.room}>
-      <div className={styles.device}>
-        <div className={styles.switch} aria-hidden>
-          <span className={styles.switchSlot} />
-          <span className={styles.switchText}>OFF · ON</span>
-        </div>
+      <div ref={stageRef} className={styles.stage} aria-label="TIDEPOOL handheld. Keyboard: arrows move, Z is A, X is B." />
+      <div ref={screenRef} className={styles.offscreen} aria-hidden />
 
-        <div className={styles.bezel}>
-          <div className={styles.bezelTop} aria-hidden>
-            <span className={styles.stripe} />
-            <span className={styles.bezelText}>REFLECTIVE LCD · 4 CHANNEL SOUND</span>
-            <span className={styles.stripe} />
-          </div>
-          <div className={styles.bezelBody}>
-            <div className={styles.led} aria-hidden>
-              <span className={player ? styles.ledOn : styles.ledOff} />
-              <span className={styles.ledText}>POWER</span>
-            </div>
-            <div ref={screenRef} className={styles.screen} />
-          </div>
-        </div>
-
-        <div className={styles.brand} aria-hidden>
-          <span className={styles.brandName}>TIDEPOOL</span>
-          <span className={styles.brandSub}>POCKET</span>
-        </div>
-
-        <div className={styles.controls}>
-          <div className={styles.dpad} aria-label="direction pad">
-            <button aria-label="up" className={`${styles.arm} ${styles.up}`} {...hold(BTN_UP)} />
-            <button aria-label="left" className={`${styles.arm} ${styles.left}`} {...hold(BTN_LEFT)} />
-            <span className={styles.hub} aria-hidden />
-            <button aria-label="right" className={`${styles.arm} ${styles.right}`} {...hold(BTN_RIGHT)} />
-            <button aria-label="down" className={`${styles.arm} ${styles.down}`} {...hold(BTN_DOWN)} />
-          </div>
-          <div className={styles.face}>
-            <div className={styles.faceBtn}>
-              <button aria-label="B" className={styles.round} {...hold(BTN_B)} />
-              <span className={styles.faceLabel}>B</span>
-            </div>
-            <div className={`${styles.faceBtn} ${styles.faceA}`}>
-              <button aria-label="A" className={styles.round} {...hold(BTN_A)} />
-              <span className={styles.faceLabel}>A</span>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.pills}>
-          <div className={styles.pillWrap}>
-            <button aria-label="select" className={styles.pill} {...hold(BTN_B)} />
-            <span className={styles.pillLabel}>SELECT</span>
-          </div>
-          <div className={styles.pillWrap}>
-            <button aria-label="start" className={styles.pill} {...hold(BTN_A)} />
-            <span className={styles.pillLabel}>START</span>
-          </div>
-        </div>
-
-        <div className={styles.speaker} aria-hidden>
-          {Array.from({ length: 6 }, (_, i) => (
-            <span key={i} className={styles.slot} />
-          ))}
-        </div>
-      </div>
-
-      <p className={styles.keys}>Keyboard: arrows move, Z is A, X is B.</p>
+      <p className={styles.keys}>Tap the buttons on the device, or use the keyboard: arrows move, Z is A, X is B.</p>
 
       <section className={styles.log} aria-live="polite">
         {player && (

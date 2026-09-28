@@ -142,6 +142,34 @@ export class Tidepool {
   private banner: { text: string; life: number; col: number } | null = null;
 
   private readonly glyphs = new Image(160, 6);
+  private hud3d = false;
+
+  /** 3D mode: the round's world is drawn by a 3D renderer; the console only draws the HUD. */
+  setHud3D(on: boolean): void {
+    this.hud3d = on;
+  }
+
+  /** Everything the 3D renderer needs for one frame. Coordinates are screen pixels (160x144). */
+  renderState() {
+    const round = this.scene === "round";
+    const cy = round ? this.py(this.shown) : 72;
+    const h = this.netHalf();
+    return {
+      round,
+      t: this.t,
+      creature: this.pick,
+      creatureX: CREATURE_X,
+      creatureY: cy,
+      netY: this.netY,
+      netHalf: h,
+      inside: Math.abs(cy - this.netY) <= h,
+      whale: this.whaleF > 0,
+      shake: this.shake,
+      trail: round ? this.trail.map((p) => this.py(p)) : [],
+      things: this.things.map((th) => ({ x: th.x, y: th.y + (th.kind === "jelly" ? Math.sin(th.phase) * 6 : Math.sin(th.phase) * 1.5), kind: th.kind })),
+      sparks: this.sparks.map((sp) => ({ x: sp.x, y: sp.y, col: sp.col, life: sp.life })),
+    };
+  }
 
   constructor(private readonly con: Console, private readonly events: GameEvents = {}) {
     const img = con.banks.images[0]!;
@@ -730,6 +758,10 @@ export class Tidepool {
     const sy = this.shake ? Math.round((Math.random() - 0.5) * this.shake) : 0;
     s.camera(sx, sy);
 
+    if (this.hud3d) {
+      // 3D mode: the world is rendered in 3D behind this screen; NAVY is the see-through key colour.
+      s.cls(NAVY);
+    } else {
     // deep water with light shafts that drift
     s.rect(-4, -4, SCREEN_W + 8, SCREEN_H + 8, NAVY);
     for (let i = 0; i < 4; i++) {
@@ -781,9 +813,10 @@ export class Tidepool {
     // creature rides the price
     const flash = this.shake > 0 && this.t % 2 === 0;
     if (!flash) this.sprite(CREATURE_X - 6, cy - 4, c.sx);
-    if (!inside && this.t % 16 < 10) this.outlined(CREATURE_X - 14, cy - 13, "HELP!", PINK);
-
     for (const sp of this.sparks) s.pset(Math.round(sp.x), Math.round(sp.y), sp.col);
+    }
+    if (Math.abs(this.py(this.shown) - this.netY) > this.netHalf() && this.t % 16 < 10) this.outlined(CREATURE_X - 14, this.py(this.shown) - 13, "HELP!", PINK);
+
     for (const p of this.pops) this.outlined(Math.round(p.x - p.text.length * 2), Math.round(p.y), p.text, p.col);
 
     s.camera();
@@ -795,7 +828,7 @@ export class Tidepool {
     s.text(40, 2, m, this.whaleF > 0 ? GOLD : this.combo >= 10 ? MINT : GREY);
     s.rect(60, 3, 40, 4, PLUM);
     s.rect(60, 3, Math.round(Math.max(0, this.hp) * 0.4), 4, this.hp > 35 ? MINT : PINK);
-    s.text(106, 2, this.beat && !this.beatDone ? `/` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN);
+    s.text(106, 2, this.beat && !this.beatDone ? `>${this.beat}` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN);
     s.text(SCREEN_W - 3 - `$${this.live.toFixed(2)}`.length * 4, 2, `$${this.live.toFixed(2)}`, GOLD);
 
     if (this.banner) {
