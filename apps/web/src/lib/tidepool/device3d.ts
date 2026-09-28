@@ -54,6 +54,7 @@ export class Device3D {
   private held = new Map<number, { btn: number[]; obj: THREE.Object3D }>();
   private raf = 0;
   private tilt = { x: 0, y: 0 };
+  private base = { x: 0.06, y: -0.14 };
   private readonly ro: ResizeObserver;
 
   constructor(
@@ -303,9 +304,11 @@ export class Device3D {
     this.renderer.domElement.style.width = `${w}px`;
     this.renderer.domElement.style.height = `${h}px`;
     this.camera.aspect = w / h;
-    // fit the 3.6 x 6.0 device with a margin
-    const fitH = 7.0 / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
-    const fitW = 4.4 / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / this.camera.aspect;
+    // fit the 3.6 x 6.0 device: tight on phones so it fills the screen, with air on desktop
+    const narrow = w < 640;
+    this.base = narrow ? { x: 0, y: 0 } : { x: 0.06, y: -0.14 };
+    const fitH = (narrow ? 6.25 : 7.0) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+    const fitW = (narrow ? 3.75 : 4.4) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / this.camera.aspect;
     this.camera.position.set(0, 0, Math.max(fitH, fitW));
     this.camera.updateProjectionMatrix();
   }
@@ -368,8 +371,8 @@ export class Device3D {
     this.screenMat.uniforms.use3d!.value = s.round ? 1 : 0;
     const t = performance.now() / 1000;
     const d = this.device;
-    d.rotation.y += (-0.14 + this.tilt.y + Math.sin(t * 0.5) * 0.02 - d.rotation.y) * 0.08;
-    d.rotation.x += (0.06 + this.tilt.x - d.rotation.x) * 0.08;
+    d.rotation.y += (this.base.y + this.tilt.y + Math.sin(t * 0.5) * 0.015 - d.rotation.y) * 0.08;
+    d.rotation.x += (this.base.x + this.tilt.x - d.rotation.x) * 0.08;
     this.renderer.render(this.scene, this.camera);
   }
 

@@ -453,3 +453,22 @@
   height: 144px;
   overflow: hidden;
 }
+
+/* Phones: the handheld IS the screen. Full width and height, no margins; the log sits below. */
+@media (max-width: 640px) {
+  .room {
+    padding: 0 0 calc(16px + env(safe-area-inset-bottom));
+    gap: 10px;
+    justify-content: flex-start;
+  }
+  .stage {
+    width: 100vw;
+    height: 100dvh;
+    aspect-ratio: auto;
+    max-height: none;
+  }
+  .keys,
+  .log {
+    padding: 0 16px;
+  }
+}
