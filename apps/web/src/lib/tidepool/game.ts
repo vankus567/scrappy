@@ -26,6 +26,8 @@ export interface GameEvents {
   onTx?: (label: string, signature: string) => void;
   onConnect?: () => void;
   onEject?: () => void;
+  /** SHARE on the results screen: the host builds the image and opens the share sheet. */
+  onShare?: (run: { score: number; best: number; creature: string; level: number; combo: number }) => void;
 }
 
 // palette indices
@@ -140,6 +142,9 @@ export class Tidepool {
   private hp = 100;
   private score = 0;
   private best = 0;
+  private beat = 0; // a friend's score from a challenge link
+  private beatDone = false;
+  private streak = 0;
   private newBest = false;
   private combo = 0;
   private maxCombo = 0;
@@ -180,6 +185,7 @@ export class Tidepool {
     con.banks.musics[0]!.set([], [], [12], [13]);
     con.banks.musics[1]!.set([], [], [10], [11]);
     this.best = loadBest();
+    this.streak = readStreak().count;
   }
 
   // ---- async ---------------------------------------------------------------------
@@ -199,6 +205,11 @@ export class Tidepool {
 
   private bg(fn: () => Promise<void>): void {
     fn().catch(() => {});
+  }
+
+  /** A score to beat, from a friend's challenge link (?beat=1240). */
+  setChallenge(score: number): void {
+    this.beat = Number.isFinite(score) && score > 0 ? Math.floor(score) : 0;
   }
 
   setSigner(signer: TransactionSigner | undefined): void {
@@ -497,6 +508,12 @@ export class Tidepool {
     if (this.banner && --this.banner.life <= 0) this.banner = null;
     if (this.shake > 0) this.shake--;
 
+    if (this.beat && !this.beatDone && this.score > this.beat) {
+      this.beatDone = true;
+      this.banner = { text: `YOU BEAT !`, life: 70, col: GOLD };
+      this.burst(CREATURE_X, this.py(this.shown), GOLD, 20);
+      this.con.play(3, 5);
+    }
     if (this.hp <= 0) this.endRound();
   }
 
@@ -511,6 +528,7 @@ export class Tidepool {
       this.newBest = true;
       saveBest(this.best);
     }
+    this.streak = bumpStreak();
   }
 
   // ---- update ----------------------------------------------------------------------
@@ -588,6 +606,7 @@ export class Tidepool {
         break;
       case "results":
         if (a) { blip(); this.startRound(); }
+        if (up) { blip(); this.events.onShare?.({ score: this.score, best: this.best, creature: CREATURES[this.pick]!.name, level: this.level, combo: this.maxCombo }); }
         if (right) { blip(); if (this.disk) { this.scene = "disk"; this.menuIdx = 0; } else this.openMap(); }
         if (b) { this.scene = "card"; this.menuIdx = 0; this.con.playm(0, true); }
         break;
@@ -794,7 +813,7 @@ export class Tidepool {
     s.text(40, 2, m, this.whaleF > 0 ? GOLD : this.combo >= 10 ? MINT : GREY);
     s.rect(60, 3, 40, 4, PLUM);
     s.rect(60, 3, Math.round(Math.max(0, this.hp) * 0.4), 4, this.hp > 35 ? MINT : PINK);
-    s.text(106, 2, `LV${this.level}`, CORN);
+    s.text(106, 2, this.beat && !this.beatDone ? `/` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN);
     s.text(SCREEN_W - 3 - `$${this.live.toFixed(2)}`.length * 4, 2, `$${this.live.toFixed(2)}`, GOLD);
 
     if (this.banner) {
@@ -819,7 +838,8 @@ export class Tidepool {
         this.center(50, "KEEP THE PRICE IN YOUR NET", WHITE);
         CREATURES.forEach((c, i) => this.sprite(26 + i * 40, 70 + Math.round(Math.sin((this.t + i * 20) / 10) * 3), c.sx, 2, i === 2));
         if (this.t % 30 < 20) this.center(104, "PRESS A", WHITE);
-        if (this.best) this.center(116, `BEST ${this.best}`, GOLD);
+        if (this.beat) this.center(116, `A FRIEND SCORED . BEAT IT!`, this.t % 30 < 20 ? GOLD : ORANGE);
+        else if (this.best) this.center(116, `BEST `, GOLD);
         s.rect(0, SCREEN_H - 8, SCREEN_W, 8, SAND);
         break;
       }
@@ -845,7 +865,8 @@ export class Tidepool {
         s.rectb(10, 15, 140, 52, GOLD);
         this.sprite(16, 28, CREATURES[this.pick]!.sx, 2);
         const food = Number(this.balance) / 1e9;
-        s.text(50, 20, `BEST   ${this.best}`, GOLD);
+        s.text(50, 20, `BEST   `, GOLD);
+        s.text(110, 20, `D`, this.streak > 1 ? ORANGE : GREY);
         s.text(50, 30, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK);
         s.text(50, 40, `WALLET ${food.toFixed(2)} SOL`, WHITE);
         s.text(50, 50, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY);
@@ -900,7 +921,7 @@ export class Tidepool {
         s.text(16, 87, "THAT WAS LIQUIDITY PROVIDING:", GREY);
         s.text(16, 95, "KEEP PRICE IN RANGE, EARN FEES.", GREY);
         s.text(16, 106, "> PUT A REAL NET HERE", this.t % 30 < 20 ? GOLD : ORANGE);
-        this.foot("A AGAIN   > REAL NET   B MENU");
+        this.foot("A AGAIN ^ SHARE > REAL NET B MENU");
         break;
       }
       case "map": {
@@ -994,3 +1015,28 @@ export class Tidepool {
 }
 
 const shortId = (a: string) => `${a.slice(0, 4)}..${a.slice(-4)}`;
+
+/** Days-in-a-row streak, stored on this device. */
+function readStreak(): { day: string; count: number } {
+  try {
+    const v = JSON.parse(localStorage.getItem("tidepool.streak") ?? "null") as { day: string; count: number } | null;
+    if (!v) return { day: "", count: 0 };
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    return v.day === today || v.day === yesterday ? v : { day: "", count: 0 };
+  } catch {
+    return { day: "", count: 0 };
+  }
+}
+
+function bumpStreak(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const cur = readStreak();
+  const next = cur.day === today ? cur : { day: today, count: cur.count + 1 };
+  try {
+    localStorage.setItem("tidepool.streak", JSON.stringify(next));
+  } catch {
+    /* private mode */
+  }
+  return next.count;
+}

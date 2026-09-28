@@ -10,6 +10,40 @@ import styles from "./handheld.module.css";
 
 const explorer = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
+/**
+ * Share a run: the results screen scaled up crisp (nearest-neighbour) into a square card,
+ * plus a challenge link that carries the score. Phone share sheet first, X as the fallback.
+ */
+async function shareRun(screen: HTMLCanvasElement, run: { score: number; best: number; creature: string; level: number; combo: number }) {
+  const url = `${window.location.origin}/tidepool?beat=${run.score}`;
+  const text = `I scored ${run.score} on TIDEPOOL riding the live SOL price with ${run.creature} (level ${run.level}, combo ${run.combo}). Beat me:`;
+  const card = document.createElement("canvas");
+  card.width = 1080;
+  card.height = 1080;
+  const g = card.getContext("2d")!;
+  g.fillStyle = "#0b2a33";
+  g.fillRect(0, 0, 1080, 1080);
+  g.imageSmoothingEnabled = false;
+  const k = 6; // 160x144 -> 960x864
+  g.drawImage(screen, (1080 - 160 * k) / 2, 40, 160 * k, 144 * k);
+  g.fillStyle = "#e6fbf6";
+  g.font = "600 40px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.fillText(`Beat ${run.score} at scrappypet.vercel.app/tidepool`, 540, 1010);
+  const blob: Blob | null = await new Promise((r) => card.toBlob(r, "image/png"));
+  const file = blob ? new File([blob], "tidepool-run.png", { type: "image/png" }) : null;
+  try {
+    if (file && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text: `${text} ${url}`, title: "TIDEPOOL" });
+      return;
+    }
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") return; // the player closed the share sheet
+    // share sheet unavailable or refused: fall through to X
+  }
+  window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank", "noopener");
+}
+
 interface TxRow {
   label: string;
   sig: string;
@@ -42,7 +76,9 @@ export function Handheld() {
         onTx: (label, sig) => setTxs((t) => [{ label, sig }, ...t].slice(0, 8)),
         onConnect: () => pickerRef.current.open(),
         onEject: () => void disconnectRef.current(),
+        onShare: (run) => void shareRun(con!.canvas, run),
       });
+      game.setChallenge(Number(new URLSearchParams(window.location.search).get("beat")));
       gameRef.current = game;
       con.run({ update: () => game.update(), draw: () => game.draw() });
       setReady(true);
