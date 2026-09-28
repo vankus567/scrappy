@@ -39,8 +39,8 @@ export default function Home() {
             <span className="block text-white [text-shadow:0_2px_14px_rgba(15,50,90,0.45)]">So we made it a game.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
-            SCRAPPY BOY is a pocket arcade that plays with real money. Ride the price, press A, and a real trade
-            happens on Solana. You can play the whole thing without a wallet; drop in a coin when you want the wins to be real too.
+            SCRAPPY BOY is a pocket arcade where the coins are your money. Ride the price, press A, and your
+            trade lands on Solana. You can play the whole thing without a wallet; drop in a coin when you want the wins to be yours too.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <PrimaryLink href="/scrappyboy">Play SCRAPPY BOY</PrimaryLink>
@@ -66,19 +66,67 @@ export default function Home() {
         </div>
       </section>
 
+      {/* FOUR BUTTONS: jargon wall vs what we actually ask of you */}
+      <section className="px-4 py-24 sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="font-display tracking-[-0.005em] max-w-3xl text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.015em]">
+            Trading apps have 47 buttons and a textbook of words. We have four buttons.
+          </h2>
+          <div className="mt-14 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            <figure className="relative overflow-hidden rounded-3xl bg-white p-7 ring-1 ring-edge">
+              <figcaption className="text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-faint">a normal trading app</figcaption>
+              <p className="mt-4 select-none font-mono text-[13px] leading-[1.9] text-ink-faint">
+                {[
+                  "slippage tolerance", "order book", "limit order", "gas fee", "seed phrase",
+                  "approve token", "sign message", "market depth", "TVL", "impermanent loss",
+                  "bridge asset", "RPC endpoint", "nonce", "funding rate", "liquidation",
+                  "margin call", "MEV", "spread", "KYC", "cold wallet",
+                ].map((w) => (
+                  <span key={w} className="mr-3 inline-block">
+                    {w}
+                  </span>
+                ))}
+              </p>
+              <p className="mt-5 text-[14px] font-semibold text-ink-soft">
+                Most people close the tab before they ever buy anything. We hid all of it inside the cartridge.
+              </p>
+            </figure>
+            <figure className="rounded-3xl bg-ground-deep p-7">
+              <figcaption className="text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-faint">scrappy boy</figcaption>
+              <ul className="mt-4 space-y-3 text-[15px] font-semibold text-ink">
+                {[
+                  ["◀ ▶", "pick a coin"],
+                  ["A", "buy"],
+                  ["B", "sell"],
+                  ["X", "money back in your wallet"],
+                ].map(([k, d]) => (
+                  <li key={k} className="flex items-center gap-4">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#6e54ff] font-display text-[13px] font-bold text-white shadow-[0_3px_0_rgba(58,42,158,0.55)]">
+                      {k}
+                    </span>
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-5 text-[14px] font-semibold text-ink-soft">That is the whole interface. A five-year-old can use it.</p>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       {/* HOW IT WORKS: play, cast, collect */}
       <section id="how" className="px-4 py-24 sm:px-8 sm:py-32">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.015em]">
-            Play first. Then do it for real.
+            Play first. Then play for keeps.
           </h2>
           <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-soft">
-            There is no practice mode and no manual. The game is the interface: press a button and the real thing happens.
+            There is no practice mode and no manual. The game is the interface: press a button and the trade happens.
           </p>
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
               { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless round riding the live SOL price. Keep your creature in the net, stack combos, chase the day's best." },
-              { who: "shelly" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a pool on the sea map and press A. The net is real money in a real trading pool, opened and signed right on the device." },
+              { who: "shelly" as const, bg: "bg-white", t: "Cast a net", d: "Pick a pool on the sea map and press A. The net is your money in an Orca pool, opened and signed right on the device." },
               { who: "zip" as const, bg: "bg-white", t: "Collect", d: "While the price sits in your net it earns trading fees. Press A and they drop into your coin purse." },
             ].map((s) => (
               <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
@@ -96,10 +144,10 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[28px] bg-night px-6 py-16 text-on-night sm:px-12 lg:grid-cols-2 lg:py-20">
           <div>
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4.4vw,3.6rem)] font-bold leading-[1.02] tracking-[-0.015em]">
-              Nothing on screen is fake.
+              Every number comes from the chain.
             </h2>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
-              The chart is the live SOL price. Nets are real liquidity positions. Coins are real trading fees.
+              The chart is the live SOL price. Nets are liquidity positions. Coins are trading fees.
               Every move links out to Solana Explorer. And points are just points: the game never turns your score into a bet.
             </p>
           </div>
@@ -107,7 +155,7 @@ export default function Home() {
             <figcaption className="text-[12px] text-on-night-soft">After a run</figcaption>
             <Critter who="shelly" frame={1} className="hero-pet mx-auto mt-2 w-36" title="Shelly the turtle" />
             <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">1,240 points · combo x8</p>
-            <p className="mt-1 text-center text-[14px] text-on-night-soft">Price in the net 86% · then one tap to cast it for real</p>
+            <p className="mt-1 text-center text-[14px] text-on-night-soft">Price in the net 86% · then one tap to cast it for money</p>
           </figure>
         </div>
       </section>
@@ -140,13 +188,13 @@ export default function Home() {
           </div>
 
           <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
-{`What each button really does
+{`What each button does
 
   A  cast net    open an Orca position
   A  collect     harvest fees to purse
   B  recentre    close + reopen at price
   B  pull in     close position, funds back
-  A  buy coin    real Jupiter swap, mainnet
+  A  buy coin    Jupiter swap, mainnet
 
 Signed on-device by your play key.`}
           </pre>

@@ -3,7 +3,7 @@ import { Handheld } from "./Handheld";
 
 export const metadata = {
   title: "SCRAPPY BOY",
-  description: "Keep the price in your net. A handheld where every button is a real trade, signed on-device by your play key.",
+  description: "Keep the price in your net. A handheld where every button is a trade, signed on-device by your play key.",
 };
 
 export default function ScrappyBoyPage() {

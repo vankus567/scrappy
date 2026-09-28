@@ -52,3 +52,20 @@
   color: #9b87ff;
   font-variant-numeric: tabular-nums;
 }
+
+/* On phones the console takes the whole screen; the tx log slides down to a
+   two-line strip so it never squeezes the stage. */
+@media (max-width: 640px), (max-height: 620px) {
+  .log {
+    max-height: 46px;
+    padding: 6px 14px calc(6px + env(safe-area-inset-bottom));
+    font-size: 11px;
+  }
+  .slot2 {
+    margin: 0;
+    font-size: 11px;
+  }
+  .tx {
+    padding: 4px 2px;
+  }
+}

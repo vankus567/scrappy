@@ -22,11 +22,23 @@ const switzer = localFont({
   display: "swap",
 });
 
+const pressStart = localFont({
+  src: [{ path: "../fonts/pressstart-400.woff2", weight: "400", style: "normal" }],
+  variable: "--font-pressstart",
+  display: "swap",
+});
+
+const vt323 = localFont({
+  src: [{ path: "../fonts/vt323-400.woff2", weight: "400", style: "normal" }],
+  variable: "--font-vt323",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "scrappypet",
   manifest: "/manifest.webmanifest",
   description:
-    "Crypto is hard, so we made it a game. SCRAPPY BOY is a pocket arcade game where every move is a real Solana action.",
+    "Crypto is hard, so we made it a game. SCRAPPY BOY is a pocket arcade where every move is a Solana action.",
 };
 
 export const viewport: Viewport = {
@@ -37,7 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${pally.variable} ${switzer.variable}`}>
+    <html lang="en" className={`${pally.variable} ${switzer.variable} ${pressStart.variable} ${vt323.variable}`}>
       <body>{children}</body>
     </html>
   );

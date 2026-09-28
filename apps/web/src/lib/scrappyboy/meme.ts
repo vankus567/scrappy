@@ -13,7 +13,10 @@ import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, BTN_X, type Input 
 export const MEME_W = 640;
 export const MEME_H = 576;
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const SYMBOLS = ["SKR", "BONK", "WIF", "POPCAT", "MEW", "BOME", "PNUT"];
+const SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3";
+/** Everything Jupiter says is hot today, minus money that isn't a meme. */
+const EXCLUDE = new Set(["SOL", "WSOL", "USDC", "USDT", "USD1", "PYUSD", "CBBTC", "WBTC", "ZEC", "PAXG", "JITOSOL", "JUP", "MSOL", "BSOL", "EURC", "LST"]);
+const MAX_COINS = 30;
 const STAKES = [1, 5, 10];
 const STOP = -0.08;
 const TAKE = 0.15;
@@ -72,6 +75,17 @@ const C = {
   real: "#6e54ff",
   edge: "#0e091c",
 };
+
+/** The console's own typefaces, resolved from the CSS vars once the page loads. */
+const FONTS = { title: "", body: "" };
+export function fontFam(kind: "title" | "body"): string {
+  if (!FONTS.body && typeof document !== "undefined") {
+    const cs = getComputedStyle(document.documentElement);
+    FONTS.title = cs.getPropertyValue("--font-pressstart").trim() || '"Press Start 2P", monospace';
+    FONTS.body = cs.getPropertyValue("--font-vt323").trim() || "VT323, monospace";
+  }
+  return kind === "title" ? FONTS.title || "monospace" : FONTS.body || "monospace";
+}
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, { cache: "no-store", ...init });
@@ -146,16 +160,23 @@ export class MemeDash {
   private async loadCoins(): Promise<void> {
     this.scene = "loading";
     try {
+      type Tok = { id: string; symbol: string; name: string; icon?: string; decimals: number; isVerified?: boolean; liquidity?: number; organicScoreLabel?: string };
+      // Today's hottest trading coins straight from Jupiter, no hand-picked list.
+      const hot = await json<Tok[]>("https://lite-api.jup.ag/tokens/v2/toptraded/24h");
+      const seen = new Set<string>();
       const found: Coin[] = [];
-      for (const sym of SYMBOLS) {
-        const list = await json<{ id: string; symbol: string; name: string; icon?: string; decimals: number; isVerified?: boolean; liquidity?: number }[]>(
-          `https://lite-api.jup.ag/tokens/v2/search?query=${sym}`,
-        );
-        const best = list
-          .filter((t) => t.symbol.toUpperCase() === sym && t.isVerified !== false)
-          .sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0))[0];
-        if (!best) continue;
-        found.push({ mint: best.id, symbol: sym, name: best.name, icon: best.icon ? await loadImage(`/api/icon?u=${encodeURIComponent(best.icon)}`) : null, decimals: best.decimals, price: 0, change24h: 0 });
+      const skr = hot.find((t) => t.id === SKR_MINT);
+      const ordered = [
+        skr ?? { id: SKR_MINT, symbol: "SKR", name: "Seeker", decimals: 6, isVerified: true, liquidity: 1e9 } as Tok,
+        ...hot.filter((t) => t.id !== SKR_MINT),
+      ];
+      for (const t of ordered) {
+        if (found.length >= MAX_COINS) break;
+        const sym = t.symbol.toUpperCase();
+        if (seen.has(sym) || EXCLUDE.has(sym) || /^(nvda|tsla|aapl|spy|qqq|mstr|crcl|coin|amzn|meta|googl|nflx|hood|pltr|amd|orcl|avgo|arm|intc|msft|dxyz|gme|voo)x$/i.test(sym)) continue;
+        if (t.isVerified === false || (t.liquidity ?? 0) < 25000) continue;
+        seen.add(sym);
+        found.push({ mint: t.id, symbol: sym, name: t.name, icon: t.icon ? await loadImage(`/api/icon?u=${encodeURIComponent(t.icon)}`) : null, decimals: t.decimals, price: 0, change24h: 0 });
       }
       if (found.length === 0) throw new Error("no coins found right now");
       this.coins = found;
@@ -379,9 +400,11 @@ export class MemeDash {
 
   // ---- draw --------------------------------------------------------------------------
 
-  private text(s: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = "left", weight = 800): void {
+  private text(s: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = "left", weight = 800, kind: "title" | "body" = "body"): void {
     const g = this.g;
-    g.font = `${weight} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    // VT323 is a compact face: draw it ~30% larger so it fills the same line.
+    const px = kind === "body" ? Math.round(size * 1.3) : size;
+    g.font = kind === "title" ? `${px}px ${fontFam("title")}` : `${px}px ${fontFam("body")}`;
     g.textAlign = align;
     g.textBaseline = "middle";
     g.fillStyle = color;
@@ -433,7 +456,7 @@ export class MemeDash {
 
   private modeTag(): void {
     this.pill(MEME_W - 230, 13, 216, 44, C.real);
-    this.text("REAL MONEY", MEME_W - 122, 35, 21, C.bg, "center");
+    this.text("MAINNET", MEME_W - 122, 35, 21, C.bg, "center");
   }
 
   /** Error text broken into short readable lines instead of one long clipped line. */
@@ -470,7 +493,7 @@ export class MemeDash {
     g.roundRect(x, y - 8, w, h + 16, 18);
     g.fill();
     // price scale on the right: four gridlines with real prices
-    g.font = `700 18px system-ui, -apple-system, sans-serif`;
+    g.font = `24px ${fontFam("body")}`;
     g.textAlign = "right";
     g.textBaseline = "middle";
     for (let i = 0; i <= 4; i++) {
@@ -485,18 +508,38 @@ export class MemeDash {
       g.fillStyle = C.dim;
       g.fillText(fmtPrice(p), x + w - 8, yy);
     }
+    // Colour wash under the close line so the chart reads as a sea, not a grid.
+    if (cs.length > 1) {
+      const grad = g.createLinearGradient(0, y, 0, y + h);
+      grad.addColorStop(0, "rgba(110,84,255,0.35)");
+      grad.addColorStop(0.7, "rgba(255,140,180,0.12)");
+      grad.addColorStop(1, "rgba(255,140,180,0)");
+      g.beginPath();
+      g.moveTo(x + 12, py(cs[0]!.c));
+      cs.forEach((c, i) => g.lineTo(x + 12 + i * ((w - 120) / Math.max(cs.length - 1, 1)), py(c.c)));
+      g.lineTo(x + w - 108, y + h);
+      g.lineTo(x + 12, y + h);
+      g.closePath();
+      g.fillStyle = grad;
+      g.fill();
+    }
     const cw = (w - 120) / Math.max(cs.length, 1);
     cs.forEach((c, i) => {
       const cx = x + 12 + i * cw + cw / 2;
       const upc = c.c >= c.o;
-      g.strokeStyle = g.fillStyle = upc ? C.up : C.down;
+      const col = upc ? "#23a04a" : "#e0344b";
+      g.strokeStyle = g.fillStyle = col;
       g.lineWidth = 2;
       g.beginPath();
       g.moveTo(cx, py(c.h));
       g.lineTo(cx, py(c.l));
       g.stroke();
       const top = py(Math.max(c.o, c.c));
-      g.fillRect(cx - cw * 0.34, top, cw * 0.68, Math.max(2, py(Math.min(c.o, c.c)) - top));
+      const bodyH = Math.max(2, py(Math.min(c.o, c.c)) - top);
+      g.globalAlpha = 0.25;
+      g.fillRect(cx - cw * 0.46, top, cw * 0.92, bodyH);
+      g.globalAlpha = 1;
+      g.fillRect(cx - cw * 0.34, top, cw * 0.68, bodyH);
     });
     const line = (p: number, color: string, label: string) => {
       const yy = py(p);
@@ -543,7 +586,7 @@ export class MemeDash {
     const g = this.g;
     g.fillStyle = C.bg;
     g.fillRect(0, 0, MEME_W, MEME_H);
-    this.text("MEME DASH", 24, 36, 32, C.gold);
+    this.text("MEME DASH", 24, 36, 20, C.gold, "left", 400, "title");
     this.modeTag();
 
     if (this.scene === "loading") {
@@ -556,12 +599,12 @@ export class MemeDash {
       this.logo(c, MEME_W / 2, 190 + bob, 96);
       this.text("‹", 70, 190, 90, C.dim, "center", 400);
       this.text("›", MEME_W - 70, 190, 90, C.dim, "center", 400);
-      this.text(`$${c.symbol}`, MEME_W / 2, 324, 54, C.ink, "center");
+      this.text(`$${c.symbol}`, MEME_W / 2, 324, 34, C.ink, "center", 400, "title");
       const upc = c.change24h >= 0;
       this.pill(MEME_W / 2 - 170, 356, 340, 64, upc ? C.up : C.down);
       this.text(`${upc ? "▲ UP" : "▼ DOWN"} ${Math.abs(c.change24h).toFixed(1)}% TODAY`, MEME_W / 2, 388, 28, C.bg, "center");
       this.text(`$${fmtPrice(c.price)}`, MEME_W / 2, 452, 30, C.dim, "center", 600);
-      this.text("Real trades, signed on-device by your play key", MEME_W / 2, 494, 23, C.real, "center", 600);
+      this.text("Your play key signs every trade", MEME_W / 2, 494, 23, C.real, "center", 600);
       const slot = this.coinBal === null ? "COIN SLOT ..." : `COIN SLOT ${(Number(this.coinBal) / 1e9).toFixed(3)} SOL`;
       this.text(slot, MEME_W / 2, 520, 20, this.coinBal === BigInt(0) ? C.down : C.dim, "center", 600);
       this.text("◀ ▶ coins  A pick  X cash out  B back", MEME_W / 2, 550, 21, C.dim, "center", 600);
@@ -569,7 +612,7 @@ export class MemeDash {
 
     if ((this.scene === "chart" || this.scene === "result") && c) {
       this.logo(c, 46, 98, 30);
-      this.text(`$${c.symbol}`, 86, 88, 32, C.ink);
+      this.text(`$${c.symbol}`, 86, 88, 20, C.ink, "left", 400, "title");
       const live = this.live(c);
       this.text(`$${fmtPrice(live)}`, 86, 118, 22, C.dim, "left", 600);
       this.chart(20, 142, MEME_W - 40, 250);
@@ -602,7 +645,7 @@ export class MemeDash {
       g.fillRect(0, 0, MEME_W, MEME_H);
       this.face(MEME_W / 2, 170, 76, r.pnl);
       this.text(r.why, MEME_W / 2, 284, 30, C.dim, "center", 700);
-      this.text(r.text, MEME_W / 2, 336, 56, C.ink, "center");
+      this.text(r.text, MEME_W / 2, 336, 34, C.ink, "center", 400, "title");
       this.text(`${r.pnl >= 0 ? "+" : ""}${fmtUsd(r.pnl)}  (${r.pct >= 0 ? "+" : ""}${(r.pct * 100).toFixed(1)}%)`, MEME_W / 2, 402, 42, r.pnl >= 0 ? C.up : C.down, "center");
       this.text("A trade again   B pick a coin", MEME_W / 2, 484, 24, C.dim, "center", 600);
     }
@@ -616,7 +659,7 @@ export class MemeDash {
     if (this.error) {
       g.fillStyle = "rgba(244,241,255,0.94)";
       g.fillRect(0, 0, MEME_W, MEME_H);
-      this.text("Uh oh", MEME_W / 2, MEME_H / 2 - 60, 44, C.down, "center");
+      this.text("Uh oh", MEME_W / 2, MEME_H / 2 - 60, 30, C.down, "center", 400, "title");
       this.wrapError(this.error);
       this.text("A: OK", MEME_W / 2, MEME_H / 2 + 62, 24, C.dim, "center", 600);
     }

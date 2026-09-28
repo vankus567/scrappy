@@ -52,7 +52,7 @@ const CREATURES: Creature[] = [
 ];
 
 
-const CARD_MENU = ["MEME DASH", "PLAY NOW", "REAL NET", "TEST SOL", "EJECT"] as const;
+const CARD_MENU = ["MEME DASH", "PLAY NOW", "DEEP NET", "TEST SOL", "EJECT"] as const;
 const DISK_MENU = ["COLLECT COINS", "RECENTRE NET", "PULL NET IN", "BACK"] as const;
 
 interface Thing {
@@ -279,7 +279,7 @@ export class ScrappyBoy {
   private openMap(): void {
     this.run("CHARTING THE SEA", async () => {
       this.balance = await chain.withRetry(() => chain.solBalance(this.signer!.address));
-      if (this.balance < FED) throw new Error("a real net needs 0.25 test sol. pick TEST SOL on the card");
+      if (this.balance < FED) throw new Error("a deep net needs 0.25 test sol. pick TEST SOL on the card");
       this.pins = await mapPools();
       this.pinIdx = 0;
       this.scene = "map";
@@ -290,18 +290,18 @@ export class ScrappyBoy {
     const pool = this.pin!;
     const half = [0.03, 0.012, 0.004][this.pick]!;
     const offset = this.offset;
-    this.run("CASTING YOUR REAL NET", async () => {
+    this.run("CASTING YOUR NET", async () => {
       const fresh = await chain.readPool(pool.address);
       const c = fresh.price * (1 + offset);
       const h = await chain.hatch(this.signer!, fresh, HATCH_SOL, { low: c * (1 - half), high: c * (1 + half) });
       this.events.onTx?.("trade half for USDC", h.swapSig);
-      this.events.onTx?.("cast real net (open Orca position)", h.openSig);
+      this.events.onTx?.("cast net (open Orca position)", h.openSig);
       this.con.play(0, 2);
       this.balance = await chain.solBalance(this.signer!.address);
       await this.loadDisk();
       this.scene = "disk";
       this.menuIdx = 0;
-      this.note = "YOUR REAL NET IS IN THE WATER. COINS IT CATCHES ARE REAL FEES";
+      this.note = "YOUR NET IS IN THE WATER. WHAT IT CATCHES IS YOURS";
     });
   }
 
@@ -631,7 +631,7 @@ export class ScrappyBoy {
           const item = CARD_MENU[this.menuIdx];
           if (item === "PLAY NOW") this.scene = "pick";
           else if (item === "MEME DASH") this.meme.open();
-          else if (item === "REAL NET") {
+          else if (item === "DEEP NET") {
             if (this.disk) { this.scene = "disk"; this.menuIdx = 0; }
             else this.openMap();
           } else if (item === "TEST SOL") this.freeSol();
@@ -702,14 +702,14 @@ export class ScrappyBoy {
   }
 
   private center(y: number, str: string, col: number): void {
-    const x = Math.floor((SCREEN_W - str.length * 4) / 2);
-    this.s.text(x + 1, y + 1, str, INK);
-    this.s.text(x, y, str, col);
+    const x = Math.floor(SCREEN_W / 2);
+    this.s.text2(x + 1, y + 1, str, INK, 10, "center");
+    this.s.text2(x, y, str, col, 10, "center");
   }
 
   private outlined(x: number, y: number, str: string, col: number): void {
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) this.s.text(x + dx, y + dy, str, INK);
-    this.s.text(x, y, str, col);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) this.s.text2(x + dx, y + dy, str, INK, 10);
+    this.s.text2(x, y, str, col, 10);
   }
 
   private sprite(x: number, y: number, sx: number, k = 1, flip = false): void {
@@ -727,24 +727,24 @@ export class ScrappyBoy {
   }
 
   private hud(left: string, right: string, rightCol = GOLD): void {
-    this.s.rect(0, 0, SCREEN_W, 9, INK);
-    this.s.text(3, 2, left, WHITE);
-    this.s.text(SCREEN_W - 3 - right.length * 4, 2, right, rightCol);
+    this.s.rect(0, 0, SCREEN_W, 10, INK);
+    this.s.text2(3, 0, left, WHITE, 9);
+    this.s.text2(SCREEN_W - 3, 0, right, rightCol, 9, "right");
   }
 
   private foot(text: string, col = GREY): void {
-    this.s.rect(0, SCREEN_H - 9, SCREEN_W, 9, INK);
-    this.s.text(3, SCREEN_H - 7, text, col);
+    this.s.rect(0, SCREEN_H - 10, SCREEN_W, 10, INK);
+    this.s.text2(3, SCREEN_H - 10, text, col, 8);
   }
 
   private box(lines: string[], col: number): void {
-    const w = Math.min(SCREEN_W - 10, Math.max(...lines.map((l) => l.length)) * 4 + 12);
-    const h = lines.length * 8 + 8;
+    const w = Math.min(SCREEN_W - 10, Math.max(...lines.map((l) => l.length)) * 6 + 12);
+    const h = lines.length * 11 + 8;
     const x = Math.floor((SCREEN_W - w) / 2);
     const y = Math.floor((SCREEN_H - h) / 2);
     this.s.rect(x, y, w, h, INK);
     this.s.rectb(x, y, w, h, col);
-    lines.forEach((l, i) => this.s.text(x + Math.floor((w - l.length * 4) / 2), y + 5 + i * 8, l, col));
+    lines.forEach((l, i) => this.s.text2(x + w / 2, y + 5 + i * 11, l, col, 9, "center"));
   }
 
   private wrap(msg: string, width = 34): string[] {
@@ -852,25 +852,25 @@ export class ScrappyBoy {
     s.camera();
 
     // HUD
-    s.rect(0, 0, SCREEN_W, 10, INK);
-    s.text(3, 2, `${this.score}`, WHITE);
+    s.rect(0, 0, SCREEN_W, 11, INK);
+    s.text2(3, 0, `${this.score}`, WHITE, 9);
     const m = `X${this.mult}`;
-    s.text(40, 2, m, this.whaleF > 0 ? GOLD : this.combo >= 10 ? MINT : GREY);
-    s.rect(60, 3, 40, 4, PLUM);
-    s.rect(60, 3, Math.round(Math.max(0, this.hp) * 0.4), 4, this.hp > 35 ? MINT : PINK);
-    s.text(106, 2, this.beat && !this.beatDone ? `>${this.beat}` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN);
-    s.text(SCREEN_W - 3 - `$${this.live.toFixed(2)}`.length * 4, 2, `$${this.live.toFixed(2)}`, GOLD);
+    s.text2(44, 0, m, this.whaleF > 0 ? GOLD : this.combo >= 10 ? MINT : GREY, 9);
+    s.rect(64, 3, 40, 4, PLUM);
+    s.rect(64, 3, Math.round(Math.max(0, this.hp) * 0.4), 4, this.hp > 35 ? MINT : PINK);
+    s.text2(108, 0, this.beat && !this.beatDone ? `>${this.beat}` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN, 9);
+    s.text2(SCREEN_W - 3, 0, `$${this.live.toFixed(2)}`, GOLD, 9, "right");
 
     if (this.banner) {
-      const w = this.banner.text.length * 4 + 10;
+      const w = this.banner.text.length * 5 + 10;
       const x = Math.floor((SCREEN_W - w) / 2);
-      s.rect(x, 22, w, 11, INK);
-      s.rectb(x, 22, w, 11, this.banner.col);
-      s.text(x + 5, 25, this.banner.text, this.banner.col);
+      s.rect(x, 22, w, 12, INK);
+      s.rectb(x, 22, w, 12, this.banner.col);
+      s.text2(SCREEN_W / 2, 23, this.banner.text, this.banner.col, 9, "center");
     }
     if (!this.feedOk) this.box(["WAITING FOR THE", "LIVE PRICE..."], PINK);
-    s.rect(0, SCREEN_H - 7, SCREEN_W, 7, INK);
-    s.text(3, SCREEN_H - 6, "LIVE SOL PRICE  UP/DN STEER  HOLD A", GREY);
+    s.rect(0, SCREEN_H - 9, SCREEN_W, 9, INK);
+    s.text2(3, SCREEN_H - 9, "LIVE SOL PRICE  UP/DN STEER  HOLD A", GREY, 8);
   }
 
   draw(): void {
@@ -899,7 +899,7 @@ export class ScrappyBoy {
         const cy = 64 + Math.round(Math.abs(Math.sin(this.t / 12)) * 6);
         s.rect(64, cy, 32, 26, GREY);
         s.rect(68, cy + 4, 24, 12, NAVY);
-        s.text(70, cy + 7, "SOL", GOLD);
+        s.text2(70, cy + 5, "SOL", GOLD, 8);
         for (let i = 0; i < 6; i++) s.rect(66 + i * 5, cy + 22, 3, 4, GOLD);
         s.rect(56, 94, 48, 4, INK);
         this.center(106, "CONNECT YOUR WALLET", WHITE);
@@ -914,17 +914,17 @@ export class ScrappyBoy {
         s.rectb(10, 15, 140, 52, GOLD);
         this.sprite(16, 28, CREATURES[this.pick]!.sx, 2);
         const food = Number(this.balance) / 1e9;
-        s.text(50, 20, `BEST   `, GOLD);
-        s.text(110, 20, `D`, this.streak > 1 ? ORANGE : GREY);
-        s.text(50, 30, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK);
-        s.text(50, 40, `PLAY KEY ${food.toFixed(2)} SOL`, WHITE); // on the ink card
-        s.text(50, 50, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY);
+        s.text2(50, 17, `BEST   ${this.best}`, GOLD, 8);
+        s.text2(110, 17, `${this.streak}D`, this.streak > 1 ? ORANGE : GREY, 8);
+        s.text2(50, 29, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK, 8);
+        s.text2(50, 41, `PLAY KEY ${food.toFixed(2)} SOL`, WHITE, 8);
+        s.text2(50, 53, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY, 8);
         CARD_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
           const y = 76 + i * 12;
-          if (sel) s.rect(28, y - 3, 104, 11, TEAL);
-          s.text(36, y, mi === "REAL NET" && this.disk ? "MY REAL NET" : mi, sel ? WHITE : GREY);
-          if (sel) s.tri(30, y - 1, 30, y + 5, 33, y + 2, GOLD);
+          if (sel) s.rect(28, y - 2, 104, 12, TEAL);
+          s.text2(36, y - 1, mi === "DEEP NET" && this.disk ? "MY NET" : mi, sel ? WHITE : GREY, 9);
+          if (sel) s.tri(30, y, 30, y + 6, 33, y + 3, GOLD);
         });
         this.foot("UP/DN CHOOSE   A OK");
         break;
@@ -939,11 +939,11 @@ export class ScrappyBoy {
         this.sprite(56, 24 + Math.round(Math.sin(this.t / 10) * 2), c.sx, 4, this.pick === 2);
         this.bigCenter(62, c.name, GOLD, 2);
         this.center(78, c.blurb, WHITE);
-        s.text(30, 92, "NET SIZE", GREY);
+        s.text2(30, 90, "NET SIZE", GREY, 8);
         this.bars(76, 93, Math.round(c.net / 5), MINT);
-        s.text(30, 102, "POINTS", GREY);
+        s.text2(30, 101, "POINTS", GREY, 8);
         this.bars(76, 103, c.mult + (c.mult === 3 ? 2 : c.mult === 2 ? 1 : 0), GOLD);
-        s.text(30, 112, "MAGNET", GREY);
+        s.text2(30, 112, "MAGNET", GREY, 8);
         this.bars(76, 113, Math.round(c.magnet / 1.5), SKY);
         this.foot("< > CHANGE   A PLAY   B BACK");
         break;
@@ -961,16 +961,16 @@ export class ScrappyBoy {
         else this.center(42, `BEST ${this.best}`, GREY);
         const secs = Math.round(this.roundF / FPS);
         const pct = this.roundF ? Math.round((this.insideF / this.roundF) * 100) : 0;
-        s.text(16, 54, `SURVIVED ${secs}S`, WHITE);
-        s.text(88, 54, `LEVEL ${this.level}`, WHITE);
-        s.text(16, 63, `MAX COMBO ${this.maxCombo}`, MINT);
-        s.text(88, 63, `PEARLS ${this.pearls}`, WHITE);
-        s.text(16, 72, `PRICE IN NET ${pct}%`, pct >= 70 ? MINT : PINK);
-        s.line(16, 82, 144, 82, PLUM);
-        s.text(16, 87, "THAT WAS LIQUIDITY PROVIDING:", GREY);
-        s.text(16, 95, "KEEP PRICE IN RANGE, EARN FEES.", GREY);
-        s.text(16, 106, "> PUT A REAL NET HERE", this.t % 30 < 20 ? GOLD : ORANGE);
-        this.foot("A AGAIN ^ SHARE > REAL NET B MENU");
+        s.text2(16, 54, `SURVIVED ${secs}S`, WHITE, 8);
+        s.text2(88, 54, `LEVEL ${this.level}`, WHITE, 8);
+        s.text2(16, 66, `MAX COMBO ${this.maxCombo}`, MINT, 8);
+        s.text2(88, 66, `PEARLS ${this.pearls}`, WHITE, 8);
+        s.text2(16, 78, `PRICE IN NET ${pct}%`, pct >= 70 ? MINT : PINK, 8);
+        s.line(16, 88, 144, 88, PLUM);
+        s.text2(16, 92, "THAT WAS LIQUIDITY PROVIDING:", GREY, 7);
+        s.text2(16, 101, "KEEP PRICE IN RANGE, EARN FEES.", GREY, 7);
+        s.text2(16, 112, "> PUT A DEEP NET HERE", this.t % 30 < 20 ? GOLD : ORANGE, 8);
+        this.foot("A AGAIN ^ SHARE > NET B MENU");
         break;
       }
       case "map": {
@@ -980,10 +980,10 @@ export class ScrappyBoy {
         s.rect(mx, my, mw * 0.3, mh, PLUM);
         s.rect(mx + mw * 0.3, my, mw * 0.4, mh, BLUE);
         s.rect(mx + mw * 0.7, my, mw * 0.3, mh, TEAL);
-        s.text(mx + 2, my + mh + 2, "RISKY", PINK);
-        s.text(mx + mw - 18, my + mh + 2, "SAFE", MINT);
-        s.text(2, my + 1, "HOT", GOLD);
-        s.text(2, my + mh - 6, "CALM", GREY);
+        s.text2(mx + 2, my + mh + 1, "RISKY", PINK, 8);
+        s.text2(mx + mw - 2, my + mh + 1, "SAFE", MINT, 8, "right");
+        s.text2(2, my - 1, "HOT", GOLD, 8);
+        s.text2(2, my + mh - 8, "CALM", GREY, 8);
         this.pins.forEach((p, i) => {
           const px = mx + 3 + Math.round((p.safety / 100) * (mw - 6));
           const py = my + 3 + Math.round(((100 - p.heat) / 100) * (mh - 6)) + (i % 3) - 1;
@@ -995,41 +995,41 @@ export class ScrappyBoy {
         });
         const p = this.pin;
         if (p) {
-          s.rect(0, 102, SCREEN_W, 33, INK);
-          s.text(4, 105, p.label, GOLD);
-          s.text(60, 105, `FEE ${(p.feeRate / 10000).toFixed(2)}%`, WHITE);
-          s.text(4, 114, `TVL $${p.tvl < 1000 ? p.tvl.toFixed(2) : Math.round(p.tvl)}`, WHITE);
-          s.text(72, 114, `24H VOL $${p.vol24 < 1000 ? p.vol24.toFixed(1) : Math.round(p.vol24)}`, WHITE);
-          s.text(4, 123, "SAFETY", GREY);
-          this.bars(32, 124, Math.max(1, Math.round(p.safety / 20)), MINT);
-          s.text(64, 123, "HEAT", GREY);
+          s.rect(0, 100, SCREEN_W, 35, INK);
+          s.text2(4, 101, p.label, GOLD, 8);
+          s.text2(70, 101, `FEE ${(p.feeRate / 10000).toFixed(2)}%`, WHITE, 8);
+          s.text2(4, 112, `TVL $${p.tvl < 1000 ? p.tvl.toFixed(2) : Math.round(p.tvl)}`, WHITE, 8);
+          s.text2(78, 112, `24H VOL $${p.vol24 < 1000 ? p.vol24.toFixed(1) : Math.round(p.vol24)}`, WHITE, 8);
+          s.text2(4, 123, "SAFETY", GREY, 8);
+          this.bars(36, 126, Math.max(1, Math.round(p.safety / 20)), MINT);
+          s.text2(76, 123, "HEAT", GREY, 8);
           this.bars(84, 124, Math.max(0, Math.round(p.heat / 20)), GOLD);
         }
-        this.foot("REAL ORCA DEVNET POOLS  A GO");
+        this.foot("ORCA DEVNET POOLS  A GO");
         break;
       }
       case "range": {
         this.sea();
         const c = CREATURES[this.pick]!;
         const half = [0.03, 0.012, 0.004][this.pick]!;
-        this.hud("YOUR REAL NET", this.pin?.label ?? "");
+        this.hud("YOUR NET", this.pin?.label ?? "");
         this.sprite(20, 22, c.sx, 3, this.pick === 2);
-        s.text(66, 24, c.name, GOLD);
-        s.text(66, 34, `NET +-${(half * 100).toFixed(1)}%`, WHITE);
-        s.text(66, 44, `SHIFT ${(this.offset * 100).toFixed(1)}%`, WHITE);
+        s.text2(66, 22, c.name, GOLD, 9);
+        s.text2(66, 33, `NET +-${(half * 100).toFixed(1)}%`, WHITE, 8);
+        s.text2(66, 44, `SHIFT ${(this.offset * 100).toFixed(1)}%`, WHITE, 8);
         s.rect(8, 60, 144, 50, INK);
         s.rectb(8, 60, 144, 50, TEAL);
-        s.text(14, 65, "COSTS 0.2 TEST SOL. HALF IS", GREY);
-        s.text(14, 73, "SWAPPED, THEN A REAL ORCA", GREY);
-        s.text(14, 81, "POSITION OPENS IN YOUR WALLET.", GREY);
-        s.text(14, 93, "WIDER NET = SAFER, SMALLER FEES", WHITE);
-        s.text(14, 101, "TINY NET = MORE FEES, MORE RISK", WHITE);
+        s.text2(14, 64, "COSTS 0.2 TEST SOL. HALF IS", GREY, 7);
+        s.text2(14, 74, "SWAPPED INTO AN ORCA", GREY, 7);
+        s.text2(14, 84, "POSITION OPENS IN YOUR WALLET.", GREY, 7);
+        s.text2(14, 96, "WIDER NET = SAFER, SMALLER FEES", WHITE, 7);
+        s.text2(14, 104, "TINY NET = MORE FEES, MORE RISK", WHITE, 7);
         this.foot("<> CREATURE UP/DN SHIFT A CAST");
         break;
       }
       case "disk": {
         this.sea();
-        this.hud("MY REAL NET", "DEVNET");
+        this.hud("MY NET", "DEVNET");
         const d = this.disk;
         const p = this.diskPool;
         s.rect(6, 14, 148, 76, INK);
@@ -1045,13 +1045,13 @@ export class ScrappyBoy {
             [`${this.food.sol.toFixed(6)} SOL ${this.food.usdc.toFixed(4)} USD`, GREY],
             [`POSITION ${shortId(d.mint)}`, GREY],
           ];
-          rows.forEach(([l, col], i) => s.text(11, 19 + i * 10, l, col));
+          rows.forEach(([l, col], i) => s.text2(11, 16 + i * 10, l, col, 7));
         }
         DISK_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
           const y = 96 + i * 10;
-          if (sel) s.rect(28, y - 2, 104, 9, TEAL);
-          s.text(36, y, mi, sel ? WHITE : GREY);
+          if (sel) s.rect(28, y - 2, 104, 10, TEAL);
+          s.text2(36, y - 1, mi, sel ? WHITE : GREY, 8);
         });
         break;
       }

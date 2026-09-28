@@ -238,6 +238,7 @@ export class Console {
       trib: (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, c: number) => s.trib(x1, y1, x2, y2, x3, y3, c),
       fill: (x: number, y: number, c: number) => s.fill(x, y, c),
       text: (x: number, y: number, str: unknown, c: number) => s.text(x, y, String(str), c),
+      text2: (x: number, y: number, str: unknown, c: number, size?: number, align?: "left" | "center" | "right") => s.text2(x, y, String(str), c, size, align),
       blt: (x: number, y: number, img: number | Image, u: number, v: number, w: number, h: number, colkey?: number) =>
         s.blt(x, y, this.imageArg(img), u, v, w, h, colkey),
       bltm: (x: number, y: number, tm: number | Tilemap, u: number, v: number, w: number, h: number, colkey?: number) =>
