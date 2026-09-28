@@ -34,7 +34,7 @@ child.stdout.on("data", (d) => {
   out += d.toString();
   answer("would you like to regenerate", "y");
   answer("apply them to the", "y");
-  answer("versionName for the new App version", "0.1.0");
+  answer("versionName for the new App version", "0.2.0");
   answer("install the JDK", "y");
   process.stdout.write(d);
 });

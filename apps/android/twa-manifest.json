@@ -12,7 +12,7 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#0C0E0D",
   "enableNotifications": true,
-  "startUrl": "/app",
+  "startUrl": "/tidepool",
   "iconUrl": "https://scrappypet.vercel.app/icon-512.png",
   "maskableIconUrl": "https://scrappypet.vercel.app/icon-512.png",
   "splashScreenFadeOutDuration": 300,
@@ -20,8 +20,8 @@
     "path": "./android.keystore",
     "alias": "scrappy"
   },
-  "appVersionName": "0.1.0",
-  "appVersionCode": 3,
+  "appVersionName": "0.2.0",
+  "appVersionCode": 5,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://scrappypet.vercel.app/manifest.webmanifest",
@@ -39,5 +39,5 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "0.1.0"
+  "appVersion": "0.2.0"
 }

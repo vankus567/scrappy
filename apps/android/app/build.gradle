@@ -23,7 +23,7 @@ plugins {
 def twaManifest = [
     applicationId: 'app.scrappypet',
     hostName: 'scrappypet.vercel.app', // The domain being opened in the TWA.
-    launchUrl: '/app', // The start path for the TWA. Must be relative to the domain.
+    launchUrl: '/tidepool', // The start path for the TWA. Must be relative to the domain.
     name: 'Scrappy', // The application name.
     launcherName: 'Scrappy', // The name shown on the Android Launcher.
     themeColor: '#0C0E0D', // The color used for the status bar.
@@ -57,8 +57,8 @@ android {
         applicationId "app.scrappypet"
         minSdkVersion 23
         targetSdkVersion 36
-        versionCode 3
-        versionName "0.1.0"
+        versionCode 5
+        versionName "0.2.0"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
