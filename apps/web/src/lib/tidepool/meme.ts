@@ -419,7 +419,23 @@ export class MemeDash {
     g.beginPath();
     g.roundRect(x, y - 8, w, h + 16, 18);
     g.fill();
-    const cw = (w - 80) / Math.max(cs.length, 1);
+    // price scale on the right: four gridlines with real prices
+    g.font = `600 15px system-ui, -apple-system, sans-serif`;
+    g.textAlign = "right";
+    g.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const p = lo + ((hi - lo) * i) / 4;
+      const yy = py(p);
+      g.strokeStyle = "rgba(142,163,184,0.18)";
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(x + 8, yy);
+      g.lineTo(x + w - 84, yy);
+      g.stroke();
+      g.fillStyle = C.dim;
+      g.fillText(fmtPrice(p), x + w - 8, yy);
+    }
+    const cw = (w - 92) / Math.max(cs.length, 1);
     cs.forEach((c, i) => {
       const cx = x + 12 + i * cw + cw / 2;
       const upc = c.c >= c.o;
@@ -451,11 +467,24 @@ export class MemeDash {
       line(pos.entry, C.gold, "YOU BUY");
     }
     if (live) {
+      // live price: a dashed line across the chart and a tag on the scale
       const yy = py(live);
+      const last = cs[cs.length - 1];
+      const tagCol = !last || live >= last.o ? C.up : C.down;
+      g.strokeStyle = tagCol;
+      g.lineWidth = 1.5;
+      g.setLineDash([4, 5]);
+      g.beginPath();
+      g.moveTo(x + 8, yy);
+      g.lineTo(x + w - 84, yy);
+      g.stroke();
+      g.setLineDash([]);
       g.fillStyle = C.ink;
       g.beginPath();
-      g.arc(x + w - 84, yy, 7 + (this.t % 30 < 15 ? 2 : 0), 0, Math.PI * 2);
+      g.arc(x + w - 92, yy, 5 + (this.t % 30 < 15 ? 2 : 0), 0, Math.PI * 2);
       g.fill();
+      this.pill(x + w - 82, yy - 13, 78, 26, tagCol);
+      this.text(fmtPrice(live), x + w - 43, yy, 14, C.bg, "center");
     }
     return py;
   }
