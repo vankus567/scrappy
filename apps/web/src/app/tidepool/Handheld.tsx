@@ -77,28 +77,9 @@ export function Handheld() {
 
   const player = publicKey?.toBase58();
 
-  // Tilt the handheld a few degrees toward the pointer, like holding it up to the light.
-  const deviceRef = useRef<HTMLDivElement>(null);
-  const tilt = (e: React.PointerEvent) => {
-    const el = deviceRef.current;
-    if (!el || e.pointerType !== "mouse") return;
-    const r = el.getBoundingClientRect();
-    const nx = (e.clientX - (r.left + r.width / 2)) / window.innerWidth;
-    const ny = (e.clientY - (r.top + r.height / 2)) / window.innerHeight;
-    el.style.setProperty("--ry", `${(nx * 6).toFixed(2)}deg`);
-    el.style.setProperty("--rx", `${(-ny * 5).toFixed(2)}deg`);
-  };
-
   return (
-    <main
-      className={styles.room}
-      onPointerMove={tilt}
-      onPointerLeave={() => {
-        deviceRef.current?.style.setProperty("--rx", "0deg");
-        deviceRef.current?.style.setProperty("--ry", "0deg");
-      }}
-    >
-      <div ref={deviceRef} className={styles.device}>
+    <main className={styles.room}>
+      <div className={styles.device}>
         <div className={styles.switch} aria-hidden>
           <span className={styles.switchSlot} />
           <span className={styles.switchText}>OFF · ON</span>
