@@ -1,5 +1,4 @@
-import { Pet } from "@/components/Pet";
-import { HeroPets } from "@/components/HeroPets";
+import { Critter, SeaCast } from "@/components/SeaCast";
 import { LandingNav } from "@/components/LandingNav";
 import { GlossButton } from "@/components/GlossButton";
 import { HeroClouds } from "@/components/backgrounds/HeroClouds";
@@ -33,7 +32,7 @@ export default function Home() {
         <HeroClouds />
 
 
-        <HeroPets />
+        <SeaCast />
         <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center pb-20 pt-6 text-center">
           <h1 className="font-display text-balance text-[clamp(2.5rem,6vw,4.9rem)] font-bold leading-[1.04] tracking-[-0.01em]">
             Crypto is hard.
@@ -58,7 +57,7 @@ export default function Home() {
             <p className="mt-3 text-[13px] text-ink-soft">Combos up to x8 · levels speed up · WHALE WAVE on big moves</p>
           </figure>
           <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
-            <Pet species="goo" mood="curious" dance="wave" className="w-20 shrink-0" title="A little pet asking you for help" />
+            <Critter who="finn" className="hero-pet w-20 shrink-0" title="Finn the fish" />
             <p className="relative mb-6 rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[15px] font-semibold leading-snug text-navy-text shadow-[0_4px_12px_-8px_rgba(29,29,31,0.45)]">
               Psst! Keeping the price in your net is exactly what liquidity providers do. You just learned it.
             </p>
@@ -66,7 +65,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* HOW IT WORKS: one day in Mochi's life */}
+      {/* HOW IT WORKS: play, cast, collect */}
       <section id="how" className="px-4 py-24 sm:px-8 sm:py-32">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.015em]">
@@ -77,12 +76,12 @@ export default function Home() {
           </p>
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
-              { mood: "curious" as const, bg: "bg-white", t: "Play", d: "An endless arcade round on the live SOL price. Keep your creature inside the net, build combos, chase your best score." },
-              { mood: "focused" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a real Orca pool on the world map and cast. Your own wallet signs; the net is a real liquidity position you own." },
-              { mood: "happy" as const, bg: "bg-white", t: "Collect", d: "While the price stays in your net it earns real fees. Press A to collect them straight into your wallet." },
+              { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless arcade round on the live SOL price. Keep your creature inside the net, build combos, chase your best score." },
+              { who: "shelly" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a real Orca pool on the world map and cast. Your own wallet signs; the net is a real liquidity position you own." },
+              { who: "zip" as const, bg: "bg-white", t: "Collect", d: "While the price stays in your net it earns real fees. Press A to collect them straight into your wallet." },
             ].map((s) => (
               <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
-                <Pet mood={s.mood} className="mx-auto w-40" title={`Mochi, ${s.mood}`} />
+                <Critter who={s.who} className="mx-auto w-40" title={s.who} />
                 <h3 className="mt-4 font-display tracking-[-0.005em] text-2xl font-bold">{s.t}</h3>
                 <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{s.d}</p>
               </div>
@@ -105,7 +104,7 @@ export default function Home() {
           </div>
           <figure className="mx-auto w-full max-w-sm rounded-2xl bg-night-raise p-6 ring-1 ring-white/5">
             <figcaption className="text-[12px] text-on-night-soft">After a run</figcaption>
-            <Pet mood="happy" className="mx-auto mt-2 w-36" title="Mochi, cheering" />
+            <Critter who="shelly" frame={1} className="hero-pet mx-auto mt-2 w-36" title="Shelly the turtle" />
             <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">1,240 points · combo x8</p>
             <p className="mt-1 text-center text-[14px] text-on-night-soft">Price in the net 86% · then one tap to cast it for real</p>
           </figure>
