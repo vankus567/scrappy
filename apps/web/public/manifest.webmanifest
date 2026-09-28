@@ -2,7 +2,7 @@
   "name": "Scrappy",
   "short_name": "Scrappy",
   "description": "When AI needs a human, Scrappy pays one instantly.",
-  "start_url": "/app",
+  "start_url": "/tidepool",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
