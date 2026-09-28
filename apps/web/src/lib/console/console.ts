@@ -84,13 +84,6 @@ export class Console {
     this.frame = oc.createImageData(this.width, this.height);
 
     this.detach.push(this.input.attach(window));
-    const unlock = () => this.audio.unlock();
-    window.addEventListener("keydown", unlock);
-    window.addEventListener("pointerdown", unlock);
-    this.detach.push(() => {
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("pointerdown", unlock);
-    });
 
     const onMove = (e: PointerEvent) => {
       const r = this.canvas.getBoundingClientRect();
@@ -233,16 +226,8 @@ export class Console {
     return r;
   }
 
-  play(ch: number, snd: number | number[], loop = false): void {
-    const channel = this.audio.mixer.channels[ch];
-    if (!channel) throw new Error(`no channel ${ch} (0..${NUM_CHANNELS - 1})`);
-    const ids = Array.isArray(snd) ? snd : [snd];
-    const sounds = ids.map((i) => {
-      const s = this.banks.sounds[i];
-      if (!s) throw new Error(`no sound ${i}`);
-      return s;
-    });
-    channel.play(sounds, ids, loop);
+  play(_ch: number, _snd: number | number[], _loop = false): void {
+    // console runs silent: no game audio
   }
 
   playm(msc: number, loop = false): void {
