@@ -8,10 +8,10 @@ export function LandingNav() {
     <MorphNav
       floating
       links={[
-        { href: "#ai-teams", label: "Play with friends", icon: UsersThree },
+        { href: "#how", label: "How it works", icon: UsersThree },
         { href: "https://github.com/Venkat5599/solana_coloseum", label: "GitHub", icon: GithubLogo },
       ]}
-      cta={{ href: "/app", label: "Hatch a pet", icon: ArrowUpRight }}
+      cta={{ href: "/tidepool", label: "Play now", icon: ArrowUpRight }}
     />
   );
 }

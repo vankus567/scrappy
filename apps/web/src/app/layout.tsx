@@ -23,10 +23,10 @@ const switzer = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Scrappy",
+  title: "TIDEPOOL",
   manifest: "/manifest.webmanifest",
   description:
-    "Mimic: hear a sound, copy it into your mic, and beat up to 3 friends. A voice battle game with your pet on Solana.",
+    "Crypto is hard, so we made it a game. TIDEPOOL is a pocket arcade game where every move is a real Solana action.",
 };
 
 export const viewport: Viewport = {

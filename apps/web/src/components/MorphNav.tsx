@@ -42,7 +42,7 @@ export function MorphNav({ links, cta, className, floating = false }: Props) {
       >
         <Link href="/" className="flex shrink-0 items-center gap-2 pl-1" aria-label="Scrappy home">
           <motion.span layout={!reduce} transition={SPRING} className={`font-display font-medium tracking-tight ${scrolled ? "text-[19px]" : "text-[22px]"}`}>
-            {scrolled ? "s" : "scrappy"}
+            {scrolled ? "t" : "tidepool"}
           </motion.span>
         </Link>
 

@@ -36,31 +36,31 @@ export default function Home() {
         <HeroPets />
         <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center pb-20 pt-6 text-center">
           <h1 className="font-display text-balance text-[clamp(2.5rem,6vw,4.9rem)] font-bold leading-[1.04] tracking-[-0.01em]">
-            Hear it. Copy it.
-            <span className="block text-[#007aff]">Win the voice battle.</span>
+            Crypto is hard.
+            <span className="block text-[#007aff]">So we made it a game.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
-            A sound plays, you copy it into your mic, and the closest copy wins. Battle up to 3 friends, with your pet on Solana.
+            TIDEPOOL is a pocket arcade game where every move is real Solana. Ride the live SOL price, keep it in your net, then cast a real one from your own wallet and collect real fees.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
-            <PrimaryLink href="/app">Hatch a pet</PrimaryLink>
+            <PrimaryLink href="/tidepool">Play TIDEPOOL</PrimaryLink>
             <GlossButton href="/scrappy.apk" download>
               Download the Android app
               <Arrow />
             </GlossButton>
             <span className="-mt-1 text-[13px] font-semibold text-navy-text">APK · 1 MB</span>
-            <span className="text-[14px] font-semibold text-navy-text">Free to play on the web and Android.</span>
+            <span className="text-[14px] font-semibold text-navy-text">Free to play. Connect your wallet on devnet.</span>
           </div>
           <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">
-            <figcaption className="text-[12px] text-ink-faint">Example round</figcaption>
-            <p className="mt-1.5 text-[15px] leading-snug">Scrappy Tune: Sleepy Cat</p>
-            <p className="mt-2 text-[17px] leading-snug text-ink">Hum it back. Match the ups and downs.</p>
-            <p className="mt-3 text-[13px] text-ink-soft">4 players · 3 sounds · about 2 minutes</p>
+            <figcaption className="text-[12px] text-ink-faint">How a round goes</figcaption>
+            <p className="mt-1.5 text-[15px] leading-snug">Your creature rides the live SOL price</p>
+            <p className="mt-2 text-[17px] leading-snug text-ink">Steer the net. Catch pearls. Dodge jellyfish.</p>
+            <p className="mt-3 text-[13px] text-ink-soft">Combos up to x8 · levels speed up · WHALE WAVE on big moves</p>
           </figure>
           <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
             <Pet species="goo" mood="curious" dance="wave" className="w-20 shrink-0" title="A little pet asking you for help" />
             <p className="relative mb-6 rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[15px] font-semibold leading-snug text-navy-text shadow-[0_4px_12px_-8px_rgba(29,29,31,0.45)]">
-              Psst! I just heard a sound. Bet you can copy it better than your friends.
+              Psst! Keeping the price in your net is exactly what liquidity providers do. You just learned it.
             </p>
           </div>
         </div>
@@ -70,16 +70,16 @@ export default function Home() {
       <section id="how" className="px-4 py-24 sm:px-8 sm:py-32">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.015em]">
-            Every battle is three sounds.
+            Play first. Then do it for real.
           </h2>
           <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-soft">
-            Listen, copy it, and see who got closest. Any key works: it's the shape and the rhythm that count.
+            Every button in the game is a real Solana action underneath. You never read a manual; you just play.
           </p>
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
-              { mood: "curious" as const, bg: "bg-white", t: "Listen", d: "A sound plays: a Scrappy Tune or a clip another player recorded. Everyone in the battle hears the same one." },
-              { mood: "focused" as const, bg: "bg-white", t: "Copy it", d: "Hum, sing or whistle it back. Your pitch line draws over the sound's as you go. Retry until you like it." },
-              { mood: "happy" as const, bg: "bg-white", t: "Win", d: "Closest copy after three sounds wins. Every win helps Mochi grow into its next form." },
+              { mood: "curious" as const, bg: "bg-white", t: "Play", d: "An endless arcade round on the live SOL price. Keep your creature inside the net, build combos, chase your best score." },
+              { mood: "focused" as const, bg: "bg-white", t: "Cast a real net", d: "Pick a real Orca pool on the world map and cast. Your own wallet signs; the net is a real liquidity position you own." },
+              { mood: "happy" as const, bg: "bg-white", t: "Collect", d: "While the price stays in your net it earns real fees. Press A to collect them straight into your wallet." },
             ].map((s) => (
               <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
                 <Pet mood={s.mood} className="mx-auto w-40" title={`Mochi, ${s.mood}`} />
@@ -96,18 +96,18 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[28px] bg-night px-6 py-16 text-on-night sm:px-12 lg:grid-cols-2 lg:py-20">
           <div>
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,4.4vw,3.6rem)] font-bold leading-[1.02] tracking-[-0.015em]">
-              Come last, and everyone hears it.
+              Nothing on screen is fake.
             </h2>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
-              Scores show after every sound, for everyone in the battle. Come last and your pet sulks until the
-              rematch. Put your real pet's face on your Scrappy and it's their reputation on the line too.
+              The chart is the live SOL price. Nets are real Orca positions. Coins are real fees. Every move
+              links to Solana Explorer, and points are just points: we never turn your score into a bet.
             </p>
           </div>
           <figure className="mx-auto w-full max-w-sm rounded-2xl bg-night-raise p-6 ring-1 ring-white/5">
-            <figcaption className="text-[12px] text-on-night-soft">Example result</figcaption>
-            <Pet mood="dead" className="mx-auto mt-2 w-36" title="Mochi, knocked out" />
-            <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">Mochi came last</p>
-            <p className="mt-1 text-center text-[14px] text-on-night-soft">212 points · beaten by Luna's 99 on "Rocket Ride"</p>
+            <figcaption className="text-[12px] text-on-night-soft">After a run</figcaption>
+            <Pet mood="happy" className="mx-auto mt-2 w-36" title="Mochi, cheering" />
+            <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">1,240 points · combo x8</p>
+            <p className="mt-1 text-center text-[14px] text-on-night-soft">Price in the net 86% · then one tap to cast it for real</p>
           </figure>
         </div>
       </section>
@@ -118,41 +118,36 @@ export default function Home() {
           <div>
             <AgentOrbClient size={112} tone="light" className="-ml-3 mb-4" />
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
-              Battle your friends,<br className="hidden sm:block" /> up to four at once.
+              Beat your friends'<br className="hidden sm:block" /> best score.
             </h2>
             <dl className="mt-8 space-y-5 text-[15px]">
               <div>
-                <dt className="font-bold">2 to 4 players</dt>
-                <dd className="mt-1 text-ink-soft">Share a link. Empty seats go to Scrappy Bot, so there's always someone to beat.</dd>
+                <dt className="font-bold">Challenge links</dt>
+                <dd className="mt-1 text-ink-soft">Share your run as a card. Friends who open it see your score to beat, live in their round.</dd>
               </div>
               <div>
-                <dt className="font-bold">Any voice works</dt>
-                <dd className="mt-1 text-ink-soft">Sing high or low, in any key. Scrappy compares the shape and the rhythm, not how deep your voice is.</dd>
+                <dt className="font-bold">A handheld in your pocket</dt>
+                <dd className="mt-1 text-ink-soft">Plays on the web and as an Android app for Solana Seeker, with a d-pad, A and B.</dd>
               </div>
               <div>
-                <dt className="font-bold">Add your own sounds</dt>
-                <dd className="mt-1 text-ink-soft">Record a funny voice or a catchphrase you made up, and it shows up in other players' battles.</dd>
+                <dt className="font-bold">More cartridges coming</dt>
+                <dd className="mt-1 text-ink-soft">Liquidity is cartridge one. Staking and trading are next, each one a hard thing made playable.</dd>
               </div>
             </dl>
             <div className="mt-9">
-              <PrimaryLink href="/app/battle">Start a battle</PrimaryLink>
+              <PrimaryLink href="/tidepool">Start a round</PrimaryLink>
             </div>
           </div>
 
           <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
-{`Example scoreboard
-Round 3 of 3 · "Rocket Ride"
+{`What each button really does
 
-  Luna          96
-  You           91
-  Bruno         78
-  Scrappy Bot   74
+  A  cast net   open an Orca position
+  A  collect    harvest fees to wallet
+  B  recentre   close + reopen at price
+  B  pull in    close position, funds back
 
-Totals after 3 sounds
-  You          274   winner
-  Luna         268
-  Bruno        231
-  Scrappy Bot  219`}
+Signed by your wallet. Solana devnet.`}
           </pre>
         </div>
       </section>
@@ -160,7 +155,7 @@ Totals after 3 sounds
       <footer className="bg-ground-deep px-4 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center text-[14px] text-ink-soft">
           <p>
-            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">scrappy</span> · built on Solana
+            <span className="font-display tracking-[-0.005em] text-[18px] text-ink">TIDEPOOL</span> · by scrappy · built on Solana
           </p>
           <a href={REPO_URL} className="transition-colors hover:text-ink">Source on GitHub</a>
         </div>

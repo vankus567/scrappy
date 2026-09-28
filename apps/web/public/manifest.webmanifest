@@ -1,7 +1,7 @@
 {
-  "name": "Scrappy",
-  "short_name": "Scrappy",
-  "description": "When AI needs a human, Scrappy pays one instantly.",
+  "name": "TIDEPOOL",
+  "short_name": "TIDEPOOL",
+  "description": "Crypto is hard, so we made it a game.",
   "start_url": "/tidepool",
   "scope": "/",
   "display": "standalone",
