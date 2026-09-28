@@ -125,8 +125,8 @@ export default function Home() {
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
               { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless round riding the live SOL price. Keep your creature in the net, stack combos, chase the day's best." },
-              { who: "shelly" as const, bg: "bg-white", t: "Cast a net", d: "Pick a pool on the sea map and press A. The net is your money in an Orca pool, opened and signed right on the device." },
-              { who: "zip" as const, bg: "bg-white", t: "Collect", d: "While the price sits in your net it earns trading fees. Press A and they drop into your coin purse." },
+              { who: "shelly" as const, bg: "bg-white", t: "Cast a net", d: "Pick a spot on the sea map and press A. The net is your money, parked where other people trade." },
+              { who: "zip" as const, bg: "bg-white", t: "Collect", d: "Every trade that swims through your net pays you a little. Press A and it drops into your purse." },
             ].map((s) => (
               <div key={s.t} className={`rounded-3xl p-6 pb-8 ${s.bg}`}>
                 <Critter who={s.who} className="mx-auto w-40" title={s.who} />
@@ -146,8 +146,9 @@ export default function Home() {
               Every number comes from the chain.
             </h2>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
-              The chart is the live SOL price. Nets are liquidity positions. Coins are trading fees.
-              Every move links out to Solana Explorer. And points are just points: the game never turns your score into a bet.
+              The chart is the live SOL price. A net is your money parked where trades happen. Coins are the small
+              cut those trades pay you. Every move links to the public record on Solana. And points are just points:
+              the game never turns your score into a bet.
             </p>
           </div>
           <figure className="mx-auto w-full max-w-sm rounded-2xl bg-night-raise p-6 ring-1 ring-white/5">
@@ -178,7 +179,7 @@ export default function Home() {
               </div>
               <div>
                 <dt className="font-bold">Two cartridges in the box</dt>
-                <dd className="mt-1 text-ink-soft">The fishing net is secretly a liquidity position. MEME DASH is secretly a meme-coin trade. Neither screen uses those words.</dd>
+                <dd className="mt-1 text-ink-soft">The fishing net is secretly money parked in a pool. MEME DASH is secretly buying meme coins. Neither screen uses those words.</dd>
               </div>
             </dl>
             <div className="mt-9">
@@ -189,11 +190,11 @@ export default function Home() {
           <pre style={{ fontVariantLigatures: "none", fontWeight: 400 }} className="overflow-x-auto rounded-2xl bg-ground-deep p-6 font-mono text-[13px] leading-relaxed text-ink ring-1 ring-edge">
 {`What each button does
 
-  A  cast net    open an Orca position
-  A  collect     harvest fees to purse
-  B  recentre    close + reopen at price
-  B  pull in     close position, funds back
-  A  buy coin    Jupiter swap, mainnet
+  A  cast net    put money in the pool
+  A  collect     take the coins it earned
+  B  recentre    move the net to the price
+  B  pull in     take your money back out
+  A  buy coin    an actual coin, on Solana
 
 Signed on-device by your play key.`}
           </pre>

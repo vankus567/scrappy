@@ -307,47 +307,17 @@ export class Image {
     }
   }
 
-  private textCanvas: HTMLCanvasElement | null = null;
-  private textFont = "";
+  /** Words queued this frame for the crisp overlay layer (drawn by the host, not stamped). */
+  readonly overlay: { x: number; y: number; s: string; col: number; size: number; align: "left" | "center" | "right" }[] = [];
 
   /**
-   * Smooth, readable text: renders the loaded pixel font (VT323) through a
-   * scratch canvas and stamps the lit pixels into the buffer as `col`.
-   * The 4x6 font stays for anything that wants it; text2 is for words a
-   * player actually has to read.
+   * Smooth, readable text. Instead of pixel-stamping into the 160x144 buffer
+   * (where letters mush into noise), each call queues an overlay line. The
+   * console paints these on the display canvas at full resolution after the
+   * pixel blit, so text stays sharp no matter how small the buffer is.
    */
   text2(x: number, y: number, s: string, col: number, size = 10, align: "left" | "center" | "right" = "left"): void {
     if (typeof document === "undefined") return this.text(x, y, s, col);
-    if (!this.textCanvas) this.textCanvas = document.createElement("canvas");
-    if (!this.textFont) {
-      const fam = getComputedStyle(document.documentElement).getPropertyValue("--font-vt323").trim();
-      this.textFont = fam || "VT323, monospace";
-    }
-    const c = this.textCanvas;
-    const g = c.getContext("2d", { willReadFrequently: true });
-    if (!g) return this.text(x, y, s, col);
-    // VT323 is a compact face: render larger so it stays crisp in the small buffer.
-    const pt = Math.round(size * 1.35);
-    g.font = `${pt}px ${this.textFont}`;
-    const w = Math.max(1, Math.ceil(g.measureText(s).width) + 2);
-    const h = Math.ceil(pt * 1.2);
-    if (c.width < w) c.width = w;
-    if (c.height < h) c.height = h;
-    g.clearRect(0, 0, w, h);
-    g.font = `${pt}px ${this.textFont}`;
-    g.textBaseline = "top";
-    g.fillStyle = "#fff";
-    g.fillText(s, 1, 0);
-    const px = g.getImageData(0, 0, w, h).data;
-    let ox = Math.floor(x);
-    if (align === "center") ox -= Math.floor(w / 2);
-    else if (align === "right") ox -= w;
-    const oy = Math.floor(y);
-    for (let j = 0; j < h; j++) {
-      const row = j * w * 4;
-      for (let i = 0; i < w; i++) {
-        if (px[row + i * 4 + 3]! > 140) this.plot(ox + i, oy + j, col);
-      }
-    }
+    this.overlay.push({ x, y, s, col, size, align });
   }
 }

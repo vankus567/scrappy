@@ -46,6 +46,9 @@ export class Console {
   private readonly ctx2d: CanvasRenderingContext2D;
   private readonly frame: ImageData;
   private readonly rgba: Uint32Array; // palette as little-endian ABGR words
+  private readonly hex: string[]; // same palette as CSS colors, for overlay text
+  private readonly off: HTMLCanvasElement;
+  private readonly offCtx: CanvasRenderingContext2D;
   private raf = 0;
   private detach: (() => void)[] = [];
   private hooks: CartHooks = {};
@@ -56,11 +59,15 @@ export class Console {
     this.height = Math.floor(opts.height);
     this.fps = opts.fps ?? 30;
     this.screen = new Image(this.width, this.height);
-    this.rgba = new Uint32Array((opts.palette ?? DEFAULT_PALETTE).map((c) => 0xff000000 | ((c & 0xff) << 16) | (c & 0xff00) | ((c >> 16) & 0xff)));
+    const pal = opts.palette ?? DEFAULT_PALETTE;
+    this.rgba = new Uint32Array(pal.map((c) => 0xff000000 | ((c & 0xff) << 16) | (c & 0xff00) | ((c >> 16) & 0xff)));
+    this.hex = pal.map((c) => `#${(c & 0xffffff).toString(16).padStart(6, "0")}`);
 
     this.canvas = document.createElement("canvas");
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    // Backing store is 3x the buffer: the pixel blit stays nearest-neighbor but
+    // overlay text gets real subpixel resolution to be smooth and readable.
+    this.canvas.width = this.width * 3;
+    this.canvas.height = this.height * 3;
     this.canvas.style.imageRendering = "pixelated";
     this.canvas.style.display = "block";
     this.canvas.tabIndex = 0;
@@ -68,7 +75,13 @@ export class Console {
     const c2d = this.canvas.getContext("2d");
     if (!c2d) throw new Error("2D canvas not available");
     this.ctx2d = c2d;
-    this.frame = c2d.createImageData(this.width, this.height);
+    this.off = document.createElement("canvas");
+    this.off.width = this.width;
+    this.off.height = this.height;
+    const oc = this.off.getContext("2d");
+    if (!oc) throw new Error("2D canvas not available");
+    this.offCtx = oc;
+    this.frame = oc.createImageData(this.width, this.height);
 
     this.detach.push(this.input.attach(window));
     const unlock = () => this.audio.unlock();
@@ -162,11 +175,36 @@ export class Console {
     this.present();
   }
 
+  private textFont = "";
+
   private present(): void {
     const px = this.screen.data;
     const out = new Uint32Array(this.frame.data.buffer);
     for (let i = 0; i < px.length; i++) out[i] = this.rgba[px[i]!]!;
-    this.ctx2d.putImageData(this.frame, 0, 0);
+    this.offCtx.putImageData(this.frame, 0, 0);
+    const g = this.ctx2d;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(this.off, 0, 0, this.canvas.width, this.canvas.height);
+
+    // Crisp text overlay: draw queued lines at full canvas resolution.
+    const lines = this.screen.overlay;
+    if (lines.length) {
+      if (!this.textFont) {
+        const fam = getComputedStyle(document.documentElement).getPropertyValue("--font-switzer").trim();
+        this.textFont = fam || "system-ui, sans-serif";
+      }
+      const k = this.canvas.width / this.width;
+      g.textBaseline = "top";
+      for (const l of lines) {
+        const pt = Math.round(l.size * 1.15 * k);
+        g.font = `600 ${pt}px ${this.textFont}`;
+        g.fillStyle = this.hex[l.col & 15] ?? "#fff";
+        g.textAlign = l.align;
+        g.fillText(l.s, l.x * k, l.y * k);
+      }
+      g.textAlign = "left";
+      lines.length = 0;
+    }
   }
 
   stopAll(): void {

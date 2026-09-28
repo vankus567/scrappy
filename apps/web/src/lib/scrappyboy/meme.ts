@@ -17,7 +17,8 @@ const SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3";
 /** Everything Jupiter says is hot today, minus money that isn't a meme. */
 const EXCLUDE = new Set(["SOL", "WSOL", "USDC", "USDT", "USD1", "PYUSD", "CBBTC", "WBTC", "ZEC", "PAXG", "JITOSOL", "JUP", "MSOL", "BSOL", "EURC", "LST"]);
 const MAX_COINS = 30;
-const STAKES = [1, 5, 10];
+/** Coin sizes a player can pick with UP/DN. Above $10 asks for one extra A. */
+const STAKES = [1, 5, 10, 25, 50];
 const STOP = -0.08;
 const TAKE = 0.15;
 
@@ -82,9 +83,9 @@ export function fontFam(kind: "title" | "body"): string {
   if (!FONTS.body && typeof document !== "undefined") {
     const cs = getComputedStyle(document.documentElement);
     FONTS.title = cs.getPropertyValue("--font-pressstart").trim() || '"Press Start 2P", monospace';
-    FONTS.body = cs.getPropertyValue("--font-vt323").trim() || "VT323, monospace";
+    FONTS.body = cs.getPropertyValue("--font-switzer").trim() || "system-ui, sans-serif";
   }
-  return kind === "title" ? FONTS.title || "monospace" : FONTS.body || "monospace";
+  return kind === "title" ? FONTS.title || "monospace" : FONTS.body || "system-ui, sans-serif";
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -122,6 +123,7 @@ export class MemeDash {
   private idx = 0;
   private candles: Candle[] = [];
   private stakeIdx = 0;
+  private confirmBig = false;
   private pos: Position | null = null;
   private result: { text: string; pnl: number; pct: number; why: string } | null = null;
   private busy: string | null = null;
@@ -404,10 +406,26 @@ export class MemeDash {
         break;
       case "chart":
         if (!this.pos) {
-          if (up) this.stakeIdx = Math.min(STAKES.length - 1, this.stakeIdx + 1);
-          if (down) this.stakeIdx = Math.max(0, this.stakeIdx - 1);
-          if (a) this.buy();
-          if (b) this.scene = "pick";
+          if (up) {
+            this.stakeIdx = Math.min(STAKES.length - 1, this.stakeIdx + 1);
+            this.confirmBig = false;
+          }
+          if (down) {
+            this.stakeIdx = Math.max(0, this.stakeIdx - 1);
+            this.confirmBig = false;
+          }
+          if (a) {
+            const usd = STAKES[this.stakeIdx]!;
+            if (usd > 10 && !this.confirmBig) this.confirmBig = true;
+            else {
+              this.confirmBig = false;
+              this.buy();
+            }
+          }
+          if (b) {
+            this.confirmBig = false;
+            this.scene = "pick";
+          }
         } else {
           if (b || a) this.sell("YOU SOLD");
         }
@@ -428,9 +446,7 @@ export class MemeDash {
 
   private text(s: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = "left", weight = 800, kind: "title" | "body" = "body"): void {
     const g = this.g;
-    // VT323 is a compact face: draw it ~30% larger so it fills the same line.
-    const px = kind === "body" ? Math.round(size * 1.3) : size;
-    g.font = kind === "title" ? `${px}px ${fontFam("title")}` : `${px}px ${fontFam("body")}`;
+    g.font = kind === "title" ? `${size}px ${fontFam("title")}` : `${weight} ${size}px ${fontFam("body")}`;
     g.textAlign = align;
     g.textBaseline = "middle";
     g.fillStyle = color;
@@ -656,11 +672,18 @@ export class MemeDash {
         this.text("How much?", 24, 434, 24, C.dim, "left", 600);
         STAKES.forEach((s, i) => {
           const sel = i === this.stakeIdx;
-          this.pill(24 + i * 100, 450, 90, 58, sel ? C.gold : C.panel);
-          this.text(`$${s}`, 69 + i * 100, 479, 30, sel ? C.bg : C.ink, "center");
+          this.pill(24 + i * 84, 450, 78, 58, sel ? C.gold : C.panel);
+          this.text(`$${s}`, 63 + i * 84, 479, 28, sel ? C.bg : C.ink, "center");
         });
-        this.pill(MEME_W - 270, 432, 250, 84, C.up);
-        this.text("A  BUY", MEME_W - 145, 474, 40, C.bg, "center");
+        const usd = STAKES[this.stakeIdx]!;
+        if (this.confirmBig) {
+          this.pill(MEME_W - 182, 432, 158, 84, C.down);
+          this.text("SURE?", MEME_W - 103, 462, 30, C.bg, "center");
+          this.text("A yes", MEME_W - 103, 494, 20, C.bg, "center", 600);
+        } else {
+          this.pill(MEME_W - 182, 432, 158, 84, C.up);
+          this.text("A  BUY", MEME_W - 103, 474, 36, C.bg, "center");
+        }
         this.text("▲▼ amount   A buy   B coins", MEME_W / 2, 546, 20, C.dim, "center", 600);
       }
     }
