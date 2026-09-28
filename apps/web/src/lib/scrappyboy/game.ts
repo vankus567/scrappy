@@ -128,6 +128,9 @@ export class ScrappyBoy {
   private best = 0;
   private beat = 0; // a friend's score from a challenge link
   private beatDone = false;
+  private vsName = "";
+  private seeker = false;
+  private questBest = readQuest().best;
   private streak = 0;
   private newBest = false;
   private combo = 0;
@@ -232,9 +235,15 @@ export class ScrappyBoy {
     fn().catch(() => {});
   }
 
-  /** A score to beat, from a friend's challenge link (?beat=1240). */
-  setChallenge(score: number): void {
+  /** A score to beat, from a friend's challenge link (?vs=name&beat=1240). */
+  setChallenge(score: number, name = ""): void {
     this.beat = Number.isFinite(score) && score > 0 ? Math.floor(score) : 0;
+    this.vsName = name.slice(0, 12);
+  }
+
+  /** SEEKER tag on the save card when the play key holds SKR. */
+  setSeeker(on: boolean): void {
+    this.seeker = on;
   }
 
   setSigner(signer: TransactionSigner | undefined): void {
@@ -545,7 +554,7 @@ export class ScrappyBoy {
 
     if (this.beat && !this.beatDone && this.score > this.beat) {
       this.beatDone = true;
-      this.banner = { text: `YOU BEAT !`, life: 70, col: GOLD };
+      this.banner = { text: `YOU BEAT ${this.vsName || "THEM"}!`, life: 70, col: GOLD };
       this.burst(CREATURE_X, this.py(this.shown), GOLD, 20);
       this.con.play(3, 5);
     }
@@ -558,6 +567,7 @@ export class ScrappyBoy {
     this.menuIdx = 0;
     this.con.stopAll();
     this.con.play(0, 5);
+    this.questBest = stampQuest(this.score);
     if (this.score > this.best) {
       this.best = this.score;
       this.newBest = true;
@@ -887,7 +897,7 @@ export class ScrappyBoy {
         this.center(50, "KEEP THE PRICE IN YOUR NET", WHITE);
         CREATURES.forEach((c, i) => this.sprite(26 + i * 40, 70 + Math.round(Math.sin((this.t + i * 20) / 10) * 3), c.sx, 2, i === 2));
         if (this.t % 30 < 20) this.center(104, "PRESS A", WHITE);
-        if (this.beat) this.center(116, `A FRIEND SCORED . BEAT IT!`, this.t % 30 < 20 ? GOLD : ORANGE);
+        if (this.beat) this.center(116, `BEAT ${this.vsName || "A FRIEND"}'S ${this.beat}!`, this.t % 30 < 20 ? GOLD : ORANGE);
         else if (this.best) this.center(116, `BEST `, GOLD);
         s.rect(0, SCREEN_H - 8, SCREEN_W, 8, SAND);
         break;
@@ -910,15 +920,18 @@ export class ScrappyBoy {
       case "card": {
         this.sea();
         this.hud("SAVE CARD", this.signer ? shortId(this.signer.address) : "");
-        s.rect(10, 15, 140, 52, INK);
-        s.rectb(10, 15, 140, 52, GOLD);
-        this.sprite(16, 28, CREATURES[this.pick]!.sx, 2);
+        s.rect(10, 12, 140, 60, INK);
+        s.rectb(10, 12, 140, 60, GOLD);
+        this.sprite(16, 30, CREATURES[this.pick]!.sx, 2);
         const food = Number(this.balance) / 1e9;
-        s.text2(50, 17, `BEST   ${this.best}`, GOLD, 8);
-        s.text2(110, 17, `${this.streak}D`, this.streak > 1 ? ORANGE : GREY, 8);
-        s.text2(50, 29, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK, 8);
-        s.text2(50, 41, `PLAY KEY ${food.toFixed(2)} SOL`, WHITE, 8);
-        s.text2(50, 53, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY, 8);
+        s.text2(50, 13, `BEST   ${this.best}`, GOLD, 8);
+        s.text2(110, 13, `${this.streak}D`, this.streak > 1 ? ORANGE : GREY, 8);
+        s.text2(50, 24, `SOL    $${this.live ? this.live.toFixed(2) : "--"}`, this.feedOk ? MINT : PINK, 8);
+        s.text2(50, 35, `PLAY KEY ${food.toFixed(2)} SOL`, WHITE, 8);
+        if (this.seeker) s.text2(138, 35, "SKR", GOLD, 8);
+        s.text2(50, 46, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY, 8);
+        const qDone = this.questBest >= QUEST_GOAL;
+        s.text2(50, 57, `QUEST  ${qDone ? "DONE!" : `${this.questBest}/${QUEST_GOAL}`}`, qDone ? GOLD : GREY, 8);
         CARD_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
           const y = 76 + i * 12;
@@ -1064,3 +1077,27 @@ export class ScrappyBoy {
 }
 
 const shortId = (a: string) => `${a.slice(0, 4)}..${a.slice(-4)}`;
+
+// ---- daily quest: a reason to come back tomorrow -----------------------------
+const QUEST_GOAL = 500;
+
+function readQuest(): { day: string; best: number } {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const v = JSON.parse(localStorage.getItem("scrappyboy.quest") ?? "null") as { day: string; best: number } | null;
+    return v?.day === today ? v : { day: today, best: 0 };
+  } catch {
+    return { day: today, best: 0 };
+  }
+}
+
+function stampQuest(score: number): number {
+  const q = readQuest();
+  const best = Math.max(q.best, Math.floor(score));
+  try {
+    localStorage.setItem("scrappyboy.quest", JSON.stringify({ day: q.day, best }));
+  } catch {
+    /* private mode */
+  }
+  return best;
+}

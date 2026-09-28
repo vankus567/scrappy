@@ -224,6 +224,24 @@ export async function hatch(signer: TransactionSigner, pool: Pool, solAmount: nu
   return { mint: open.positionMint, swapSig, openSig };
 }
 
+/**
+ * A plain swap on the deepest devnet SOL/devUSDC pool - MEME DASH's devnet trade.
+ * Pass SOL_MINT to buy devUSDC with SOL, DEV_USDC_MINT to sell it back.
+ */
+export async function devSwap(
+  signer: TransactionSigner,
+  inputMint: Address,
+  inputAmount: bigint,
+): Promise<{ sig: string; out: bigint }> {
+  const pool = await pickPool();
+  const swap = await swapInstructions(rpc, { inputAmount, mint: inputMint }, pool.address, {
+    signer,
+    whirlpoolDeployment: deployment,
+  });
+  const sig = await send(signer, swap.instructions);
+  return { sig, out: swap.quote.tokenEstOut };
+}
+
 export async function creatures(owner: Address): Promise<Creature[]> {
   const all = await withRetry(() => fetchPositionsForOwner(rpc, owner, deployment));
   const out: Creature[] = [];

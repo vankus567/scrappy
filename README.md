@@ -22,7 +22,7 @@ Three cartridges on one handheld:
 |---|---|---|
 | **PLAY NOW** | An endless round on the live SOL price | Nothing — points are free. This is how you learn the controls. |
 | **DEEP NET** | "Cast a net into the sea" | Opens a real Orca liquidity position on devnet; "collect coins" harvests real fees; "pull the net" closes the position and returns funds. |
-| **MEME DASH** | A coin carousel + a 4-second round | `A` buys — a real Jupiter swap on Solana **mainnet** ($1/$5/$10). `B` sells. The safety net and treasure line auto-sell at −8% / +15%. Coins are the day's top-traded list straight from Jupiter. |
+| **MEME DASH** | A coin carousel + a 4-second round | `A` buys — a real Jupiter swap on Solana **mainnet** ($1-$50, or 100 SKR). `B` sells. The safety net and treasure line auto-sell at −8% / +15%. Coins are the day's hottest: Jupiter's top-traded list + GeckoTerminal trending pools, SKR pinned. `?net=devnet` swaps through the Orca devnet pool instead — free for demos. |
 
 `X` anywhere is the coin return: it sweeps the play key back to your wallet.
 
@@ -63,8 +63,10 @@ Build: `anchor build` inside WSL (toolchain note in `scripts/wsl-build2.sh`).
 
 ## Networks, honestly
 
-- **MEME DASH trades on mainnet.** Real Jupiter swaps, real signatures,
-  `solscan.io` links in the tx log under the console.
+- **MEME DASH trades on mainnet** by default. Real Jupiter swaps, real
+  signatures, `solscan.io` links in the tx log under the console.
+- **Add `?net=devnet`** and the same cartridge trades SOL/devUSDC through the
+  Orca devnet whirlpool instead — real swaps, zero cost, judged-demo friendly.
 - **DEEP NET runs on devnet** (Orca whirlpools) — same mechanics, zero cost.
 - The core round is free: no wallet needed until you load a coin.
 

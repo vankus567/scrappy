@@ -17,8 +17,8 @@ const explorer = (sig: string) =>
  * Share a run: the results screen scaled up crisp (nearest-neighbour) into a square card,
  * plus a challenge link that carries the score. Phone share sheet first, X as the fallback.
  */
-async function shareRun(screen: HTMLCanvasElement, run: { score: number; best: number; creature: string; level: number; combo: number }) {
-  const url = `${window.location.origin}/scrappyboy?beat=${run.score}`;
+async function shareRun(screen: HTMLCanvasElement, run: { score: number; best: number; creature: string; level: number; combo: number }, myName = "") {
+  const url = `${window.location.origin}/scrappyboy?beat=${run.score}${myName ? `&vs=${encodeURIComponent(myName)}` : ""}`;
   const text = `I scored ${run.score} on SCRAPPY BOY riding the live SOL price with ${run.creature} (level ${run.level}, combo ${run.combo}). Beat me:`;
   const card = document.createElement("canvas");
   card.width = 1080;
@@ -89,9 +89,10 @@ export function Handheld() {
           onTx: (label, sig) => setTxs((t) => [{ label, sig }, ...t].slice(0, 8)),
           onConnect: () => pickerRef.current.open(),
           onEject: () => void disconnectRef.current(),
-          onShare: (run) => void shareRun(con!.canvas, run),
+          onShare: (run) => void shareRun(con!.canvas, run, session.address.slice(0, 4)),
         });
-        game.setChallenge(Number(new URLSearchParams(window.location.search).get("beat")));
+        const params = new URLSearchParams(window.location.search);
+        game.setChallenge(Number(params.get("beat")), params.get("vs") ?? "");
         gameRef.current = game;
         con.run({ update: () => game.update(), draw: () => game.draw() });
         (window as unknown as { __dbg: object }).__dbg = { con, game };
@@ -126,27 +127,46 @@ export function Handheld() {
     if (!ready) return;
     const session = sessionRef.current;
     if (!session) return;
+    // ?net=devnet turns the demo free: swaps go through the Orca devnet pool.
+    const devnet = new URLSearchParams(window.location.search).get("net") === "devnet";
     // Same-origin RPC proxy: the public mainnet endpoint 403s browser origins.
-    const mainnet = new Connection(`${window.location.origin}/api/rpc`);
+    const conn = devnet ? new Connection("https://api.devnet.solana.com") : new Connection(`${window.location.origin}/api/rpc`);
+    // SEEKER badge on the save card when the play key holds any SKR.
+    if (!devnet) {
+      void session
+        .tokenBalance(conn, "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3")
+        .then((b) => gameRef.current?.setSeeker(b > BigInt(0)))
+        .catch(() => {});
+    }
     const bank = publicKey && sendTransaction ? { key: publicKey, send: sendTransaction } : null;
     gameRef.current?.setMemeWallet({
       address: session.address,
-      send: (b64) => session.send(mainnet, b64),
-      tokenBalance: (mint) => session.tokenBalance(mainnet, mint),
-      solBalance: () => session.solBalance(mainnet),
+      devnet,
+      send: (b64) => session.send(conn, b64),
+      tokenBalance: (mint) => session.tokenBalance(conn, mint),
+      solBalance: () => session.solBalance(conn),
+      devSwap: devnet
+        ? async (mint, amount) => {
+            const { devSwap, SOL_MINT, DEV_USDC_MINT } = await import("@/lib/scrappyboy/chain");
+            const { address } = await import("@solana/kit");
+            const s = await session.kitSigner();
+            const input = mint === SOL_MINT ? SOL_MINT : mint === DEV_USDC_MINT ? DEV_USDC_MINT : address(mint);
+            return devSwap(s, input, amount);
+          }
+        : undefined,
       // Insert coin: the only signature the real wallet ever does, one transfer into the play key.
       topUp: bank
         ? async (lamports) => {
             const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: bank.key, toPubkey: session.keypair.publicKey, lamports }));
             tx.feePayer = bank.key;
-            tx.recentBlockhash = (await mainnet.getLatestBlockhash()).blockhash;
-            return bank.send(tx, mainnet);
+            tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+            return bank.send(tx, conn);
           }
         : undefined,
       // Cash out: the play key sweeps everything back to the real wallet, no popup needed.
-      sweep: bank ? () => session.sweep(mainnet, bank.key) : undefined,
+      sweep: bank ? () => session.sweep(conn, bank.key) : undefined,
       connect: () => pickerRef.current.open(),
-      onTx: (label, sig) => setTxs((t) => [{ label: `${label} (mainnet)`, sig: `main:${sig}` }, ...t].slice(0, 8)),
+      onTx: (label, sig) => setTxs((t) => [{ label, sig: devnet ? sig : `main:${sig}` }, ...t].slice(0, 8)),
     });
   }, [ready, publicKey, sendTransaction]);
 

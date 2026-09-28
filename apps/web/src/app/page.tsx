@@ -42,7 +42,7 @@ export default function Home() {
             A pocket arcade where the buttons do your Solana trades. Play free — drop in a coin when you want the wins to be yours.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
-            <PrimaryLink href="/scrappyboy">Play SCRAPPY BOY</PrimaryLink>
+            <PrimaryLink href="/scrappyboy?net=devnet">Play SCRAPPY BOY</PrimaryLink>
             <GlossButton href="/scrappy.apk" download>
               Get the Android app
               <Arrow />
@@ -183,7 +183,7 @@ export default function Home() {
               </div>
             </dl>
             <div className="mt-9">
-              <PrimaryLink href="/scrappyboy">Start a round</PrimaryLink>
+              <PrimaryLink href="/scrappyboy?net=devnet">Start a round</PrimaryLink>
             </div>
           </div>
 

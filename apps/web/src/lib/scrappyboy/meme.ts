@@ -14,11 +14,14 @@ export const MEME_W = 640;
 export const MEME_H = 576;
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3";
+const DEV_USDC_MINT = "BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k";
 /** Everything Jupiter says is hot today, minus money that isn't a meme. */
 const EXCLUDE = new Set(["SOL", "WSOL", "USDC", "USDT", "USD1", "PYUSD", "CBBTC", "WBTC", "ZEC", "PAXG", "JITOSOL", "JUP", "MSOL", "BSOL", "EURC", "LST"]);
 const MAX_COINS = 30;
-/** Coin sizes a player can pick with UP/DN. Above $10 asks for one extra A. */
-const STAKES = [1, 5, 10, 25, 50];
+/** Coin sizes a player can pick with UP/DN. SKR pays in the Seeker token.
+    Above $10 (or SKR) asks for one extra A. */
+const STAKES: { usd?: number; skr?: number }[] = [{ usd: 1 }, { usd: 5 }, { usd: 10 }, { usd: 25 }, { usd: 50 }, { skr: 100 }];
+const SKR_DECIMALS = 6;
 const STOP = -0.08;
 const TAKE = 0.15;
 
@@ -58,6 +61,10 @@ export interface MemeWallet {
   sweep?: () => Promise<string>;
   /** Ask the player to connect a wallet so the coin slot can be loaded. */
   connect?: () => void;
+  /** Devnet mode: swaps route through the Orca devnet SOL/devUSDC pool instead of Jupiter. */
+  devnet?: boolean;
+  /** Devnet swap: input mint + raw amount -> signature + tokens out. */
+  devSwap?: (inputMint: string, inputAmount: bigint) => Promise<{ sig: string; out: bigint }>;
   address?: string;
   onTx?: (label: string, sig: string) => void;
 }
@@ -134,6 +141,7 @@ export class MemeDash {
   private sol = 0; // SOL price in USD, for real-mode sizing
   private coinBal: bigint | null = null; // play key SOL balance, refreshed with the price poll
   private lastBal = 0;
+  private devnet = false;
 
   constructor(private readonly input: Input, private wallet: MemeWallet, private readonly onExit: () => void) {
     this.canvas = document.createElement("canvas");
@@ -144,11 +152,18 @@ export class MemeDash {
 
   setWallet(w: MemeWallet): void {
     this.wallet = w;
+    if (w.devnet !== undefined && w.devnet !== this.devnet) {
+      this.devnet = w.devnet;
+      this.coins = []; // roster differs per network: reload
+      this.idx = 0;
+      this.pos = null;
+    } else if (w.devnet !== undefined) this.devnet = w.devnet;
   }
 
   open(): void {
     this.active = true;
     this.error = null;
+    this.devnet = !!this.wallet.devnet;
     if (this.coins.length === 0) void this.loadCoins();
     else this.scene = this.pos ? "chart" : "pick";
   }
@@ -157,10 +172,22 @@ export class MemeDash {
     return this.coins[this.idx];
   }
 
+  /** SKR stakes are mainnet-only; devnet shows the dollar sizes. */
+  private get stakes() {
+    return this.devnet ? STAKES.slice(0, -1) : STAKES;
+  }
+
   // ---- data ------------------------------------------------------------------------
 
   private async loadCoins(): Promise<void> {
     this.scene = "loading";
+    if (this.devnet) {
+      // Devnet is one honest coin: devUSDC on the Orca devnet pool.
+      this.coins = [{ mint: DEV_USDC_MINT, symbol: "USDC", name: "devnet dollar", icon: null, decimals: 6, price: 1, change24h: 0 }];
+      this.scene = "pick";
+      this.idx = 0;
+      return;
+    }
     try {
       type Tok = { id: string; symbol: string; name: string; icon?: string; decimals: number; isVerified?: boolean; liquidity?: number; organicScoreLabel?: string };
       // Two live feeds: Jupiter's most-traded today + GeckoTerminal's trending
@@ -275,29 +302,49 @@ export class MemeDash {
   private buy(): void {
     const c = this.coin;
     if (!c || this.pos) return;
-    const usd = STAKES[this.stakeIdx]!;
+    const stake = this.stakes[this.stakeIdx]!;
     const entry = this.live(c);
     if (!entry) return;
     this.run("BUYING", async () => {
       if (!this.sol) await this.pollPrices();
-      const lamports = lamportsForUsd(usd, this.sol);
+      const payingSkr = !!stake.skr;
+      const lamports = payingSkr ? BigInt(0) : lamportsForUsd(stake.usd!, this.sol);
+      const need = payingSkr ? BigInt(3_000_000) : lamports + BigInt(2_000_000); // SKR buys still need fee SOL
       let bal = this.wallet.solBalance ? await this.wallet.solBalance() : null;
-      if (bal !== null && bal < lamports + BigInt(2_000_000)) {
+      if (bal !== null && bal < need) {
         // Empty coin slot: the real wallet signs one top-up, the swap itself signs silently.
         if (!this.wallet.topUp) {
           this.wallet.connect?.();
           throw new Error("empty coin slot - pick a wallet to load a coin");
         }
         this.busy = "INSERTING COIN";
-        const sig = await this.wallet.topUp(lamports + BigInt(4_000_000)); // stake + fee headroom
+        const sig = await this.wallet.topUp(need + BigInt(2_000_000));
         this.wallet.onTx?.("insert coin", sig);
         this.busy = "BUYING";
         bal = await this.wallet.solBalance!();
-        if (bal === null || bal < lamports + BigInt(2_000_000)) throw new Error("the coin has not landed yet - press A again in a few seconds");
+        if (bal === null || bal < need) throw new Error("the coin has not landed yet - press A again in a few seconds");
       }
-      const { sig, out } = await this.jupSwap(SOL_MINT, c.mint, lamports);
-      this.wallet.onTx?.(`buy ${c.symbol} ($${usd})`, sig);
-      this.pos = { coin: c, entry, usd, tokens: out };
+      if (this.devnet) {
+        if (!this.wallet.devSwap) throw new Error("devnet swaps are not wired on this build");
+        const { sig, out } = await this.wallet.devSwap(SOL_MINT, lamports);
+        this.wallet.onTx?.(`buy USDC ($${stake.usd} devnet)`, sig);
+        this.pos = { coin: c, entry, usd: stake.usd!, tokens: out };
+        this.coinBal = null;
+        return;
+      }
+      if (payingSkr) {
+        const amount = BigInt(stake.skr!) * BigInt(10 ** SKR_DECIMALS);
+        const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(SKR_MINT) : BigInt(0);
+        if (held < amount) throw new Error(`need ${stake.skr} SKR in the play key - top up SKR first`);
+        const { sig, out } = await this.jupSwap(SKR_MINT, c.mint, amount);
+        this.wallet.onTx?.(`buy ${c.symbol} (${stake.skr} SKR)`, sig);
+        const skrUsd = this.coins.find((x) => x.mint === SKR_MINT)?.price ?? 0;
+        this.pos = { coin: c, entry, usd: stake.skr! * skrUsd || 1, tokens: out };
+      } else {
+        const { sig, out } = await this.jupSwap(SOL_MINT, c.mint, lamports);
+        this.wallet.onTx?.(`buy ${c.symbol} ($${stake.usd})`, sig);
+        this.pos = { coin: c, entry, usd: stake.usd!, tokens: out };
+      }
       this.coinBal = null;
     });
   }
@@ -323,7 +370,9 @@ export class MemeDash {
       const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(p.coin.mint) : p.tokens;
       if (held <= BigInt(0)) throw new Error(`no ${p.coin.symbol} in the coin purse yet - wait a few seconds and press A again`);
       const before = this.wallet.solBalance ? await this.wallet.solBalance() : null;
-      const { sig } = await this.jupSwap(p.coin.mint, SOL_MINT, held);
+      const { sig } = this.devnet
+        ? await this.wallet.devSwap!(DEV_USDC_MINT, held)
+        : await this.jupSwap(p.coin.mint, SOL_MINT, held);
       this.wallet.onTx?.(`sell ${p.coin.symbol}`, sig);
       // The result is the SOL that really landed (minus fees), priced in USD - not an estimate.
       let usdOut: number | null = null;
@@ -407,7 +456,7 @@ export class MemeDash {
       case "chart":
         if (!this.pos) {
           if (up) {
-            this.stakeIdx = Math.min(STAKES.length - 1, this.stakeIdx + 1);
+            this.stakeIdx = Math.min(this.stakes.length - 1, this.stakeIdx + 1);
             this.confirmBig = false;
           }
           if (down) {
@@ -415,8 +464,9 @@ export class MemeDash {
             this.confirmBig = false;
           }
           if (a) {
-            const usd = STAKES[this.stakeIdx]!;
-            if (usd > 10 && !this.confirmBig) this.confirmBig = true;
+            const stake = this.stakes[this.stakeIdx]!;
+            const big = (stake.usd ?? 0) > 10 || !!stake.skr;
+            if (big && !this.confirmBig) this.confirmBig = true;
             else {
               this.confirmBig = false;
               this.buy();
@@ -497,8 +547,8 @@ export class MemeDash {
   }
 
   private modeTag(): void {
-    this.pill(MEME_W - 230, 13, 216, 44, C.real);
-    this.text("MAINNET", MEME_W - 122, 35, 21, C.bg, "center");
+    this.pill(MEME_W - 230, 13, 216, 44, this.devnet ? C.down : C.real);
+    this.text(this.devnet ? "DEVNET" : "MAINNET", MEME_W - 122, 35, 21, C.bg, "center");
   }
 
   /** Error text broken into short readable lines instead of one long clipped line. */
@@ -646,8 +696,12 @@ export class MemeDash {
       this.pill(MEME_W / 2 - 170, 356, 340, 64, upc ? C.up : C.down);
       this.text(`${upc ? "▲ UP" : "▼ DOWN"} ${Math.abs(c.change24h).toFixed(1)}% TODAY`, MEME_W / 2, 388, 28, C.bg, "center");
       this.text(`$${fmtPrice(c.price)}`, MEME_W / 2, 452, 30, C.dim, "center", 600);
+      if (this.idx >= 1 && this.idx <= 3) {
+        this.pill(MEME_W - 150, 96, 118, 38, C.gold);
+        this.text(`FOMO #${this.idx}`, MEME_W - 91, 115, 19, C.ink, "center", 800);
+      }
       this.text("Your play key signs every trade", MEME_W / 2, 494, 23, C.real, "center", 600);
-      const slot = this.coinBal === null ? "COIN SLOT ..." : `COIN SLOT ${(Number(this.coinBal) / 1e9).toFixed(3)} SOL`;
+      const slot = this.coinBal === null ? "COIN SLOT ..." : `COIN SLOT ${(Number(this.coinBal) / 1e9).toFixed(3)} SOL - ALL IT CAN SPEND`;
       this.text(slot, MEME_W / 2, 520, 20, this.coinBal === BigInt(0) ? C.down : C.dim, "center", 600);
       this.text("◀ ▶ coins  A pick  X cash out  B back", MEME_W / 2, 550, 21, C.dim, "center", 600);
     }
@@ -670,12 +724,18 @@ export class MemeDash {
         this.text("Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 20, C.dim, "center", 600);
       } else if (this.scene === "chart") {
         this.text("How much?", 24, 434, 24, C.dim, "left", 600);
-        STAKES.forEach((s, i) => {
+        this.stakes.forEach((s, i) => {
           const sel = i === this.stakeIdx;
-          this.pill(24 + i * 84, 450, 78, 58, sel ? C.gold : C.panel);
-          this.text(`$${s}`, 63 + i * 84, 479, 28, sel ? C.bg : C.ink, "center");
+          const px = 20 + i * 72;
+          this.pill(px, 450, 66, 58, sel ? C.gold : C.panel);
+          if (s.skr) {
+            this.text(`${s.skr}`, px + 33, 472, 24, sel ? C.bg : C.ink, "center");
+            this.text("SKR", px + 33, 496, 14, sel ? C.bg : C.dim, "center", 700);
+          } else {
+            this.text(`$${s.usd}`, px + 33, 479, 26, sel ? C.bg : C.ink, "center");
+          }
         });
-        const usd = STAKES[this.stakeIdx]!;
+        const stake = this.stakes[this.stakeIdx]!;
         if (this.confirmBig) {
           this.pill(MEME_W - 182, 432, 158, 84, C.down);
           this.text("SURE?", MEME_W - 103, 462, 30, C.bg, "center");
