@@ -161,21 +161,47 @@ export class MemeDash {
     this.scene = "loading";
     try {
       type Tok = { id: string; symbol: string; name: string; icon?: string; decimals: number; isVerified?: boolean; liquidity?: number; organicScoreLabel?: string };
-      // Today's hottest trading coins straight from Jupiter, no hand-picked list.
-      const hot = await json<Tok[]>("https://lite-api.jup.ag/tokens/v2/toptraded/24h");
+      // Two live feeds: Jupiter's most-traded today + GeckoTerminal's trending
+      // Solana pools (the degen FOMO). No hand-picked list.
+      const [hot, trend] = await Promise.all([
+        json<Tok[]>("https://lite-api.jup.ag/tokens/v2/toptraded/24h"),
+        json<{ data?: { relationships?: { base_token?: { data?: { id?: string } } } }[] }>(
+          "https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?page=1",
+          { headers: { Accept: "application/json" } },
+        ).catch(() => null),
+      ]);
+      const trendMints = (trend?.data ?? [])
+        .map((p) => p.relationships?.base_token?.data?.id ?? "")
+        .filter((id) => id.startsWith("solana_"))
+        .map((id) => id.slice(7))
+        .slice(0, 14);
+      const trendToks = (
+        await Promise.all(
+          trendMints.map(async (mint) => {
+            try {
+              const l = await json<Tok[]>(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`);
+              return l.find((t) => t.id === mint);
+            } catch {
+              return undefined;
+            }
+          }),
+        )
+      ).filter((t): t is Tok => !!t);
       const seen = new Set<string>();
       const found: Coin[] = [];
       const skr = hot.find((t) => t.id === SKR_MINT);
       const ordered = [
         skr ?? { id: SKR_MINT, symbol: "SKR", name: "Seeker", decimals: 6, isVerified: true, liquidity: 1e9 } as Tok,
-        ...hot.filter((t) => t.id !== SKR_MINT),
+        ...hot,
+        ...trendToks,
       ];
       for (const t of ordered) {
         if (found.length >= MAX_COINS) break;
         const sym = t.symbol.toUpperCase();
-        if (seen.has(sym) || EXCLUDE.has(sym) || /^(nvda|tsla|aapl|spy|qqq|mstr|crcl|coin|amzn|meta|googl|nflx|hood|pltr|amd|orcl|avgo|arm|intc|msft|dxyz|gme|voo)x$/i.test(sym)) continue;
+        if (seen.has(t.id) || seen.has(sym) || EXCLUDE.has(sym) || /^(nvda|tsla|aapl|spy|qqq|mstr|crcl|coin|amzn|meta|googl|nflx|hood|pltr|amd|orcl|avgo|arm|intc|msft|dxyz|gme|voo)x$/i.test(sym)) continue;
         if (t.isVerified === false || (t.liquidity ?? 0) < 25000) continue;
         seen.add(sym);
+        seen.add(t.id);
         found.push({ mint: t.id, symbol: sym, name: t.name, icon: t.icon ? await loadImage(`/api/icon?u=${encodeURIComponent(t.icon)}`) : null, decimals: t.decimals, price: 0, change24h: 0 });
       }
       if (found.length === 0) throw new Error("no coins found right now");

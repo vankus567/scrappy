@@ -39,8 +39,7 @@ export default function Home() {
             <span className="block text-white [text-shadow:0_2px_14px_rgba(15,50,90,0.45)]">So we made it a game.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-[18px] font-semibold leading-relaxed text-navy-text">
-            SCRAPPY BOY is a pocket arcade where the coins are your money. Ride the price, press A, and your
-            trade lands on Solana. You can play the whole thing without a wallet; drop in a coin when you want the wins to be yours too.
+            A pocket arcade where the buttons do your Solana trades. Play free — drop in a coin when you want the wins to be yours.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <PrimaryLink href="/scrappyboy">Play SCRAPPY BOY</PrimaryLink>
