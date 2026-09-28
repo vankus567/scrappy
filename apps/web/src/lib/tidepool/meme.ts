@@ -4,8 +4,8 @@ import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, type Input } from 
  * MEME DASH: meme-coin trading made as simple as two buttons.
  *   Pick a coin (big official logo, big UP/DOWN) -> watch live 1-minute candles -> A BUY, B SELL.
  *   Every buy gets an automatic SAFETY NET (sell at -8%) and TREASURE line (sell at +15%).
- * PRACTICE (default): live prices, practice money kept on this device, no transactions, clearly labelled.
- * REAL: Jupiter swaps on Solana mainnet, max $10, signed and sent by the player's own wallet.
+ * Every button press is a real Jupiter swap on Solana mainnet, signed and sent by the player's
+ * own wallet. There is no practice money and nothing is simulated.
  * Data: Jupiter (verified tokens, official logos, prices) and GeckoTerminal (1-minute candles).
  */
 
@@ -37,13 +37,16 @@ interface Position {
   coin: Coin;
   entry: number;
   usd: number;
-  real: boolean;
-  tokens: number; // raw token units for real mode
+  tokens: bigint; // raw token units the buy was quoted to deliver
 }
 
 export interface MemeWallet {
   /** Mainnet: sign and send a Jupiter swap (base64 v0 transaction) with the player's wallet. Returns the signature. */
   send?: (swapTxBase64: string) => Promise<string>;
+  /** Mainnet: the player's real balance of a token in raw units, so a sell swaps all of it. */
+  tokenBalance?: (mint: string) => Promise<bigint>;
+  /** Mainnet: the player's real SOL balance in lamports. */
+  solBalance?: () => Promise<bigint>;
   address?: string;
   onTx?: (label: string, sig: string) => void;
 }
@@ -58,7 +61,6 @@ const C = {
   up: "#3ddc97",
   down: "#ff5a6e",
   gold: "#ffd166",
-  practice: "#7cc7ff",
   real: "#ffb347",
 };
 
@@ -90,10 +92,8 @@ export class MemeDash {
   private idx = 0;
   private candles: Candle[] = [];
   private stakeIdx = 0;
-  private real = false;
   private pos: Position | null = null;
   private result: { text: string; pnl: number; pct: number; why: string } | null = null;
-  private practice = 100;
   private busy: string | null = null;
   private error: string | null = null;
   private t = 0;
@@ -106,11 +106,6 @@ export class MemeDash {
     this.canvas.width = MEME_W;
     this.canvas.height = MEME_H;
     this.g = this.canvas.getContext("2d")!;
-    try {
-      this.practice = Number(localStorage.getItem("memedash.practice") ?? 100) || 100;
-    } catch {
-      /* private mode */
-    }
   }
 
   setWallet(w: MemeWallet): void {
@@ -122,14 +117,6 @@ export class MemeDash {
     this.error = null;
     if (this.coins.length === 0) void this.loadCoins();
     else this.scene = this.pos ? "chart" : "pick";
-  }
-
-  private savePractice(): void {
-    try {
-      localStorage.setItem("memedash.practice", this.practice.toFixed(2));
-    } catch {
-      /* private mode */
-    }
   }
 
   private get coin(): Coin | undefined {
@@ -201,8 +188,9 @@ export class MemeDash {
       .finally(() => (this.busy = null));
   }
 
-  private async jupSwap(inputMint: string, outputMint: string, amount: bigint): Promise<string> {
-    if (!this.wallet.send || !this.wallet.address) throw new Error("connect a wallet on mainnet for REAL mode");
+  /** One real Jupiter swap on mainnet. Returns the signature and the quoted output in raw units. */
+  private async jupSwap(inputMint: string, outputMint: string, amount: bigint): Promise<{ sig: string; out: bigint }> {
+    if (!this.wallet.send || !this.wallet.address) throw new Error("insert your cartridge first: connect your wallet");
     const quote = await json<Record<string, unknown>>(
       `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=150`,
     );
@@ -211,7 +199,8 @@ export class MemeDash {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteResponse: quote, userPublicKey: this.wallet.address, dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto" }),
     });
-    return this.wallet.send(swap.swapTransaction);
+    const sig = await this.wallet.send(swap.swapTransaction);
+    return { sig, out: BigInt((quote.outAmount as string | undefined) ?? 0) };
   }
 
   private buy(): void {
@@ -220,46 +209,44 @@ export class MemeDash {
     const usd = STAKES[this.stakeIdx]!;
     const entry = this.live(c);
     if (!entry) return;
-    if (!this.real) {
-      if (this.practice < usd) {
-        this.error = "out of practice money. hold A+B on the coin screen to refill";
-        return;
-      }
-      this.practice -= usd;
-      this.savePractice();
-      this.pos = { coin: c, entry, usd, real: false, tokens: 0 };
-      return;
-    }
     this.run("BUYING WITH YOUR WALLET", async () => {
       if (!this.sol) await this.pollPrices();
       const lamports = BigInt(Math.floor((usd / this.sol) * 1e9));
-      const sig = await this.jupSwap(SOL_MINT, c.mint, lamports);
+      const bal = this.wallet.solBalance ? await this.wallet.solBalance() : null;
+      if (bal !== null && bal < lamports + BigInt(2_000_000)) throw new Error(`not enough SOL in your wallet - this needs about ${(Number(lamports) / 1e9).toFixed(4)} SOL plus fees`);
+      const { sig, out } = await this.jupSwap(SOL_MINT, c.mint, lamports);
       this.wallet.onTx?.(`buy ${c.symbol} ($${usd})`, sig);
-      this.pos = { coin: c, entry, usd, real: true, tokens: Math.floor((usd / entry) * 10 ** c.decimals * 0.985) };
+      this.pos = { coin: c, entry, usd, tokens: out };
     });
   }
 
   private sell(why: string): void {
     const p = this.pos;
     if (!p) return;
-    const now = this.live(p.coin);
-    const pct = now / p.entry - 1;
-    const pnl = p.usd * pct;
-    const finish = () => {
-      this.result = { text: pnl >= 0 ? "NICE CATCH!" : "OUCH!", pnl, pct, why };
+    this.run("SELLING WITH YOUR WALLET", async () => {
+      // Sell the balance the wallet actually holds, not the quote estimate.
+      const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(p.coin.mint) : p.tokens;
+      if (held <= BigInt(0)) throw new Error(`no ${p.coin.symbol} in your wallet yet - wait a few seconds and press A again`);
+      const before = this.wallet.solBalance ? await this.wallet.solBalance() : null;
+      const { sig } = await this.jupSwap(p.coin.mint, SOL_MINT, held);
+      this.wallet.onTx?.(`sell ${p.coin.symbol}`, sig);
+      // The result is the SOL that really landed (minus fees), priced in USD - not an estimate.
+      let usdOut: number | null = null;
+      if (before !== null && this.wallet.solBalance && this.sol) {
+        for (let i = 0; i < 12; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const after = await this.wallet.solBalance();
+          if (after !== before) {
+            usdOut = (Number(after - before) / 1e9) * this.sol;
+            break;
+          }
+        }
+      }
+      const usd = usdOut ?? p.usd * (this.live(p.coin) / p.entry); // live-price estimate if the read lags
+      const pnl = usd - p.usd;
+      this.result = { text: pnl >= 0 ? "NICE CATCH!" : "OUCH!", pnl, pct: usd / p.usd - 1, why };
       this.pos = null;
       this.scene = "result";
-    };
-    if (!p.real) {
-      this.practice += p.usd + pnl;
-      this.savePractice();
-      finish();
-      return;
-    }
-    this.run("SELLING WITH YOUR WALLET", async () => {
-      const sig = await this.jupSwap(p.coin.mint, SOL_MINT, BigInt(p.tokens));
-      this.wallet.onTx?.(`sell ${p.coin.symbol}`, sig);
-      finish();
     });
   }
 
@@ -303,9 +290,8 @@ export class MemeDash {
 
     switch (this.scene) {
       case "pick":
-        if (left) this.idx = (this.idx + this.coins.length - 1) % this.coins.length;
-        if (right) this.idx = (this.idx + 1) % this.coins.length;
-        if (up || down) this.real = !this.real;
+        if (left || up) this.idx = (this.idx + this.coins.length - 1) % this.coins.length;
+        if (right || down) this.idx = (this.idx + 1) % this.coins.length;
         if (a && this.coin) {
           this.candles = [];
           this.lastCandles = performance.now();
@@ -329,10 +315,6 @@ export class MemeDash {
         if (a) this.scene = "chart";
         if (b) this.scene = "pick";
         break;
-    }
-    if (this.scene === "pick" && inp.btnp(BTN_A) === false && inp.btn(BTN_A) && inp.btn(BTN_B)) {
-      this.practice = 100; // hold A+B on the coin screen to refill practice money
-      this.savePractice();
     }
   }
 
@@ -396,9 +378,8 @@ export class MemeDash {
   }
 
   private modeTag(): void {
-    const label = this.real ? "REAL · MAINNET" : "PRACTICE MONEY";
-    this.pill(MEME_W - 214, 16, 198, 36, this.real ? C.real : C.practice);
-    this.text(label, MEME_W - 115, 34, 17, C.bg, "center");
+    this.pill(MEME_W - 214, 16, 198, 36, C.real);
+    this.text("REAL MONEY", MEME_W - 115, 34, 17, C.bg, "center");
   }
 
   private chart(x: number, y: number, w: number, h: number): (p: number) => number {
@@ -511,8 +492,8 @@ export class MemeDash {
       this.pill(MEME_W / 2 - 150, 352, 300, 56, upc ? C.up : C.down);
       this.text(`${upc ? "▲ UP" : "▼ DOWN"} ${Math.abs(c.change24h).toFixed(1)}% TODAY`, MEME_W / 2, 380, 24, C.bg, "center");
       this.text(`$${fmtPrice(c.price)}`, MEME_W / 2, 440, 26, C.dim, "center", 600);
-      this.text(this.real ? "Real trades from your wallet, max $10" : `Practice money: ${fmtUsd(this.practice)}`, MEME_W / 2, 482, 20, this.real ? C.real : C.practice, "center", 600);
-      this.text("◀ ▶ coins   ▲▼ practice/real   A pick   B back", MEME_W / 2, 540, 18, C.dim, "center", 600);
+      this.text("Real trades, signed by your own wallet", MEME_W / 2, 482, 20, C.real, "center", 600);
+      this.text("◀ ▶ coins   A pick   B back", MEME_W / 2, 540, 18, C.dim, "center", 600);
     }
 
     if ((this.scene === "chart" || this.scene === "result") && c) {

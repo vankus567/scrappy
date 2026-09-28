@@ -1,7 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection, VersionedTransaction } from "@solana/web3.js";
+import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { useEffect, useRef, useState } from "react";
 import { useWalletPicker } from "@/components/wallet/WalletPicker";
 import { Console } from "@/lib/console";
@@ -104,13 +104,20 @@ export function Handheld() {
     if (!ready) return;
     const key = publicKey?.toBase58();
     gameRef.current?.setSigner(key && signTransaction ? walletSigner(key, signTransaction) : undefined);
-    // MEME DASH real mode: Jupiter builds the swap, the player's wallet signs and sends it on mainnet.
+    // MEME DASH: Jupiter builds every swap, the player's wallet signs and sends it on mainnet.
     const mainnet = new Connection("https://api.mainnet-beta.solana.com");
     gameRef.current?.setMemeWallet({
       address: key,
       send: key
         ? async (b64: string) => sendTransaction(VersionedTransaction.deserialize(Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))), mainnet)
         : undefined,
+      tokenBalance: key
+        ? async (mint: string) => {
+            const accs = await mainnet.getParsedTokenAccountsByOwner(new PublicKey(key), { mint: new PublicKey(mint) });
+            return accs.value.reduce((sum, a) => sum + BigInt((a.account.data.parsed.info.tokenAmount as { amount: string }).amount), BigInt(0));
+          }
+        : undefined,
+      solBalance: key ? () => mainnet.getBalance(new PublicKey(key)).then(BigInt) : undefined,
       onTx: (label, sig) => setTxs((t) => [{ label: `${label} (mainnet)`, sig: `main:${sig}` }, ...t].slice(0, 8)),
     });
   }, [ready, publicKey, signTransaction, sendTransaction]);
