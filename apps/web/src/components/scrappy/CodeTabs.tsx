@@ -18,7 +18,7 @@ const r = await scrappy.consensus({
 });
 
 if (r.answer === "yes") cancelDeploy();`,
-  MCP: `// git clone https://github.com/Venkat5599/solana_coloseum && bun install
+  MCP: `// git clone https://github.com/vankus567/scrappy && bun install
 // then in claude_desktop_config.json, .cursor/mcp.json, ...
 {
   "mcpServers": {

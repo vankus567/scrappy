@@ -9,7 +9,7 @@ import { TaskPreviews } from "@/components/scrappy/TaskPreviews";
 import { Trace } from "@/components/scrappy/Trace";
 import { Wordmark } from "@/components/scrappy/Wordmark";
 
-const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
+const REPO_URL = "https://github.com/vankus567/scrappy";
 // Signed TWA build served from the site (public/scrappy.apk); NEXT_PUBLIC_APK_URL overrides for newer builds.
 const APK_URL = process.env.NEXT_PUBLIC_APK_URL ?? "/scrappy.apk";
 const CREW: Species[] = ["neko", "kitsu", "pengu", "drako", "goo", "boo"];
