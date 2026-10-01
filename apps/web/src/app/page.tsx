@@ -4,7 +4,7 @@ import { GlossButton } from "@/components/GlossButton";
 import { HeroClouds } from "@/components/backgrounds/HeroClouds";
 import { AgentOrbClient } from "@/components/AgentOrbClient";
 
-const REPO_URL = "https://github.com/Venkat5599/solana_coloseum";
+const REPO_URL = "https://github.com/vankus567/scrappy";
 
 function Arrow() {
   return (

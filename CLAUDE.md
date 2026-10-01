@@ -32,7 +32,7 @@ Full text: `~/.claude/skills/hackathon-final-boss/references/judge-playbook.md`.
 ## Private
 - Never commit secrets (Copilot PAT, keypairs, API keys). `.env` stays gitignored.
 - The `hackathon-final-boss` skill never goes into this repo.
-- Repo: https://github.com/Venkat5599/solana_coloseum. Ask before every push.
+- Repo: https://github.com/vankus567/scrappy. Ask before every push.
 
 ## Toolchain status (checked 2026-09-24, Windows)
 | Tool | Status |

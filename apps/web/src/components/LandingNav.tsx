@@ -9,7 +9,7 @@ export function LandingNav() {
       floating
       links={[
         { href: "#how", label: "How it works", icon: UsersThree },
-        { href: "https://github.com/Venkat5599/solana_coloseum", label: "GitHub", icon: GithubLogo },
+        { href: "https://github.com/vankus567/scrappy", label: "GitHub", icon: GithubLogo },
       ]}
       cta={{ href: "/scrappyboy", label: "Play now", icon: ArrowUpRight }}
     />
