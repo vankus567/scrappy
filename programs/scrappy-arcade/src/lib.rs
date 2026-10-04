@@ -4,10 +4,10 @@ declare_id!("6JWs3RjaawXTHvjFmFq2UxWiX8HPpxfi71WsGeLqVXm3");
 
 /// SCRAPPY BOY arcade program.
 ///
-/// The SAVE CARD is on-chain for real: a PDA per player that keeps best score,
-/// last score and total runs. The play key signs writes itself, or a delegated
-/// session signer writes on the player's behalf once the wallet has issued a
-/// scoped, expiring session PDA - the pattern MagicBlock session keys formalize.
+/// The SAVE CARD is a PDA per player that keeps best score, last score and
+/// total runs. The play key signs writes itself, or a delegated session signer
+/// writes on the player's behalf once the wallet has issued a scoped, expiring
+/// session PDA.
 #[program]
 pub mod scrappy_arcade {
     use super::*;
