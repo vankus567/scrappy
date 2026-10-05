@@ -7,6 +7,7 @@
 [![tests](https://img.shields.io/badge/tests-33%20passing-brightgreen)](https://github.com/vankus567/scrappy)
 [![live](https://img.shields.io/badge/live-scrappy--plum--gamma.vercel.app-blue)](https://scrappy-plum-gamma.vercel.app/scrappyboy)
 [![stack](https://img.shields.io/badge/stack-Next.js%2016%20%C2%B7%20React%2019%20%C2%B7%20Bun-black)](https://github.com/vankus567/scrappy)
+[![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/vankus567/scrappy/blob/main/LICENSE)
 
 [Play it](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) · [Download the APK](https://scrappy-plum-gamma.vercel.app/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
 
@@ -273,7 +274,7 @@ would hold it in the device keystore instead.
 | The installed APK opens this site | **No.** — The APK's start URL is baked into the signed binary and points at the older domain; changing it needs a rebuild with the same signing key |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
-| License | **None declared yet** — |
+| License | **MIT.** — See [LICENSE](LICENSE) |
 
 ## Attack → test
 

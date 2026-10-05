@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, BTN_X, BTN_Y, type Input } from "@/lib/console";
 import styles from "./shell.module.css";
 
@@ -79,7 +79,29 @@ function SolMark() {
 export function Shell({ input, children, wordmark }: { input: InputRef; children: ReactNode; wordmark: string }) {
   const stage = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const vRef = useRef<HTMLElement>(null);
+  const hRef = useRef<HTMLElement>(null);
+  const aRef = useRef<HTMLButtonElement>(null);
+  const bRef = useRef<HTMLButtonElement>(null);
   const scale = useFitScale(stage, box);
+
+  // A pressed arm or button lights up, using the styles the shell already carries. Toggled on the
+  // DOM each frame rather than through state, so playing never re-renders the console.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const inp = input.current;
+      if (inp) {
+        vRef.current?.classList.toggle(styles.lit!, inp.btn(BTN_UP) || inp.btn(BTN_DOWN));
+        hRef.current?.classList.toggle(styles.lit!, inp.btn(BTN_LEFT) || inp.btn(BTN_RIGHT));
+        aRef.current?.classList.toggle(styles.lit!, inp.btn(BTN_A));
+        bRef.current?.classList.toggle(styles.lit!, inp.btn(BTN_B));
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [input]);
 
   const up = useHold(input, BTN_UP);
   const down = useHold(input, BTN_DOWN);
@@ -124,8 +146,8 @@ export function Shell({ input, children, wordmark }: { input: InputRef; children
           <div className={styles.deck}>
             <div className={styles.dpadWell}>
               <div className={styles.dpad}>
-                <i className={styles.v} />
-                <i className={styles.h} />
+                <i className={styles.v} ref={vRef} />
+                <i className={styles.h} ref={hRef} />
                 <i className={styles.c} />
                 <div className={styles.dpadHit}>
                   <span />
@@ -152,10 +174,10 @@ export function Shell({ input, children, wordmark }: { input: InputRef; children
               </div>
             </div>
             <div className={styles.abWell}>
-              <button type="button" aria-label="B, back" {...b}>
+              <button type="button" aria-label="B, back" ref={bRef} {...b}>
                 B
               </button>
-              <button type="button" aria-label="A, confirm" {...a}>
+              <button type="button" aria-label="A, confirm" ref={aRef} {...a}>
                 A
               </button>
             </div>
