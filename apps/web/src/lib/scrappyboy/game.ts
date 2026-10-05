@@ -388,7 +388,7 @@ export class ScrappyBoy {
     this.scroll = 0;
     this.lo = this.shown * 0.9996;
     this.hi = this.shown * 1.0004;
-    this.netY = 72;
+    this.netY = SCREEN_H - 32; // start on the sea floor: the line must be swum to, never waited out
     this.hp = 100;
     this.score = 0;
     this.newBest = false;
@@ -454,9 +454,26 @@ export class ScrappyBoy {
     const mx = Math.max(...recent);
     const minSpan = this.shown * 0.0006;
     const span = Math.max(mx - mn, minSpan) * 1.6;
-    const mid = (mn + mx) / 2;
-    this.lo += (mid - span / 2 - this.lo) * 0.05;
-    this.hi += (mid + span / 2 - this.hi) * 0.05;
+    // Centre the window on where the price was a moment ago, not where it is now. Centring on the
+    // present parks the line under a stationary net and the sea scores for you; anchoring on the
+    // recent past leaves the line riding off-centre so it has to be chased.
+    const anchor = recent[Math.max(0, recent.length - 60)] ?? this.shown;
+    this.lo += (anchor - span / 2 - this.lo) * 0.05;
+    this.hi += (anchor + span / 2 - this.hi) * 0.05;
+    // The net cannot move past its own limits, so a price line outside the play area is an
+    // unwinnable state. Shift the window to keep the live price reachable.
+    const margin = 20;
+    const perPrice = (SCREEN_H - 28) / (this.hi - this.lo);
+    const yNow = this.py(this.shown);
+    if (yNow < margin) {
+      const shift = (margin - yNow) / perPrice;
+      this.lo -= shift;
+      this.hi -= shift;
+    } else if (yNow > SCREEN_H - margin) {
+      const shift = (yNow - (SCREEN_H - margin)) / perPrice;
+      this.lo += shift;
+      this.hi += shift;
+    }
 
     // steer the net
     const speed = inp.btn(BTN_A) ? 3.2 : 1.9; // hold A to swim faster
@@ -496,7 +513,10 @@ export class ScrappyBoy {
       this.things.push({ x: SCREEN_W + 4, y: Math.max(18, Math.min(SCREEN_H - 18, cy + (Math.random() - 0.5) * 70)), kind: gold ? "gold" : "pearl", phase: Math.random() * 6 });
     }
     if (this.roundF > FPS * 4 && this.roundF % jellyEvery === 0) {
-      this.things.push({ x: SCREEN_W + 4, y: 20 + Math.random() * (SCREEN_H - 40), kind: "jelly", phase: Math.random() * 6 });
+      // Jellyfish belong in the water the net has to cover. Spawning them anywhere on the screen
+      // meant most drifted harmlessly past and the round played itself.
+      const spread = h + 34;
+      this.things.push({ x: SCREEN_W + 4, y: Math.max(20, Math.min(SCREEN_H - 20, cy + (Math.random() - 0.5) * spread * 2)), kind: "jelly", phase: Math.random() * 6 });
     }
 
     const magnet = CREATURES[this.pick]!.magnet;

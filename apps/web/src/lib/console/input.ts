@@ -25,6 +25,8 @@ const AXIS_DEAD = 0.5;
 export class Input {
   private readonly keyDown = new Uint8Array(NUM_BUTTONS);
   private readonly touchDown = new Uint8Array(NUM_BUTTONS);
+  /** A press seen since the last update(), so a tap shorter than one frame is never lost. */
+  private readonly pressLatch = new Uint8Array(NUM_BUTTONS);
   /** Frames each button has been held; 0 = up. */
   private readonly held = new Uint32Array(NUM_BUTTONS);
   private readonly released = new Uint8Array(NUM_BUTTONS);
@@ -40,6 +42,7 @@ export class Input {
       e.preventDefault();
       this.keysHeld.add(e.code);
       this.keyDown[b] = 1;
+      this.pressLatch[b] = 1;
     };
     const up = (e: KeyboardEvent) => {
       const b = KEY_MAP[e.code];
@@ -52,6 +55,7 @@ export class Input {
       this.keysHeld.clear();
       this.keyDown.fill(0);
       this.touchDown.fill(0);
+      this.pressLatch.fill(0);
     };
     target.addEventListener("keydown", down);
     target.addEventListener("keyup", up);
@@ -65,6 +69,7 @@ export class Input {
 
   setTouch(button: number, down: boolean): void {
     this.touchDown[button] = down ? 1 : 0;
+    if (down) this.pressLatch[button] = 1;
   }
 
   update(): void {
@@ -81,9 +86,10 @@ export class Input {
       if (ay > AXIS_DEAD) pad[3] = 1;
     }
     for (let b = 0; b < NUM_BUTTONS; b++) {
-      const down = this.keyDown[b] || this.touchDown[b] || pad[b];
+      const down = this.keyDown[b] || this.touchDown[b] || this.pressLatch[b] || pad[b];
       this.released[b] = !down && this.held[b]! > 0 ? 1 : 0;
       this.held[b] = down ? this.held[b]! + 1 : 0;
+      this.pressLatch[b] = 0;
     }
   }
 
