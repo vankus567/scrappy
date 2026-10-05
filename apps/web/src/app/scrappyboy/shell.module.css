@@ -211,27 +211,27 @@
 .dpadWell {
   display: grid;
   place-items: center;
-  width: 108px;
-  height: 108px;
+  width: 126px;
+  height: 126px;
   border-radius: 20px;
   background: var(--shell-d);
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42);
 }
 .dpad {
   position: relative;
-  width: 86px;
-  height: 86px;
+  width: 100px;
+  height: 100px;
 }
 .dpad i {
   position: absolute;
   background: linear-gradient(180deg, #fff 0%, var(--btn) 30%, var(--btn-d) 100%);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
 }
-.dpad .v { top: 0; left: 28px; width: 29px; height: 86px; border-radius: 7px; }
-.dpad .h { top: 28px; left: 0; width: 86px; height: 29px; border-radius: 7px; }
+.dpad .v { top: 0; left: 33px; width: 34px; height: 100px; border-radius: 7px; }
+.dpad .h { top: 33px; left: 0; width: 100px; height: 34px; border-radius: 7px; }
 .dpad .c {
-  top: 33px;
-  left: 33px;
+  top: 40px;
+  left: 40px;
   z-index: 2;
   width: 20px;
   height: 20px;
@@ -241,7 +241,9 @@
 }
 .dpadHit {
   position: absolute;
-  inset: 0;
+  /* Fill the whole well, not just the cross: a 20px cell is smaller than a fingertip and a press
+     aimed at one arm lands on the next one. The extra area is invisible. */
+  inset: -13px;
   display: grid;
   grid-template: repeat(3, 1fr) / repeat(3, 1fr);
 }
@@ -303,8 +305,8 @@
 .abWell button {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -369,16 +371,17 @@
   .toprow { margin-bottom: 4px; }
   .wordmark { font-size: 8px; }
   .mark { width: 20px; height: 20px; }
-  .dpadWell { width: 84px; height: 84px; }
-  .dpad { width: 66px; height: 66px; }
-  .dpad .v { left: 22px; width: 22px; height: 66px; }
-  .dpad .h { top: 22px; width: 66px; height: 22px; }
-  .dpad .c { top: 26px; left: 26px; width: 14px; height: 14px; }
+  .dpadWell { width: 96px; height: 96px; }
+  .dpad { width: 76px; height: 76px; }
+  .dpad .v { left: 25px; width: 26px; height: 76px; }
+  .dpad .h { top: 25px; width: 76px; height: 26px; }
+  .dpad .c { top: 30px; left: 30px; width: 16px; height: 16px; }
+  .dpadHit { inset: -10px; }
   .mid { gap: 8px; }
   .speaker { grid-template-columns: repeat(5, 6px); gap: 6px; }
   .speaker i { width: 6px; height: 6px; }
   .startsel { gap: 10px; }
   .startsel button { width: 36px; height: 9px; }
   .abWell { gap: 8px; padding: 7px 10px; }
-  .abWell button { width: 34px; height: 34px; font-size: 11px; }
+  .abWell button { width: 42px; height: 42px; font-size: 12px; }
 }
