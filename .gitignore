@@ -11,6 +11,8 @@ dist/
 android/app/build/
 *.apk
 *.aab
+# The signed Android build the site serves from its public folder is the one APK we do track.
+!apps/web/public/scrappy.apk
 .DS_Store
 New Text Document.*
 
