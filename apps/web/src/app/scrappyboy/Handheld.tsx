@@ -32,7 +32,7 @@ async function shareRun(screen: HTMLCanvasElement, run: { score: number; best: n
   g.fillStyle = "#e6fbf6";
   g.font = "600 40px system-ui, sans-serif";
   g.textAlign = "center";
-  g.fillText(`Beat ${run.score} at scrappypet.vercel.app/scrappyboy`, 540, 1010);
+  g.fillText(`Beat ${run.score} at scrappy-plum-gamma.vercel.app/scrappyboy`, 540, 1010);
   const blob: Blob | null = await new Promise((r) => card.toBlob(r, "image/png"));
   const file = blob ? new File([blob], "scrappyboy-run.png", { type: "image/png" }) : null;
   try {

@@ -5,10 +5,10 @@
 ### Trading apps have 47 buttons and a textbook of words. This one has four.
 
 [![tests](https://img.shields.io/badge/tests-33%20passing-brightgreen)](https://github.com/vankus567/scrappy)
-[![live](https://img.shields.io/badge/live-scrappypet.vercel.app-blue)](https://scrappypet.vercel.app/scrappyboy)
+[![live](https://img.shields.io/badge/live-scrappy--plum--gamma.vercel.app-blue)](https://scrappy-plum-gamma.vercel.app/scrappyboy)
 [![stack](https://img.shields.io/badge/stack-Next.js%2016%20%C2%B7%20React%2019%20%C2%B7%20Bun-black)](https://github.com/vankus567/scrappy)
 
-[Play it](https://scrappypet.vercel.app/scrappyboy?net=devnet) · [Download the APK](https://scrappypet.vercel.app/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
+[Play it](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) · [Download the APK](https://scrappy-plum-gamma.vercel.app/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
 
 </div>
 
@@ -30,8 +30,8 @@ ONE WALLET SIGNATURE  →  EVERY MOVE AFTER IT SIGNED ON DEVICE
 
 | Surface | Status | The evidence |
 |---|---|---|
-| The console | **live** — | [scrappypet.vercel.app/scrappyboy](https://scrappypet.vercel.app/scrappyboy) returns 200 |
-| Free devnet demo | **live** — | [?net=devnet](https://scrappypet.vercel.app/scrappyboy?net=devnet) ; the landing's Play button points here |
+| The console | **live** — | [scrappy-plum-gamma.vercel.app/scrappyboy](https://scrappy-plum-gamma.vercel.app/scrappyboy) returns 200 |
+| Free devnet demo | **live** — | [?net=devnet](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) ; the landing's Play button points here |
 | Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,101,555 bytes, package `app.scrappypet` |
 | App-link handshake | **live** — | `/.well-known/assetlinks.json` returns 200 with the APK's SHA-256 fingerprint |
 | Chain moves | **verified** — | Eleven devnet transactions read back from the chain, all `err: null`, play key as fee payer |
@@ -50,7 +50,7 @@ Solana either way.
 ## ▶ See it in one command
 
 The free path, with nothing to install and no wallet. Open
-[scrappypet.vercel.app/scrappyboy?net=devnet](https://scrappypet.vercel.app/scrappyboy?net=devnet),
+[scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet),
 press START, pick MEME DASH, pick $1, press A. That is a real Orca swap on devnet:
 
 ```
@@ -269,7 +269,8 @@ would hold it in the device keystore instead.
 | `scrappy_arcade` on-chain save card | **Written, not deployed.** — `declare_id!` points at an account that does not exist on devnet, and no app code calls it. It is a plan, not a feature |
 | Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
 | TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
-| The public domain runs this repo's latest commit | **No.** It still serves an older build; these fixes reach it on the next deploy from the account that owns it |
+| The site linked here runs this repo's latest commit | **Yes.** — The deployment is built from the branch head |
+| The installed APK opens this site | **No.** — The APK's start URL is baked into the signed binary and points at the older domain; changing it needs a rebuild with the same signing key |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
 | License | **None declared yet** — |
