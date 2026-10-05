@@ -12,7 +12,7 @@ export interface PickerCopy {
 }
 const DEFAULT_COPY: PickerCopy = {
   title: "Connect a wallet",
-  body: "This is where your USDC lands. You sign once to prove it's yours; tasks never ask for approval.",
+  body: "This is where your pet's winnings land. You sign once to prove it's yours; battles never ask for approval.",
 };
 const PickerCtx = createContext<Ctx>({ open: () => {} });
 export const useWalletPicker = () => useContext(PickerCtx);

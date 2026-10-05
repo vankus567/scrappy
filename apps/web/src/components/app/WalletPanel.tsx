@@ -2,6 +2,7 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { base58 } from "@scure/base";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { GlossButton } from "@/components/GlossButton";
 import { Pet } from "@/components/Pet";
@@ -14,9 +15,10 @@ const SOLANA_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 
 export function WalletPanel() {
-  const { pet, update } = usePet();
+  const { ready, pet, update } = usePet();
   const { publicKey, connected, signMessage, disconnect, wallet } = useWallet();
   const { open } = useWalletPicker();
+  const router = useRouter();
   const [address, setAddress] = useState(pet?.payoutAddress ?? "");
   const [pasting, setPasting] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,7 +60,15 @@ export function WalletPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, publicKey]);
 
-  if (!pet) return null;
+  // The wallet is the pet's home, so there is nothing to show without one. Send the player to the
+  // hatch instead of leaving a blank page where the connect button should be.
+  useEffect(() => {
+    if (ready && !pet) router.replace("/app");
+  }, [ready, pet, router]);
+
+  if (!ready || !pet) {
+    return <div aria-busy="true" className="aspect-[4/3] w-full animate-pulse rounded-[28px] bg-ground-deep md:w-3/5" />;
+  }
 
   const connect = () => {
     setError("");
