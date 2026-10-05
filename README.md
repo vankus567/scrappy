@@ -1,116 +1,363 @@
+<div align="center">
+
 # SCRAPPY BOY
 
-**Trading apps have 47 buttons and a textbook of words. We have four buttons.**
+### Trading apps have 47 buttons and a textbook of words. This one has four.
 
-A handheld game where every button is a Solana action. Ride the price, press A,
-and your trade lands on chain. No seed phrase, no order book, no slippage
-settings — a five-year-old can trade. Built for **CLOCK IN, the Solana Mobile
-hackathon** (Seeker / Solana Mobile Stack).
+[![tests](https://img.shields.io/badge/tests-33%20passing-brightgreen)](https://github.com/vankus567/scrappy)
+[![live](https://img.shields.io/badge/live-scrappypet.vercel.app-blue)](https://scrappypet.vercel.app/scrappyboy)
+[![stack](https://img.shields.io/badge/stack-Next.js%2016%20%C2%B7%20React%2019%20%C2%B7%20Bun-black)](https://github.com/vankus567/scrappy)
 
-Play it now: **[scrappypet.vercel.app/scrappyboy](https://scrappypet.vercel.app/scrappyboy)**
+[Play it](https://scrappypet.vercel.app/scrappyboy?net=devnet) · [Download the APK](https://scrappypet.vercel.app/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
 
-## The pitch in one line
+</div>
 
-Make every Solana action as easy as a Game Boy game — because the interface is a
-literal Game Boy.
+A handheld console in the browser. Every button press is a Solana action: buy, sell, open a
+liquidity position, harvest the fees it earns, close it and walk away with the change. The price
+you ride is the live SOL price, the coins are the ones actually trading today, and the transaction
+log under the console links to the explorer for every move.
 
-## What's in the box
+The trick is that your wallet signs exactly once. The console mints an ephemeral keypair on the
+device the first time it boots, you load that key with whatever you are willing to lose, and from
+then on every trade is signed on-device with no popups. `X` sweeps the balance back to your real
+wallet. Lose the phone and you lose what is in the coin slot, never the wallet.
 
-Three cartridges on one handheld:
-
-| Cartridge | What you see | What the buttons do on-chain |
-|---|---|---|
-| **PLAY NOW** | An endless round on the live SOL price | Nothing — points are free. This is how you learn the controls. |
-| **DEEP NET** | "Cast a net into the sea" | Opens a real Orca liquidity position on devnet; "collect coins" harvests real fees; "pull the net" closes the position and returns funds. |
-| **MEME DASH** | A coin carousel + a 4-second round | `A` buys — a real Jupiter swap on Solana **mainnet** ($1-$50, or 100 SKR). `B` sells. The safety net and treasure line auto-sell at −8% / +15%. Coins are the day's hottest: Jupiter's top-traded list + GeckoTerminal trending pools, SKR pinned. `?net=devnet` swaps through the Orca devnet pool instead — free for demos. |
-
-`X` anywhere is the coin return: it sweeps the play key back to your wallet.
-
-## The play key (scoped session money)
-
-The first thing the console does is mint an ephemeral keypair on your device —
-the **play key**. The wallet never signs during play:
-
-- Load the coin slot once: the wallet signs a single top-up transfer into the
-  play key.
-- Every move after that — buys, sells, nets, score writes — is signed silently
-  on-device by the play key.
-- The play key can only ever spend what you loaded into it. Lose the device,
-  lose only the coin slot — never the wallet.
-- `X` cashes everything out to the wallet, no popup.
-
-This is deliberately the same shape as MagicBlock's session tokens and the
-Seeker Seed Vault model: a scoped, device-resident signer between the user and
-every transaction.
-
-## The program: `scrappy_arcade`
-
-`programs/scrappy-arcade` is a real Anchor program (not a mock): an on-chain
-save card plus scoped session delegates plus link battles.
-
-- `record_score` / `record_score_as` — a `SaveCard` PDA per player keeps
-  best/last/plays on-chain; the `_as` variant lets a **session delegate**
-  write for the player (the wallet issues a `Session` PDA with an expiry
-  slot once, the device key plays inside that scope).
-- `authorize_session` / `revoke_session` — DIY scoped session keys, the
-  pattern MagicBlock session keys formalize.
-- `create_battle` / `join_battle` / `post_battle_score` — a `Battle` PDA is
-  a shared scoreboard: host creates, friend joins from a link, both post
-  one score, the contract settles the winner.
-
-Program ID (devnet build): `6JWs3RjaawXTHvjFmFq2UxWiX8HPpxfi71WsGeLqVXm3`
-Build: `anchor build` inside WSL (toolchain note in `scripts/wsl-build2.sh`).
-
-## Networks, honestly
-
-- **MEME DASH trades on mainnet** by default. Real Jupiter swaps, real
-  signatures, `solscan.io` links in the tx log under the console.
-- **Add `?net=devnet`** and the same cartridge trades SOL/devUSDC through the
-  Orca devnet whirlpool instead — real swaps, zero cost, judged-demo friendly.
-- **DEEP NET runs on devnet** (Orca whirlpools) — same mechanics, zero cost.
-- The core round is free: no wallet needed until you load a coin.
-
-## Verify
-
-```bash
-bun install
-bun run verify     # typecheck + eslint + all tests
-bun run dev        # -> http://localhost:3000/scrappyboy
+```
+ONE WALLET SIGNATURE  →  EVERY MOVE AFTER IT SIGNED ON DEVICE
 ```
 
-- `bun run verify` = the definition of "it works": `tsc --noEmit` on every
-  workspace, `eslint` (errors fail, not warnings), and the full test suite —
-  33 tests covering score math, stake→lamports, USD formatting, auto-sell
-  triggers and daily streaks.
-- Production deploy: `vercel deploy --prod` → aliased to scrappypet.vercel.app.
+## Live status
 
-## Stack
+| Surface | Status | The evidence |
+|---|---|---|
+| The console | **live** — | [scrappypet.vercel.app/scrappyboy](https://scrappypet.vercel.app/scrappyboy) returns 200 |
+| Free devnet demo | **live** — | [?net=devnet](https://scrappypet.vercel.app/scrappyboy?net=devnet) ; the landing's Play button points here |
+| Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,101,555 bytes, package `app.scrappypet` |
+| App-link handshake | **live** — | `/.well-known/assetlinks.json` returns 200 with the APK's SHA-256 fingerprint |
+| Chain moves | **verified** — | Eleven devnet transactions read back from the chain, all `err: null`, play key as fee payer |
+| Test suite | **33 pass, 0 fail** — | `bun run verify` (typecheck, lint, tests) |
+| On-chain save card program | **written, not deployed** — | See the honesty table |
 
-- Next.js 16 + React 19, TypeScript, Bun workspaces
-- `@solana/web3.js` + wallet-adapter for the one top-up signature
-- `@solana/kit` for devnet ops
-- Jupiter Lite API (token discovery, quotes, swaps) and Price API
-- Orca whirlpools via `@orca-so/whirlpools-*` on devnet
-- Anchor 0.32 for `scrappy_arcade`
-- The console itself: a DOM/CSS shell around two canvas "carts" — a 160×144
-  indexed-color framebuffer (16-color palette, tilemaps, sprites, a 4×6
-  bitmap font) and a 640×576 canvas for MEME DASH
+## The 20-second pitch
+
+Nobody outside crypto wants to learn an order book, a slippage setting and a seed phrase before
+making their first trade. SCRAPPY BOY removes all of it: pick a coin with left and right, choose an
+amount, press A. A safety net sells automatically at -8% and a treasure line takes the profit at
++15%, so a new player can hold a real position without knowing what a stop is. The console shape is
+the product, not decoration: four buttons make the choices obvious and the trade is a real swap on
+Solana either way.
+
+## ▶ See it in one command
+
+The free path, with nothing to install and no wallet. Open
+[scrappypet.vercel.app/scrappyboy?net=devnet](https://scrappypet.vercel.app/scrappyboy?net=devnet),
+press START, pick MEME DASH, pick $1, press A. That is a real Orca swap on devnet:
+
+```
+MEME DASH buy  USDC   4drxnsJXuV9V6V9vFfHbNieXvzyAAPvY8WxxQZeyRHh4BGWSk1fqBrCVXKnXsPuusiwGghf696gUdERTAMUuRovq
+MEME DASH sell USDC   4FRm584Uk2WDtsC1yeiEtye7EPaxexDqThW8NRzgbmBkH6qaXM1w7PpmvexAQzLhHZ9GsqqXoSqVP6wr9VFfD5Lc
+```
+
+Read it back off devnet and it is confirmed, with the play key paying the fee:
+
+```
+$ solana confirm -v 4drxnsJXuV9V6V9vFfHbNieXvzyAAPvY8WxxQZeyRHh4BGWSk1fqBrCVXKnXsPuusiwGghf696gUdERTAMUuRovq -u devnet
+RPC URL: https://api.devnet.solana.com
+Default Signer Path: issuer.json
+Commitment: confirmed
+
+Transaction executed in slot 507391021:
+  Block Time: 2026-10-04T19:43:19+05:30
+  Version: 0
+  Recent Blockhash: 7pESos8N3tB9DfjpXNJUdxi7gS4FSw4BhXkDbeGWVrD1
+```
+
+The whole DEEP NET lifecycle, on the same play key:
+
+```
+cast: trade half for USD   2x2q3BYBStF3PMNpSeMvZna2VLQWpLxrPG6uVgNmxBmkgtHPMWGnMwrzPa9vXpg8i6f2XkpLuLGUVEbqFv3BBs2M
+cast: open the position    PiBuvfguPsgtBLVbNL23xgazpHTTPpd1xa5J6o3ViU17ioEGwiuKoqt19QrZFg9bSbt6PQ51Z9RrAeQdnE43zrB
+collect coins (harvest)    5b7adcQ4p4oksrzrpFx3Hh1LLjPzuHxTjKsynVefK4L9J8q2CJShBX7qaYfwEbqi5XPnZwAeTQgXp52FFDL4yQEJ
+pull the net in (close)    4zG2BWgfy8QJckoW9zBpCKKif8Gw4rkHufpDjjYAdKP9qeJE7NJayE7f6NnNq3sxDFWxAcmoK9mVKdyfEMbeQHU9
+```
+
+## Verify every claim in one command
+
+```bash
+bun install && bun run verify
+```
+
+```
+ 33 pass
+ 0 fail
+ 118 expect() calls
+Ran 33 tests across 6 files.
+```
+
+`bun run verify` is typecheck plus lint plus the suite, so it fails on any of the three.
+
+## What SCRAPPY BOY is NOT
+
+- **Not a simulation.** — The devnet carts send real transactions to Orca. The mainnet cart sends real
+  Jupiter swaps. Nothing on screen is a canned number.
+- **Not fractional-reserve fake money.** — The coin slot is a real keypair holding real SOL or tokens.
+  The console can only ever spend what is inside it.
+- **Not a wallet.** — It never asks for a seed phrase and never holds your main key.
+- **Not a trading terminal.** — There is no order book, no leverage, no slippage field, no chart
+  tools. If a control is not one of the four buttons, it does not exist.
+- **Not finished everywhere.** — The on-chain save-card program is written but not deployed yet, and
+  one cart depends on the devnet faucet being funded. Both are in the honesty table below.
+
+## The problem I set out to solve
+
+Every on-chain app eventually says "connect your wallet" and then asks the user to understand
+something. Gas, slippage, token accounts, the difference between approval and signing. Each one is a
+place where a normal person stops. The result is a product that only works for people who already
+crypto.
+
+The four-button console is an argument that this is an interface problem, not a UX polish problem.
+If the entire state of a trade fits in a d-pad, an A button and a B button, the player never has to
+learn any of it, and the complexity has to move somewhere it cannot be seen: into a scoped device
+key, an automatic exit, and defaults that are safe enough to be the only options.
+
+## What I built
+
+| Piece | What it does |
+|---|---|
+| The console | A DOM/CSS shell around a 160×144 indexed-colour framebuffer with its own sprite bank, tilemaps, 4×6 font, sound and gamepad support |
+| PLAY NOW | The free round: ride the live SOL price, no wallet, no chain, points only |
+| MEME DASH | Pick a coin from the day's real movers, watch real 1-minute candles, press A to buy, B to sell |
+| DEEP NET | Cast a band-shaped Orca liquidity position, harvest the fees it earns, pull it back in |
+| The play key | The scoped device signer every cart spends through |
+| Coin slot | The one thing the real wallet signs: a single top-up |
+| Cash out | Sweeps the whole coin slot back to the real wallet, no popup |
+| Daily quest and streak | A score target that resets daily, and a streak that survives a missed day only if you return |
+| Share | A 1080×1080 result card with the run, plus a challenge link that names the score to beat |
+
+## Architecture
+
+```
+        keypad / touch / gamepad
+                  │
+                  ▼
+        ┌────────────────────┐        ┌─────────────────────┐
+        │  console runtime   │◄──────►│  the cart           │
+        │  160×144 + sound   │  frame │  PLAYa / MEME DASH  │
+        └────────────────────┘        └──────────┬──────────┘
+                                                 │ intents
+                                                 ▼
+        wallet ──one top-up──►  play key  ──signs──►  chain.ts
+                                  │                     │
+                          (device-resident)      Orca devnet │ Jupiter mainnet
+                                                 ▼
+                                          explorer link per tx
+```
+
+| Component | Module | Role |
+|---|---|---|
+| Console runtime | `apps/web/src/lib/console` | Canvas, integer scaling, input, cart loader, audio |
+| The game | `apps/web/src/lib/scrappyboy/game.ts` | The save card, the rounds, the daily quest, the nets |
+| MEME DASH | `apps/web/src/lib/scrappyboy/meme.ts` | Coin roster, candles, stakes, auto-exits, swaps |
+| Chain | `apps/web/src/lib/scrappyboy/chain.ts` | Every read and write, the only place Orca is named |
+| Play key | `apps/web/src/lib/scrappyboy/session.ts` | The device keypair, its scope and the sweep |
+| Pools | `apps/web/src/lib/scrappyboy/pools.ts` | Which devnet pools are playable, scored from real data |
+| Prices | `apps/web/src/lib/scrappyboy/prices.ts` | The live SOL feed the free round rides |
+| The shell | `apps/web/src/app/scrappyboy/Shell.tsx` | Moulded-plastic console, real buttons wired to input |
+| The screen | `apps/web/src/app/scrappyboy/Handheld.tsx` | Boots the cart, injects the play key, prints the tx log |
+| RPC proxy | `apps/web/src/app/api/rpc/route.ts` | Same-origin mainnet RPC, because the public endpoint 403s browsers |
+| Save card program | `programs/scrappy-arcade/src/lib.rs` | Anchor program for the on-chain score card and sessions |
+
+| Network path | Cart | What signs | Cost |
+|---|---|---|---|
+| Free | PLAY NOW | nothing | none |
+| Devnet | MEME DASH `?net=devnet`, DEEP NET | play key | free |
+| Mainnet | MEME DASH (default) | play key | real funds |
+
+## The play-key loop, step by step
+
+1. **Boot.** The console loads, or mints, an ephemeral keypair in local storage. Nothing has been
+   signed and no wallet is connected yet.
+2. **One popup, ever.** Inserting a coin is a single transfer from the real wallet into that key.
+   The wallet approves the size of the slot, not the trades.
+3. **Play.** Buys, sells, opening and closing a net are signed by the device key and confirmed by
+   polling. The console never waits on a websocket, because the public devnet endpoint hangs on one.
+4. **Exit.** The safety net and treasure line sell without the player watching. Timeouts on a wallet
+   prompt are bounded so a hanged approval cannot freeze the screen.
+5. **Cash out.** `X` sends the slot balance back to the real wallet, signed by the device key, so it
+   needs no approval either.
+
+## Where the guarantee is enforced
+
+| Guarantee | Where | The test that covers it |
+|---|---|---|
+| A dollar stake becomes the right lamports at the live price | `meme.ts` | `converts a dollar stake into lamports at the live SOL price` |
+| A dead price feed cannot buy anything | `meme.ts` | `a dead price feed buys nothing` |
+| The safety net fires at -8% or worse | `meme.ts` | `the safety net fires at -8% or worse` |
+| The treasure line fires at +15% or better | `meme.ts` | `the treasure line fires at +15% or better` |
+| A coin drifting inside the band stays open | `meme.ts` | `a coin drifting inside the band stays open` |
+| Meme-coin dust keeps its precision instead of reading as zero | `meme.ts` | `meme-coin dust keeps precision instead of collapsing to 0.0000` |
+| The pool cursor cannot leave the map | `pools.ts` | `the cursor never points off the map` |
+| The cursor moves toward safer or hotter pins as stated | `pools.ts` | `RIGHT moves toward safer pools`, `UP moves toward hotter pools` |
+| A fresh player starts at zero, not at a bonus | `streak.ts` | `a fresh player starts at zero` |
+| A gap day resets the streak, a corrupt entry does not crash | `streak.ts` | `a gap day resets the streak`, `corrupt storage reads as zero, not a crash` |
+
+## What the map measures
+
+DEEP NET only shows pools a player can actually cast in. Playability is computed from Orca's own
+devnet pool data: the depth of the pool, how gentle its fee tier is, how solid the quote coin is,
+and how busy it is (24-hour volume against TVL). A pool with no volume has zero heat rather than a
+made-up number. Two classes are filtered out entirely, because a cast in them cannot succeed: splash
+pools, which only accept full-range positions and so can never hold the band this game casts, and
+pools too thin to price a small swap.
+
+That filter is not theoretical. Both remaining pins were cast, harvested and closed for real before
+being listed.
+
+## Where the model sits
+
+Nowhere. There is no model in this game and no generated content in it. The sprites, the palette,
+the font and the tunes are all committed assets and code. The only external services are Jupiter
+(token list, prices, swaps), GeckoTerminal (mainnet candles), Orca (devnet pools and positions) and
+the two RPC endpoints.
+
+## Who approves what
+
+| Actor | Approves |
+|---|---|
+| The player's wallet | One top-up into the coin slot, and nothing else |
+| The play key | Every trade, automatically, within the slot balance |
+| The safety net and treasure line | The exit, at -8% and +15%, without being asked |
+| The pool filter | Nothing: it is a read, not a gate |
+
+## Engineering decisions & the traps that taught me something
+
+**The cast size was larger than the devnet pools could absorb.** The net was cast at 0.2 SOL, which
+splits to 0.1 a side. On a devnet pool holding a few tens of dollars, that swap runs past the
+initialized tick arrays and fails with `InvalidTickArraySequence`. It failed on the deeper pools and
+succeeded on the shallowest, which is the confusing part: quote size, not pool reputation, decides.
+0.02 is verified end to end, and the map now refuses to show a pool it has not priced.
+
+**A listed pool is not a playable pool.** The first version showed five pins, including a splash pool
+that can only take full-range positions and a pool with effectively no liquidity. Both looked fine
+in the API response and both broke on cast. The discriminator is `poolType` plus real TVL, not the
+liquidity field.
+
+**No candle feed exists on devnet.** The devnet cart asked a mainnet price API for the history of a
+test dollar, got a 404, and put an error screen in front of the player. There is no honest way to
+draw that history, so the chart now draws the live price and says so.
+
+**Confirm by polling, never by websocket.** The public devnet endpoint hangs on subscription
+confirmation and some mobile networks drop it. Every write polls `getSignatureStatuses` with a block
+height check, so a transaction that expired fails loudly instead of hanging forever.
+
+**Integer scaling, because pixel art deserves whole pixels.** The console is drawn at 3×, 2× or 1×
+and only falls back to a fractional scale when even 1× will not fit the phone.
+
+**The play key secret is in local storage.** That is a deliberate trade, not an oversight: the key
+is capped at what the player loaded into the slot, so the worst case is the slot. A native build
+would hold it in the device keystore instead.
+
+## What's real vs pending — the honesty table
+
+| Claim | State |
+|---|---|
+| The console is live and playable | **Real.** — 200 on the public URL, Play button on the landing |
+| Real swaps, on real pools | **Real.** — Seven devnet transactions verified on-chain during this audit |
+| The play key signs every move | **Real.** — Fee payer and signer on every game transaction checked |
+| 33 tests pass | **Real.** — `bun run verify`, 0 failures |
+| The APK installs and runs | **Built and served.** — Not yet exercised on a physical device in this audit |
+| `scrappy_arcade` on-chain save card | **Written, not deployed.** — `declare_id!` points at an account that does not exist on devnet, and no app code calls it. It is a plan, not a feature |
+| Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
+| TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone |
+| The live site includes the fixes below | **No.** — The deployment predates this repo's latest commits and needs a redeploy from the machine that owns it |
+| The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
+| No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
+| License | **None declared yet** — |
+
+## Attack → test
+
+| The abuse | The test that answers it |
+|---|---|
+| Trade against a dead price feed | `a dead price feed buys nothing` |
+| Let a loss run past the safety net | `the safety net fires at -8% or worse` |
+| Let a winner ride past the treasure line | `the treasure line fires at +15% or better` |
+| Close a position that is still inside its band | `a coin drifting inside the band stays open` |
+| Show a dust-priced coin as 0.0000 | `meme-coin dust keeps precision instead of collapsing to 0.0000` |
+| Move the map cursor to a pin that does not exist | `the cursor never points off the map` |
+| Break the map at its edges | `at the edge it wraps through the list instead of sticking` |
+| Count two rounds in one day as two streak days | `playing twice in one day does not double-count` |
+| Claim a streak after skipping a day | `a gap day resets the streak` |
+| Corrupt local storage to fake a streak | `corrupt storage reads as zero, not a crash` |
+| Overspend the real wallet | The play key can only spend the slot; the wallet's only transfer is the top-up |
+
+## The app
+
+`/scrappyboy` is the console. The landing page at `/` explains it and sends the Play button to the
+free devnet cart, with a direct APK download beside it. The Android build is a Trusted Web Activity
+over the same site, so the installed app and the web app are one codebase and one deploy; nothing
+needs rebuilding when the site changes.
+
+## Limitations
+
+- The on-chain program is not deployed, so the save card is local, not portable between devices.
+- The devnet faucet is dry, so a new player cannot get test SOL from inside the console right now.
+- DEEP NET depends on live devnet liquidity. When those pools are empty, there is nothing to cast,
+  and the map says so instead of inventing a pin.
+- One coin exists on devnet. The interesting roster only exists on mainnet.
+- No sound design pass yet: the console is muted on purpose rather than playing something unfinished.
+
+## Security
+
+The real wallet signs once, for the top-up, and its key never leaves the wallet. The play key is a
+throwaway generated on the device and cannot spend beyond the slot. No seed phrase is ever requested,
+no private key is committed, and the mainnet RPC is proxied same-origin with a body size cap so a
+browser call does not leak the upstream endpoint's restrictions into the page. Secrets are not in the
+repo; the file that would hold them is gitignored and a template is committed in its place.
+
+## Tech stack
+
+Next.js 16 with React 19 and Tailwind 4, Bun workspaces, `@solana/web3.js` for the top-up and the
+play key, `@solana/kit` for devnet operations, the Orca whirlpool SDK for positions, Jupiter's Lite
+and Price APIs for mainnet discovery and swaps, GeckoTerminal for mainnet candles, and Anchor 0.32
+for the program that is not deployed yet.
 
 ## Project layout
 
 ```
-apps/web/src/app/scrappyboy/   # the handheld page (Shell + Handheld)
-apps/web/src/lib/scrappyboy/   # game, meme-dash, chain, session, sprites
-apps/web/src/lib/console/      # the pixel console (input, canvas, audio, input)
-apps/web/src/app/api/          # /api/rpc (mainnet proxy), /api/icon (token art)
-programs/scrappy-arcade/       # the Anchor program
-scripts/                       # deploy-arcade.mjs, wsl-build helpers
+apps/web/src/app/scrappyboy/      the handheld: shell, screen, styles
+apps/web/src/app/api/             same-origin RPC proxy, token art proxy
+apps/web/src/lib/scrappyboy/      the game, MEME DASH, chain, play key, pools, prices
+apps/web/src/lib/console/         the pixel console runtime
+programs/scrappy-arcade/          the Anchor program (not deployed)
+scripts/deploy-arcade.mjs         deploys the program via the upgradeable loader
+Anchor.toml, Cargo.toml           program build configuration
 ```
 
-## Roadmap to submission
+## Full command reference
 
-- Link-cable battles (`Battle` PDA already in the program)
-- SKR deeper integration: SKR stakes, SKR rewards, holder perks
-- Seed Vault / MWA path for the top-up signature on Seeker
-- Bubblewrap TWA → Android APK for the dApp Store
-- MagicBlock session tokens when the program moves to an ER-capable deploy
+```bash
+bun install                        # workspaces: apps/*, packages/*
+bun run verify                     # typecheck + lint + all tests
+bun run dev                        # -> http://localhost:3000/scrappyboy
+cd apps/web && bun run build       # production build
+cd apps/web && bun run lint        # eslint alone
+```
+
+## How I'd deploy it
+
+The site is a Next.js app deployed to Vercel, aliased to the public domain. The Android artifact is
+built with Bubblewrap as a Trusted Web Activity and the signed APK is copied into the web app's
+public folder so the landing can serve it; `assetlinks.json` ties that signature to the domain, and
+must match the keystore used for the build or the app opens with a browser bar instead of full
+screen.
+
+## Tests
+
+```bash
+bun run verify
+```
+
+33 tests across 6 files. The carts' own rules are covered in
+`apps/web/src/lib/scrappyboy/meme.test.ts`, `pools.test.ts` and `streak.test.ts`; the settlement and
+task API that this branch still carries is covered by `apps/api/src/app.test.ts` and
+`quality.test.ts`; and the client SDK contract is covered by `packages/sdk/src/policy.test.ts`.
