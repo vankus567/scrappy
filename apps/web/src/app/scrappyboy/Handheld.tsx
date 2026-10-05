@@ -182,6 +182,32 @@ export function Handheld() {
       </Shell>
 
       <section className={styles.log} aria-live="polite">
+        <p className={styles.slot2}>
+          {publicKey ? (
+            <>
+              Wallet{" "}
+              <a
+                href={`https://explorer.solana.com/address/${publicKey.toBase58()}${isDevnet ? "?cluster=devnet" : ""}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {publicKey.toBase58().slice(0, 4)}…{publicKey.toBase58().slice(-4)}
+              </a>{" "}
+              connected.{" "}
+              <button type="button" className={styles.linkish} onClick={() => void disconnect()}>
+                Eject
+              </button>
+            </>
+          ) : (
+            <>
+              No wallet connected.{" "}
+              <button type="button" className={styles.linkish} onClick={() => picker.open()}>
+                Connect a wallet
+              </button>{" "}
+              to load the coin slot.
+            </>
+          )}
+        </p>
         {playKey && (
           <p className={styles.slot2}>
             Playing as{" "}

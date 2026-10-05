@@ -60,10 +60,10 @@ export function WalletPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, publicKey]);
 
-  // The wallet is the pet's home, so there is nothing to show without one. Send the player to the
-  // hatch instead of leaving a blank page where the connect button should be.
+  // This panel belongs to the earlier pet build. There is nothing to show without a pet, so send
+  // anyone who reaches it to the game rather than leaving a blank page.
   useEffect(() => {
-    if (ready && !pet) router.replace("/app");
+    if (ready && !pet) router.replace("/scrappyboy");
   }, [ready, pet, router]);
 
   if (!ready || !pet) {
