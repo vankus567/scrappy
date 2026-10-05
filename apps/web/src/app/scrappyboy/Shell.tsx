@@ -5,8 +5,8 @@ import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, BTN_X, BTN_Y, type
 import styles from "./shell.module.css";
 
 /**
- * The SCRAPPY BOY console: moulded plastic around a fixed pixel screen, in the
- * PIXMON tradition. Pure DOM and CSS; the canvases (game + MEME DASH) live in
+ * The SCRAPPY BOY console: moulded plastic around a fixed pixel screen.
+ * Pure DOM and CSS; the canvases (game + MEME DASH) live in
  * the viewport, and every plastic button writes straight into the game's Input.
  */
 
@@ -63,7 +63,7 @@ function useHold(input: InputRef, btn: number) {
   };
 }
 
-/** Solana's mark, stamped into the shell where PIXMON stamps Monad's. */
+/** Solana's mark, stamped into the shell's badge. */
 function SolMark() {
   return (
     <span className={styles.mark} aria-hidden="true">

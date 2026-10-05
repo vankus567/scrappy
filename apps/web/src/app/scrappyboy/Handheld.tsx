@@ -61,6 +61,10 @@ export function Handheld() {
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [playKey, setPlayKey] = useState<string>();
   const [ready, setReady] = useState(false);
+  // The play key lives on the cluster the console is playing on, so the explorer link must match it.
+  const [isDevnet, setIsDevnet] = useState(
+    () => typeof window === "undefined" || new URLSearchParams(window.location.search).get("net") === "devnet",
+  );
   const { publicKey, sendTransaction, disconnect } = useWallet();
   const picker = useWalletPicker();
   const pickerRef = useRef(picker);
@@ -129,6 +133,7 @@ export function Handheld() {
     if (!session) return;
     // ?net=devnet turns the demo free: swaps go through the Orca devnet pool.
     const devnet = new URLSearchParams(window.location.search).get("net") === "devnet";
+    setIsDevnet(devnet);
     // Same-origin RPC proxy: the public mainnet endpoint 403s browser origins.
     const conn = devnet ? new Connection("https://api.devnet.solana.com") : new Connection(`${window.location.origin}/api/rpc`);
     // SEEKER badge on the save card when the play key holds any SKR.
@@ -180,7 +185,7 @@ export function Handheld() {
         {playKey && (
           <p className={styles.slot2}>
             Playing as{" "}
-            <a href={`https://explorer.solana.com/address/${playKey}?cluster=devnet`} target="_blank" rel="noreferrer">
+            <a href={`https://explorer.solana.com/address/${playKey}${isDevnet ? "?cluster=devnet" : ""}`} target="_blank" rel="noreferrer">
               {playKey.slice(0, 4)}…{playKey.slice(-4)}
             </a>
             , this device&apos;s play key. Every move below signed on-device: no popups.

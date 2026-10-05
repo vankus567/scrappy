@@ -256,6 +256,12 @@ export class MemeDash {
   }
 
   private async loadCandles(c: Coin): Promise<void> {
+    // Devnet has no candle feed, and its only coin is a test dollar. The chart draws its live
+    // price instead of a history; nothing is invented to fill the gap.
+    if (this.devnet) {
+      this.candles = [];
+      return;
+    }
     if (!c.pool) {
       const pools = await json<{ data: { attributes: { address: string } }[] }>(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${c.mint}/pools?page=1`);
       c.pool = pools.data[0]?.attributes.address;
@@ -723,6 +729,7 @@ export class MemeDash {
         this.text("A / B  SELL", MEME_W - 139, 470, 34, C.ink, "center");
         this.text("Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 20, C.dim, "center", 600);
       } else if (this.scene === "chart") {
+        if (this.devnet && this.candles.length === 0) this.text("test dollar - no candle feed on devnet", MEME_W / 2, 404, 18, C.dim, "center", 600);
         this.text("How much?", 24, 434, 24, C.dim, "left", 600);
         this.stakes.forEach((s, i) => {
           const sel = i === this.stakeIdx;

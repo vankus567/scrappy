@@ -17,8 +17,8 @@ import { MemeDash, type MemeWallet } from "./meme";
 export const SCREEN_W = 160;
 export const SCREEN_H = 144;
 const FPS = 30;
-const HATCH_SOL = 0.2;
-const FED = BigInt(250_000_000);
+const HATCH_SOL = 0.02;
+const FED = BigInt(50_000_000);
 const PX_PER_FRAME = 0.5; // the price line scrolls ~15 px/s: about 9 s of real price on screen
 const CREATURE_X = 100;
 const LEVEL_FRAMES = FPS * 20;
@@ -288,7 +288,7 @@ export class ScrappyBoy {
   private openMap(): void {
     this.run("CHARTING THE SEA", async () => {
       this.balance = await chain.withRetry(() => chain.solBalance(this.signer!.address));
-      if (this.balance < FED) throw new Error("a deep net needs 0.25 test sol. pick TEST SOL on the card");
+      if (this.balance < FED) throw new Error("a deep net needs 0.05 test sol. pick TEST SOL on the card");
       this.pins = await mapPools();
       this.pinIdx = 0;
       this.scene = "map";

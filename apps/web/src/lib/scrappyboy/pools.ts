@@ -28,6 +28,7 @@ interface ApiToken {
 }
 interface ApiPool {
   address: string;
+  poolType?: string | null;
   feeRate: number;
   liquidity: string;
   tokenMintA: string;
@@ -51,7 +52,12 @@ export async function mapPools(): Promise<MapPool[]> {
     if (!solA && !solB) continue;
     const quote = (solA ? p.tokenB?.symbol : p.tokenA?.symbol) ?? "";
     if (!STABLE.test(quote) || BigInt(p.liquidity || "0") === BigInt(0)) continue;
+    // A splash pool only takes full-range positions, so the band-shaped net this game casts
+    // can never be opened in one. They are real pools, just not playable here.
+    if (p.poolType === "splashpool") continue;
     const tvl = Number(p.tvlUsdc ?? 0) || 0;
+    // Too thin to price even a small swap: it would fail on the tick arrays, so it is not a pin.
+    if (tvl < 10) continue;
     const vol24 = Number(p.stats?.["24h"]?.volume ?? 0) || 0;
     const feePct = p.feeRate / 10000;
     const depth = (Math.log10(1 + tvl) / 4) * 55; // $10k TVL fills the depth part

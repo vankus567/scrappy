@@ -1,7 +1,7 @@
 // Hardware spec. Values match kitao/pyxel (MIT) so Pyxel users feel at home.
 
 export const NUM_COLORS = 16;
-/** Daylight palette (the PIXMON look): lavender screen, ink panels, purple accent.
+/** Daylight palette: lavender screen, ink panels, purple accent.
  *  Index roles stay Pyxel-shaped so every sprite and screen keeps its meaning;
  *  bars and panels stay ink-dark, the water and the card table go light. */
 export const DEFAULT_PALETTE: readonly number[] = [
