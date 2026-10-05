@@ -268,8 +268,8 @@ would hold it in the device keystore instead.
 | The APK installs and runs | **Built and served.** — Not yet exercised on a physical device in this audit |
 | `scrappy_arcade` on-chain save card | **Written, not deployed.** — `declare_id!` points at an account that does not exist on devnet, and no app code calls it. It is a plan, not a feature |
 | Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
-| TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone |
-| The live site includes the fixes below | **No.** — The deployment predates this repo's latest commits and needs a redeploy from the machine that owns it |
+| TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
+| The public domain runs this repo's latest commit | **No.** It still serves an older build; these fixes reach it on the next deploy from the account that owns it |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
 | License | **None declared yet** — |

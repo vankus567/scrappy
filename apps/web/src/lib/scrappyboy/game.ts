@@ -317,7 +317,14 @@ export class ScrappyBoy {
   /** Free devnet SOL straight into the play key: no faucet website, no wallet popup. */
   private freeSol(): void {
     this.run("FREE TEST SOL", async () => {
-      const sig = await chain.starterFood(this.signer!.address, 0.5);
+      let sig: string;
+      try {
+        sig = await chain.starterFood(this.signer!.address, 0.5);
+      } catch {
+        // The public devnet faucet is shared and runs dry. Say that, rather than passing its
+        // raw error text to the player.
+        throw new Error("the devnet faucet is empty right now - no test sol to give. try again later");
+      }
       this.events.onTx?.("test sol faucet", sig);
       this.balance = await chain.solBalance(this.signer!.address);
       this.note = "0.5 TEST SOL LANDED IN YOUR PLAY KEY";
