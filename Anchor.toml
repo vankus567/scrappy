@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-scrappy_arcade = "6JWs3RjaawXTHvjFmFq2UxWiX8HPpxfi71WsGeLqVXm3"
+scrappy_arcade = "DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2"
 
 [programs.localnet]
-scrappy_arcade = "6JWs3RjaawXTHvjFmFq2UxWiX8HPpxfi71WsGeLqVXm3"
+scrappy_arcade = "DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2"
 
 [registry]
 url = "https://api.apr.dev"
