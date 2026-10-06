@@ -250,7 +250,9 @@ export default function PixelCloud({
       depth: false
     });
 
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    // The clouds are pixel art: rendering them at device resolution quadruples the shader
+    // work on a phone for no visible gain, and keeps a cloud pixel the same size everywhere.
+    const dpr = 1;
     renderer.setPixelRatio(dpr);
     renderer.setSize(container.offsetWidth, container.offsetHeight);
     container.appendChild(renderer.domElement);
