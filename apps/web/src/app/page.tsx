@@ -2,7 +2,6 @@ import { Critter, SeaCast } from "@/components/SeaCast";
 import { LandingNav } from "@/components/LandingNav";
 import { GlossButton } from "@/components/GlossButton";
 import { HeroClouds } from "@/components/backgrounds/HeroClouds";
-import { AgentOrbClient } from "@/components/AgentOrbClient";
 
 const REPO_URL = "https://github.com/vankus567/scrappy";
 
@@ -147,7 +146,8 @@ export default function Home() {
             </h2>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-on-night-soft">
               The chart is the live SOL price. A net is your money parked where trades happen. Coins are the small
-              cut those trades pay you. Every move links to the public record on Solana. And points are just points:
+              cut those trades pay you. Every move links to the public record on Solana, and your best score is
+              written to a save card on Solana too, so clearing the browser never wipes it. Points are just points:
               the game never turns your score into a bet.
             </p>
           </div>
@@ -161,10 +161,10 @@ export default function Home() {
       </section>
 
       {/* PLAY WITH FRIENDS */}
-      <section id="ai-teams" className="scroll-mt-6 px-3 py-16 sm:px-6 sm:py-24">
+      <section id="friends" className="scroll-mt-6 px-3 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-12 rounded-[28px] bg-white px-6 py-14 sm:px-12 lg:grid-cols-[1.2fr_1fr] lg:items-center [&>*]:min-w-0">
           <div>
-            <AgentOrbClient size={112} tone="light" className="-ml-3 mb-4" />
+            <Critter who="zip" frame={1} className="hero-pet mb-4 w-24" title="Zip" />
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
               Beat your friends&rsquo;<br className="hidden sm:block" /> best score.
             </h2>
