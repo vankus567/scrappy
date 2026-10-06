@@ -51,20 +51,34 @@ export class Input {
       // Only release if no other key bound to this button is still down.
       this.keyDown[b] = [...this.keysHeld].some((k) => KEY_MAP[k] === b) ? 1 : 0;
     };
-    const blur = () => {
-      this.keysHeld.clear();
-      this.keyDown.fill(0);
-      this.touchDown.fill(0);
-      this.pressLatch.fill(0);
+    const blur = () => this.reset();
+    // A hidden tab never receives the keyup for a key released while it was hidden,
+    // so without this the button stays held and the cart "plays itself" on return.
+    const vis = () => {
+      if (document.visibilityState === "hidden") this.reset();
     };
     target.addEventListener("keydown", down);
     target.addEventListener("keyup", up);
     target.addEventListener("blur", blur);
+    target.addEventListener("pagehide", blur);
+    document.addEventListener("visibilitychange", vis);
     return () => {
       target.removeEventListener("keydown", down);
       target.removeEventListener("keyup", up);
       target.removeEventListener("blur", blur);
+      target.removeEventListener("pagehide", blur);
+      document.removeEventListener("visibilitychange", vis);
     };
+  }
+
+  /** Drop every held, latched and touched button: nothing carries across a lost focus. */
+  reset(): void {
+    this.keysHeld.clear();
+    this.keyDown.fill(0);
+    this.touchDown.fill(0);
+    this.pressLatch.fill(0);
+    this.held.fill(0);
+    this.released.fill(0);
   }
 
   setTouch(button: number, down: boolean): void {
