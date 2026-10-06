@@ -134,7 +134,7 @@ export class ScrappyBoy {
   private streak = 0;
   private newBest = false;
   /** The on-chain save card's state for the round just finished. */
-  private cardState: "" | "SAVING" | "ON-CHAIN" | "LOCAL ONLY" = "";
+  private cardState: "" | "SAVING" | "ON-CHAIN" | "LOCAL" = "";
   private combo = 0;
   private maxCombo = 0;
   private pearls = 0;
@@ -629,14 +629,14 @@ export class ScrappyBoy {
         ]);
         const need = card ? BigInt(10_000) : chain.SAVE_CARD_COST;
         if (bal < need) {
-          this.cardState = "LOCAL ONLY";
+          this.cardState = "LOCAL";
           return;
         }
         const sig = await chain.recordScore(signer, score);
         this.cardState = "ON-CHAIN";
         this.events.onTx?.(`save card: score ${score}`, sig);
       } catch {
-        this.cardState = "LOCAL ONLY";
+        this.cardState = "LOCAL";
       }
     });
   }
@@ -997,6 +997,9 @@ export class ScrappyBoy {
         s.text2(50, 46, `NET    ${this.disk ? "IN WATER" : "ON BOAT"}`, this.disk ? MINT : GREY, 8);
         const qDone = this.questBest >= QUEST_GOAL;
         s.text2(50, 57, `QUEST  ${qDone ? "DONE!" : `${this.questBest}/${QUEST_GOAL}`}`, qDone ? GOLD : GREY, 8);
+        // A dark plate under the menu: grey text straight on the pale sea band was unreadable.
+        s.rect(26, 73, 108, 60, INK);
+        s.rectb(26, 73, 108, 60, PLUM);
         CARD_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
           const y = 76 + i * 12;
@@ -1032,7 +1035,7 @@ export class ScrappyBoy {
       case "results": {
         this.sea();
         const cs = this.cardState;
-        this.hud("WIPED OUT!", cs ? `CARD ${cs}` : CREATURES[this.pick]!.name, cs === "ON-CHAIN" ? MINT : cs === "LOCAL ONLY" ? GREY : GOLD);
+        this.hud("WIPED OUT!", cs ? `CARD ${cs}` : CREATURES[this.pick]!.name, cs === "ON-CHAIN" ? MINT : cs === "LOCAL" ? GREY : GOLD);
         s.rect(8, 14, 144, 108, INK);
         s.rectb(8, 14, 144, 108, this.newBest ? GOLD : TEAL);
         this.bigCenter(20, `${this.score}`, this.newBest ? GOLD : WHITE, 3);
@@ -1098,9 +1101,9 @@ export class ScrappyBoy {
         s.text2(66, 44, `SHIFT ${(this.offset * 100).toFixed(1)}%`, WHITE, 8);
         s.rect(8, 60, 144, 50, INK);
         s.rectb(8, 60, 144, 50, TEAL);
-        s.text2(14, 64, "COSTS 0.2 TEST SOL. HALF IS", GREY, 7);
+        s.text2(14, 64, `COSTS ${HATCH_SOL} TEST SOL. HALF IS`, GREY, 7);
         s.text2(14, 74, "SWAPPED INTO AN ORCA", GREY, 7);
-        s.text2(14, 84, "POSITION OPENS IN YOUR WALLET.", GREY, 7);
+        s.text2(14, 84, "POSITION OPENS ON YOUR PLAY KEY.", GREY, 7);
         s.text2(14, 96, "WIDER NET = SAFER, SMALLER FEES", WHITE, 7);
         s.text2(14, 104, "TINY NET = MORE FEES, MORE RISK", WHITE, 7);
         this.foot("<> CREATURE UP/DN SHIFT A CAST");
@@ -1126,6 +1129,8 @@ export class ScrappyBoy {
           ];
           rows.forEach(([l, col], i) => s.text2(11, 16 + i * 10, l, col, 7));
         }
+        s.rect(26, 93, 108, 40, INK);
+        s.rectb(26, 93, 108, 40, PLUM);
         DISK_MENU.forEach((mi, i) => {
           const sel = i === this.menuIdx;
           const y = 96 + i * 10;
