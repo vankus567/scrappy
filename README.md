@@ -4,7 +4,7 @@
 
 ### Trading apps have 47 buttons and a textbook of words. This one has four.
 
-[![tests](https://img.shields.io/badge/tests-33%20passing-brightgreen)](https://github.com/vankus567/scrappy)
+[![tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)](https://github.com/vankus567/scrappy)
 [![live](https://img.shields.io/badge/live-scrappy--plum--gamma.vercel.app-blue)](https://scrappy-plum-gamma.vercel.app/scrappyboy)
 [![stack](https://img.shields.io/badge/stack-Next.js%2016%20%C2%B7%20React%2019%20%C2%B7%20Bun-black)](https://github.com/vankus567/scrappy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/vankus567/scrappy/blob/main/LICENSE)
@@ -36,8 +36,8 @@ ONE WALLET SIGNATURE  →  EVERY MOVE AFTER IT SIGNED ON DEVICE
 | Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,101,555 bytes, package `app.scrappypet` |
 | App-link handshake | **live** — | `/.well-known/assetlinks.json` returns 200 with the APK's SHA-256 fingerprint |
 | Chain moves | **verified** — | Eleven devnet transactions read back from the chain, all `err: null`, play key as fee payer |
-| Test suite | **33 pass, 0 fail** — | `bun run verify` (typecheck, lint, tests) |
-| On-chain save card program | **written, not deployed** — | See the honesty table |
+| Test suite | **39 pass, 0 fail** — | `bun run verify` (typecheck, lint, tests) |
+| On-chain save card program | **deployed on devnet** — | [`Dygz…FRb2`](https://explorer.solana.com/address/DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2?cluster=devnet); the console writes every finished round to it |
 
 ## The 20-second pitch
 
@@ -82,6 +82,19 @@ collect coins (harvest)    5b7adcQ4p4oksrzrpFx3Hh1LLjPzuHxTjKsynVefK4L9J8q2CJShB
 pull the net in (close)    4zG2BWgfy8QJckoW9zBpCKKif8Gw4rkHufpDjjYAdKP9qeJE7NJayE7f6NnNq3sxDFWxAcmoK9mVKdyfEMbeQHU9
 ```
 
+The save card, checked live on devnet with the same client code the console ships
+(`cd apps/web && bun scripts/savecard-e2e.ts`):
+
+```
+program        DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2
+write 500      q5Y9UH8T6L6WNxinGAnKCGXSxnkV536WjRCFdjViG1tbMsZ3BcjoM2QguCrX8qxbdYnf2NJtNY9exRgfsKr65St
+write 120      4zh4Kq8gsqwWjB9mNtCYTamgP65szbk4CDr6VxzdWVm6mr3JksriLa42zQ8LhhTuPM2x2guLH3KYWuYeAvKpr8sf
+card           {"best":500,"last":120,"plays":2, ...}
+PASS  best kept at 500 after a lower round, 2 plays
+forged write  refused: Program log: AnchorError caused by account: save_card. Error Code: ConstraintSeeds. Error Number: 2006
+PASS  another key cannot write into this card
+```
+
 ## Verify every claim in one command
 
 ```bash
@@ -89,10 +102,10 @@ bun install && bun run verify
 ```
 
 ```
- 33 pass
+ 39 pass
  0 fail
- 118 expect() calls
-Ran 33 tests across 6 files.
+ 132 expect() calls
+Ran 39 tests across 7 files.
 ```
 
 `bun run verify` is typecheck plus lint plus the suite, so it fails on any of the three.
@@ -106,8 +119,8 @@ Ran 33 tests across 6 files.
 - **Not a wallet.** — It never asks for a seed phrase and never holds your main key.
 - **Not a trading terminal.** — There is no order book, no leverage, no slippage field, no chart
   tools. If a control is not one of the four buttons, it does not exist.
-- **Not finished everywhere.** — The on-chain save-card program is written but not deployed yet, and
-  one cart depends on the devnet faucet being funded. Both are in the honesty table below.
+- **Not finished everywhere.** — The save card trusts the score the device posts, and one cart
+  depends on the devnet faucet being funded. Both are in the honesty table below.
 
 ## The problem I set out to solve
 
@@ -132,6 +145,7 @@ key, an automatic exit, and defaults that are safe enough to be the only options
 | The play key | The scoped device signer every cart spends through |
 | Coin slot | The one thing the real wallet signs: a single top-up |
 | Cash out | Sweeps the whole coin slot back to the real wallet, no popup |
+| Save card | Every finished round is written to a PDA on Solana by the play key. The program only ever raises the best, and reads it back at boot |
 | Daily quest and streak | A score target that resets daily, and a streak that survives a missed day only if you return |
 | Share | A 1080×1080 result card with the run, plus a challenge link that names the score to beat |
 
@@ -265,9 +279,10 @@ would hold it in the device keystore instead.
 | The console is live and playable | **Real.** — 200 on the public URL, Play button on the landing |
 | Real swaps, on real pools | **Real.** — Seven devnet transactions verified on-chain during this audit |
 | The play key signs every move | **Real.** — Fee payer and signer on every game transaction checked |
-| 33 tests pass | **Real.** — `bun run verify`, 0 failures |
+| 39 tests pass | **Real.** — `bun run verify`, 0 failures |
 | The APK installs and runs | **Built and served.** — Not yet exercised on a physical device in this audit |
-| `scrappy_arcade` on-chain save card | **Written, not deployed.** — `declare_id!` points at an account that does not exist on devnet, and no app code calls it. It is a plan, not a feature |
+| `scrappy_arcade` on-chain save card | **Real, on devnet.** — Program `DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2`. A round played on the live site wrote its score in [`3mzP4qnw…`](https://explorer.solana.com/tx/3mzP4qnwNtsDhNw2k7jWoU6gufDuBVNdRhi9usbXAiVDLw8LQqdCZ87sTtGcMCkKatkkYTNKJbHcuQ2YRvTC7Wyg?cluster=devnet), and clearing the browser's storage brought the same best back from the chain |
+| The score on the card is the score you played | **Not enforced.** — The program enforces who may write a card and that the best never goes down. It does not replay the round, so a modified client could post a number it never earned. Points are not money here, which is why that is acceptable for now |
 | Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
 | TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
 | The site linked here runs this repo's latest commit | **Yes.** — The deployment is built from the branch head |
@@ -291,6 +306,10 @@ would hold it in the device keystore instead.
 | Claim a streak after skipping a day | `a gap day resets the streak` |
 | Corrupt local storage to fake a streak | `corrupt storage reads as zero, not a crash` |
 | Overspend the real wallet | The play key can only spend the slot; the wallet's only transfer is the top-up |
+| Write a score that wraps the on-chain u32 | `a score that does not fit a u32 is refused, not wrapped` |
+| Pass some other account off as a save card | `some other account at that address reads as no card, not a fake score` |
+| Lower your own best with a bad round | Live: `savecard-e2e.ts` writes 500 then 120, the card keeps best 500 |
+| Write into someone else's save card | Live: `savecard-e2e.ts` signs with a second key, the program answers `ConstraintSeeds` (2006) |
 
 ## The app
 
@@ -301,7 +320,8 @@ needs rebuilding when the site changes.
 
 ## Limitations
 
-- The on-chain program is not deployed, so the save card is local, not portable between devices.
+- The save card follows the play key, not the wallet: a new device starts a new card.
+- The program trusts the posted score; nothing re-runs the round on-chain.
 - The devnet faucet is dry, so a new player cannot get test SOL from inside the console right now.
 - DEEP NET depends on live devnet liquidity. When those pools are empty, there is nothing to cast,
   and the map says so instead of inventing a pin.
@@ -321,7 +341,7 @@ repo; the file that would hold them is gitignored and a template is committed in
 Next.js 16 with React 19 and Tailwind 4, Bun workspaces, `@solana/web3.js` for the top-up and the
 play key, `@solana/kit` for devnet operations, the Orca whirlpool SDK for positions, Jupiter's Lite
 and Price APIs for mainnet discovery and swaps, GeckoTerminal for mainnet candles, and Anchor 0.32
-for the program that is not deployed yet.
+for the save card program.
 
 ## Project layout
 
@@ -330,8 +350,8 @@ apps/web/src/app/scrappyboy/      the handheld: shell, screen, styles
 apps/web/src/app/api/             same-origin RPC proxy, token art proxy
 apps/web/src/lib/scrappyboy/      the game, MEME DASH, chain, play key, pools, prices
 apps/web/src/lib/console/         the pixel console runtime
-programs/scrappy-arcade/          the Anchor program (not deployed)
-scripts/deploy-arcade.mjs         deploys the program via the upgradeable loader
+programs/scrappy-arcade/          the Anchor program, deployed on devnet
+apps/web/scripts/savecard-e2e.ts  live devnet check of the save card program
 Anchor.toml, Cargo.toml           program build configuration
 ```
 
@@ -343,6 +363,8 @@ bun run verify                     # typecheck + lint + all tests
 bun run dev                        # -> http://localhost:3000/scrappyboy
 cd apps/web && bun run build       # production build
 cd apps/web && bun run lint        # eslint alone
+cargo build-sbf --manifest-path programs/scrappy-arcade/Cargo.toml   # the program
+cd apps/web && bun scripts/savecard-e2e.ts                           # live devnet check, ~0.01 SOL
 ```
 
 ## How I'd deploy it
@@ -351,7 +373,8 @@ The site is a Next.js app deployed to Vercel, aliased to the public domain. The 
 built with Bubblewrap as a Trusted Web Activity and the signed APK is copied into the web app's
 public folder so the landing can serve it; `assetlinks.json` ties that signature to the domain, and
 must match the keystore used for the build or the app opens with a browser bar instead of full
-screen.
+screen. The program ships with the stock loader:
+`solana program deploy target/deploy/scrappy_arcade.so --program-id target/deploy/scrappy_arcade-keypair.json -u devnet`.
 
 ## Tests
 
@@ -359,7 +382,8 @@ screen.
 bun run verify
 ```
 
-33 tests across 6 files. The carts' own rules are covered in
-`apps/web/src/lib/scrappyboy/meme.test.ts`, `pools.test.ts` and `streak.test.ts`; the settlement and
+39 tests across 7 files. The carts' own rules are covered in
+`apps/web/src/lib/scrappyboy/meme.test.ts`, `pools.test.ts` and `streak.test.ts`; the save card's
+byte layout is pinned against the program's discriminators in `savecard.test.ts`; the settlement and
 task API that this branch still carries is covered by `apps/api/src/app.test.ts` and
 `quality.test.ts`; and the client SDK contract is covered by `packages/sdk/src/policy.test.ts`.
