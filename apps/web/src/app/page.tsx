@@ -164,7 +164,7 @@ export default function Home() {
       <section id="friends" className="scroll-mt-6 px-3 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-12 rounded-[28px] bg-white px-6 py-14 sm:px-12 lg:grid-cols-[1.2fr_1fr] lg:items-center [&>*]:min-w-0">
           <div>
-            <Critter who="zip" frame={1} className="hero-pet mb-4 w-24" title="Zip" />
+            <Critter who="finn" className="hero-pet mb-4 w-20" title="Finn the fish" />
             <h2 className="font-display tracking-[-0.005em] text-[clamp(2rem,3.4vw,2.7rem)] font-bold leading-[1.06] tracking-[-0.015em]">
               Beat your friends&rsquo;<br className="hidden sm:block" /> best score.
             </h2>
