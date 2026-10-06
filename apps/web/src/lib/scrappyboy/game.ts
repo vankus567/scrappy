@@ -133,6 +133,8 @@ export class ScrappyBoy {
   private questBest = readQuest().best;
   private streak = 0;
   private newBest = false;
+  /** The on-chain save card's state for the round just finished. */
+  private cardState: "" | "SAVING" | "ON-CHAIN" | "LOCAL ONLY" = "";
   private combo = 0;
   private maxCombo = 0;
   private pearls = 0;
@@ -272,6 +274,12 @@ export class ScrappyBoy {
       this.feedOk = true;
       this.balance = await chain.withRetry(() => chain.solBalance(signer.address));
       await this.loadDisk();
+      // The save card on devnet outranks local storage: a cleared browser keeps its best.
+      const card = await chain.readSaveCard(signer.address).catch(() => null);
+      if (card && card.best > this.best) {
+        this.best = card.best;
+        saveBest(this.best);
+      }
       this.scene = "card";
       this.menuIdx = 0;
       this.con.playm(0, true);
@@ -601,6 +609,36 @@ export class ScrappyBoy {
       saveBest(this.best);
     }
     this.streak = bumpStreak();
+    this.saveToCard(Math.floor(this.score));
+  }
+
+  /**
+   * Post the finished round to the on-chain save card, in the background. Never blocks the
+   * results screen, and a play key with no test SOL says so instead of failing loudly.
+   */
+  private saveToCard(score: number): void {
+    const signer = this.signer;
+    this.cardState = "";
+    if (!signer || score <= 0) return;
+    this.cardState = "SAVING";
+    this.bg(async () => {
+      try {
+        const [bal, card] = await Promise.all([
+          chain.withRetry(() => chain.solBalance(signer.address)),
+          chain.readSaveCard(signer.address).catch(() => null),
+        ]);
+        const need = card ? BigInt(10_000) : chain.SAVE_CARD_COST;
+        if (bal < need) {
+          this.cardState = "LOCAL ONLY";
+          return;
+        }
+        const sig = await chain.recordScore(signer, score);
+        this.cardState = "ON-CHAIN";
+        this.events.onTx?.(`save card: score ${score}`, sig);
+      } catch {
+        this.cardState = "LOCAL ONLY";
+      }
+    });
   }
 
   // ---- update ----------------------------------------------------------------------
@@ -993,7 +1031,8 @@ export class ScrappyBoy {
         break;
       case "results": {
         this.sea();
-        this.hud("WIPED OUT!", CREATURES[this.pick]!.name);
+        const cs = this.cardState;
+        this.hud("WIPED OUT!", cs ? `CARD ${cs}` : CREATURES[this.pick]!.name, cs === "ON-CHAIN" ? MINT : cs === "LOCAL ONLY" ? GREY : GOLD);
         s.rect(8, 14, 144, 108, INK);
         s.rectb(8, 14, 144, 108, this.newBest ? GOLD : TEAL);
         this.bigCenter(20, `${this.score}`, this.newBest ? GOLD : WHITE, 3);

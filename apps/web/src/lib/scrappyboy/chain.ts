@@ -25,6 +25,7 @@ import {
   WhirlpoolDeployment,
 } from "@orca-so/whirlpools";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
+import { decodeSaveCard, recordScoreIx, type SaveCard, saveCardAddress } from "./savecard";
 
 /**
  * Everything SCRAPPY BOY knows about the chain. Game code never imports Orca or kit directly,
@@ -295,6 +296,22 @@ export async function feed(signer: TransactionSigner, c: Creature, solAmount: nu
 export async function release(signer: TransactionSigner, c: Creature): Promise<string> {
   const cl = await closePositionInstructions(rpc, c.mint, { authority: signer, whirlpoolDeployment: deployment });
   return send(signer, cl.instructions);
+}
+
+/** The on-chain save card for this key, or null if it has never written one. */
+export async function readSaveCard(owner: Address): Promise<SaveCard | null> {
+  const pda = await saveCardAddress(owner);
+  const { value } = await withRetry(() => rpc.getAccountInfo(pda, { encoding: "base64" }).send());
+  if (!value) return null;
+  return decodeSaveCard(Uint8Array.from(atob(value.data[0]), (c) => c.charCodeAt(0)));
+}
+
+/** Rent for a new save card plus fee headroom; below this the write is skipped, not attempted. */
+export const SAVE_CARD_COST = BigInt(1_500_000);
+
+/** Write a finished round to the save card. The program keeps the best; the play key signs. */
+export async function recordScore(signer: TransactionSigner, score: number): Promise<string> {
+  return send(signer, [await recordScoreIx(signer.address, score)]);
 }
 
 export const explorer = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=${NETWORK}`;
