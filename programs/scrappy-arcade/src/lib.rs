@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("6JWs3RjaawXTHvjFmFq2UxWiX8HPpxfi71WsGeLqVXm3");
+declare_id!("DygzrTDfuuM8UYVRHkYvqkpfFN6G4AgnTEHSJYqyFRb2");
 
 /// SCRAPPY BOY arcade program.
 ///
@@ -28,7 +28,12 @@ pub mod scrappy_arcade {
         require_keys_eq!(session.player, ctx.accounts.player.key(), ArcadeError::WrongPlayer);
         require_keys_eq!(session.delegate, ctx.accounts.delegate.key(), ArcadeError::WrongDelegate);
         require!(session.expires_at_slot > Clock::get()?.slot, ArcadeError::SessionExpired);
-        write_score(&mut ctx.accounts.save_card, score)
+        // The delegate may be the one that creates the card, so stamp the owner here too;
+        // otherwise a card born on this path would read as owned by the zero key.
+        let card = &mut ctx.accounts.save_card;
+        card.player = ctx.accounts.player.key();
+        card.bump = ctx.bumps.save_card;
+        write_score(card, score)
     }
 
     /// The real wallet delegates writes to a device key for a bounded time.
@@ -45,49 +50,6 @@ pub mod scrappy_arcade {
     pub fn revoke_session(ctx: Context<RevokeSession>, delegate: Pubkey) -> Result<()> {
         let session = &ctx.accounts.session;
         require_keys_eq!(session.delegate, delegate, ArcadeError::WrongDelegate);
-        Ok(())
-    }
-
-    // ---- link battles ------------------------------------------------------
-    //
-    // A Battle PDA `[b"battle", id]` is the shared scoreboard: the host creates
-    // it, a friend joins with a link, both post one score, and the contract
-    // settles the winner. Posting uses either key path - the player's own key
-    // or an unexpired session delegate - so a device play key can battle.
-
-    pub fn create_battle(ctx: Context<CreateBattle>, battle_id: u64) -> Result<()> {
-        let b = &mut ctx.accounts.battle;
-        b.id = battle_id;
-        b.host = ctx.accounts.host.key();
-        b.guest = Pubkey::default();
-        b.scores = [0, 0];
-        b.posted = [false, false];
-        b.bump = ctx.bumps.battle;
-        Ok(())
-    }
-
-    pub fn join_battle(ctx: Context<JoinBattle>, _battle_id: u64) -> Result<()> {
-        let b = &mut ctx.accounts.battle;
-        require!(b.guest == Pubkey::default(), ArcadeError::BattleFull);
-        b.guest = ctx.accounts.guest.key();
-        Ok(())
-    }
-
-    /// One score post per seat. Slot is decided by which key signed.
-    pub fn post_battle_score(ctx: Context<PostBattleScore>, _battle_id: u64, score: u32) -> Result<()> {
-        let b = &mut ctx.accounts.battle;
-        let who = ctx.accounts.who.key();
-        let slot = if who == b.host {
-            0
-        } else if who == b.guest {
-            1
-        } else {
-            return err!(ArcadeError::NotInBattle);
-        };
-        require!(b.guest != Pubkey::default(), ArcadeError::BattleNotJoined);
-        require!(!b.posted[slot], ArcadeError::AlreadyPosted);
-        b.scores[slot] = score;
-        b.posted[slot] = true;
         Ok(())
     }
 }
@@ -180,63 +142,12 @@ pub struct SaveCard {
     pub bump: u8,
 }
 
-#[derive(Accounts)]
-#[instruction(battle_id: u64)]
-pub struct CreateBattle<'info> {
-    #[account(
-        init,
-        payer = host,
-        space = 8 + Battle::INIT_SPACE,
-        seeds = [b"battle", battle_id.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub battle: Account<'info, Battle>,
-    #[account(mut)]
-    pub host: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(battle_id: u64)]
-pub struct JoinBattle<'info> {
-    #[account(
-        mut,
-        seeds = [b"battle", battle_id.to_le_bytes().as_ref()],
-        bump = battle.bump,
-    )]
-    pub battle: Account<'info, Battle>,
-    pub guest: Signer<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(battle_id: u64)]
-pub struct PostBattleScore<'info> {
-    #[account(
-        mut,
-        seeds = [b"battle", battle_id.to_le_bytes().as_ref()],
-        bump = battle.bump,
-    )]
-    pub battle: Account<'info, Battle>,
-    pub who: Signer<'info>,
-}
-
 #[account]
 #[derive(InitSpace)]
 pub struct Session {
     pub player: Pubkey,
     pub delegate: Pubkey,
     pub expires_at_slot: u64,
-    pub bump: u8,
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct Battle {
-    pub id: u64,
-    pub host: Pubkey,
-    pub guest: Pubkey,
-    pub scores: [u32; 2],
-    pub posted: [bool; 2],
     pub bump: u8,
 }
 
@@ -250,12 +161,4 @@ pub enum ArcadeError {
     SessionExpired,
     #[msg("play counter overflowed")]
     Overflow,
-    #[msg("battle already has a guest")]
-    BattleFull,
-    #[msg("nobody has joined this battle yet")]
-    BattleNotJoined,
-    #[msg("signer is not a player in this battle")]
-    NotInBattle,
-    #[msg("this seat already posted its score")]
-    AlreadyPosted,
 }
