@@ -246,6 +246,21 @@ the two RPC endpoints.
 
 ## Engineering decisions & the traps that taught me something
 
+**The d-pad moved the net, not the fish, and players read it as inverted controls.** In the first
+version of PLAY NOW the creature rode the live SOL price by itself and Up/Down steered the dotted net
+band around it. Pressing Up lifted the net, so the fish looked like it dropped: "up goes down". The
+fish also wandered on its own with the price and seemed to swim straight into the jellyfish, because
+jellyfish spawned along the price line where the fish sat. The roles are now swapped: the d-pad
+moves the creature, the net rides the price, and a jellyfish only hurts you when it touches the
+fish. Measured after the change: Up moves the fish up (y 112 → 104), Down moves it back, the fish
+holds still with no input, and a jellyfish 14 px away does no damage while one on the fish costs 15.
+
+**An empty wallet left the top-up spinning forever.** The wallet was asked to send a devnet top-up
+it could not pay for, or on a network it was not set to, and sat on a spinner. The console now
+checks the wallet's balance first and says how much it needs, asks the wallet only to sign, and
+sends the transaction itself on the network the console is playing on. No USDC is ever needed: the
+top-up is SOL.
+
 **The cast size was larger than the devnet pools could absorb.** The net was cast at 0.2 SOL, which
 splits to 0.1 a side. On a devnet pool holding a few tens of dollars, that swap runs past the
 initialized tick arrays and fails with `InvalidTickArraySequence`. It failed on the deeper pools and

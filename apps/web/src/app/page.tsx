@@ -53,6 +53,7 @@ export default function Home() {
             <figcaption className="text-[12px] text-ink-faint">How a round goes</figcaption>
             <p className="mt-1.5 text-[15px] leading-snug">The net rides the live SOL price</p>
             <p className="mt-2 text-[17px] leading-snug text-ink">Swim to stay in it. Catch pearls. Dodge jellyfish.</p>
+            <p className="mt-2 text-[14px] leading-snug text-ink-soft">The d-pad moves your fish, never the net. A jellyfish only stings if it touches you.</p>
             <p className="mt-3 text-[13px] text-ink-soft">Combos up to x8 · levels speed up · WHALE WAVE on big moves</p>
           </figure>
           <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
