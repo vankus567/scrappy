@@ -99,6 +99,7 @@ function Sheet({ open, onClose, copy }: { open: boolean; onClose: () => void; co
                 <a className="font-semibold text-leaf hover:text-leaf-hover" href="https://solflare.com/download" target="_blank" rel="noreferrer">Solflare</a>, or open Scrappy inside your wallet app. You can also paste an address instead.
               </div>
             )}
+            <InWalletLinks />
             <button type="button" onClick={onClose} className="scrappy-focus mt-4 w-full rounded-[14px] py-3 text-[15px] font-semibold text-ink-soft hover:text-ink">
               Not now
             </button>
@@ -106,5 +107,34 @@ function Sheet({ open, onClose, copy }: { open: boolean; onClose: () => void; co
         </div>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * On a phone, the most reliable connection is to open this page inside the wallet's own browser,
+ * where the wallet is injected directly and no app-to-app handshake is needed.
+ */
+function InWalletLinks() {
+  // The sheet only renders after a tap, so reading the browser here never meets server HTML.
+  if (typeof window === "undefined" || !/android|iphone|ipad/i.test(navigator.userAgent)) return null;
+  const url = encodeURIComponent(window.location.href);
+  const ref = encodeURIComponent(window.location.origin);
+  const links = [
+    { name: "Phantom", href: `https://phantom.app/ul/browse/${url}?ref=${ref}` },
+    { name: "Solflare", href: `https://solflare.com/ul/v1/browse/${url}?ref=${ref}` },
+  ];
+  return (
+    <div className="mt-4 text-[14px] text-ink-soft">
+      Not connecting? Open this page inside your wallet app instead:{" "}
+      {links.map((l, i) => (
+        <span key={l.name}>
+          {i > 0 && " · "}
+          <a className="font-semibold text-leaf hover:text-leaf-hover" href={l.href}>
+            {l.name}
+          </a>
+        </span>
+      ))}
+      . In Backpack, open its browser tab and paste this page&apos;s address.
+    </div>
   );
 }

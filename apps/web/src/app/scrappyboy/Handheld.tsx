@@ -69,6 +69,7 @@ export function Handheld() {
   const { publicKey, sendTransaction, signTransaction, disconnect, connecting, wallet } = useWallet();
   // The last thing the wallet refused, shown under the console instead of vanishing into devtools.
   const [walletErr, setWalletErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     const on = (e: Event) => setWalletErr(String((e as CustomEvent).detail ?? ""));
     window.addEventListener(WALLET_ERROR_EVENT, on);
@@ -254,6 +255,25 @@ export function Handheld() {
               {playKey.slice(0, 4)}…{playKey.slice(-4)}
             </a>
             , this device&apos;s play key. Every move below signed on-device: no popups.
+          </p>
+        )}
+        {playKey && isDevnet && (
+          <p className={styles.slot2}>
+            No wallet needed on devnet: send test SOL straight to the play key.{" "}
+            <button
+              type="button"
+              className={styles.linkish}
+              onClick={() => {
+                void navigator.clipboard?.writeText(playKey).then(() => setCopied(true), () => setCopied(false));
+              }}
+            >
+              {copied ? "Address copied" : "Copy its address"}
+            </button>
+            , then paste it at{" "}
+            <a href="https://faucet.solana.com" target="_blank" rel="noreferrer">
+              faucet.solana.com
+            </a>{" "}
+            (devnet, 1 SOL) and come back.
           </p>
         )}
         {txs.map((t) => (
