@@ -10,6 +10,9 @@ import { BTN_A, BTN_B, BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP, BTN_X, type Input 
  * Data: Jupiter (verified tokens, official logos, prices) and GeckoTerminal (1-minute candles).
  */
 
+/** Shown when A is pressed with an empty coin slot and no wallet; cleared as soon as one connects. */
+const CONNECT_FIRST = "empty coin slot - connect a wallet, then press A again to load a coin";
+
 export const MEME_W = 640;
 export const MEME_H = 576;
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -152,6 +155,8 @@ export class MemeDash {
 
   setWallet(w: MemeWallet): void {
     this.wallet = w;
+    // The connect prompt was shown as a blocker; once a wallet is in, it no longer applies.
+    if (w.topUp && this.error === CONNECT_FIRST) this.error = null;
     if (w.devnet !== undefined && w.devnet !== this.devnet) {
       this.devnet = w.devnet;
       this.coins = []; // roster differs per network: reload
@@ -321,7 +326,7 @@ export class MemeDash {
         // Empty coin slot: the real wallet signs one top-up, the swap itself signs silently.
         if (!this.wallet.topUp) {
           this.wallet.connect?.();
-          throw new Error("empty coin slot - pick a wallet to load a coin");
+          throw new Error(CONNECT_FIRST);
         }
         this.busy = "INSERTING COIN";
         const sig = await this.wallet.topUp(need + BigInt(2_000_000));

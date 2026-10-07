@@ -18,7 +18,7 @@ const explorer = (sig: string) =>
  * plus a challenge link that carries the score. Phone share sheet first, X as the fallback.
  */
 async function shareRun(screen: HTMLCanvasElement, run: { score: number; best: number; creature: string; level: number; combo: number }, myName = "") {
-  const url = `${window.location.origin}/scrappyboy?beat=${run.score}${myName ? `&vs=${encodeURIComponent(myName)}` : ""}`;
+  const url = `${window.location.origin}/scrappyboy?net=devnet&beat=${run.score}${myName ? `&vs=${encodeURIComponent(myName)}` : ""}`;
   const text = `I scored ${run.score} on SCRAPPY BOY riding the live SOL price with ${run.creature} (level ${run.level}, combo ${run.combo}). Beat me:`;
   const card = document.createElement("canvas");
   card.width = 1080;
@@ -65,7 +65,7 @@ export function Handheld() {
   const [isDevnet, setIsDevnet] = useState(
     () => typeof window === "undefined" || new URLSearchParams(window.location.search).get("net") === "devnet",
   );
-  const { publicKey, sendTransaction, disconnect } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, disconnect } = useWallet();
   const picker = useWalletPicker();
   const pickerRef = useRef(picker);
   const disconnectRef = useRef(disconnect);
@@ -143,7 +143,7 @@ export function Handheld() {
         .then((b) => gameRef.current?.setSeeker(b > BigInt(0)))
         .catch(() => {});
     }
-    const bank = publicKey && sendTransaction ? { key: publicKey, send: sendTransaction } : null;
+    const bank = publicKey && sendTransaction ? { key: publicKey, send: sendTransaction, sign: signTransaction } : null;
     gameRef.current?.setMemeWallet({
       address: session.address,
       devnet,
@@ -162,9 +162,37 @@ export function Handheld() {
       // Insert coin: the only signature the real wallet ever does, one transfer into the play key.
       topUp: bank
         ? async (lamports) => {
+            // Check the wallet can pay before asking it to sign. An empty wallet otherwise sits on a
+            // spinner inside the wallet popup, and the console only learns about it 90 s later.
+            const have = BigInt(await conn.getBalance(bank.key));
+            if (have < lamports + BigInt(10_000)) {
+              const sol = (Number(lamports) / 1e9).toFixed(3);
+              throw new Error(
+                devnet
+                  ? `your wallet has ${(Number(have) / 1e9).toFixed(3)} devnet sol, needs ${sol}. switch the wallet to devnet and get free test sol at faucet.solana.com`
+                  : `your wallet has ${(Number(have) / 1e9).toFixed(3)} sol, needs ${sol} sol`,
+              );
+            }
             const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: bank.key, toPubkey: session.keypair.publicKey, lamports }));
             tx.feePayer = bank.key;
-            tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+            const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
+            tx.recentBlockhash = blockhash;
+            // Ask the wallet only to sign, then broadcast here on the cluster the console is
+            // playing on. Letting the wallet send means it sends on whatever network it is set to,
+            // which for a devnet top-up from a mainnet-set wallet never lands.
+            if (bank.sign) {
+              const signed = await bank.sign(tx);
+              const sig = await conn.sendRawTransaction(signed.serialize());
+              // Poll over HTTP: websocket confirmation hangs on the public devnet endpoint.
+              for (let i = 0; i < 60; i++) {
+                const st = (await conn.getSignatureStatuses([sig])).value[0];
+                if (st?.err) throw new Error("the top-up failed on-chain");
+                if (st?.confirmationStatus === "confirmed" || st?.confirmationStatus === "finalized") return sig;
+                if (i % 10 === 9 && (await conn.getBlockHeight()) > lastValidBlockHeight) throw new Error("the top-up expired, press A again");
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              throw new Error("the top-up was not confirmed in 60 s");
+            }
             return bank.send(tx, conn);
           }
         : undefined,
@@ -173,7 +201,7 @@ export function Handheld() {
       connect: () => pickerRef.current.open(),
       onTx: (label, sig) => setTxs((t) => [{ label, sig: devnet ? sig : `main:${sig}` }, ...t].slice(0, 8)),
     });
-  }, [ready, publicKey, sendTransaction]);
+  }, [ready, publicKey, sendTransaction, signTransaction]);
 
   return (
     <main className={styles.room}>
