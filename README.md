@@ -305,8 +305,7 @@ would hold it in the device keystore instead.
 | TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
 | The site linked here runs this repo's latest commit | **Yes.** — The deployment is built from the branch head |
 | The installed APK opens this site | **Yes.** — Rebuilt as version 0.2.0: the APK's launch URL is `https://combative-wren-430.convex.site/scrappyboy?net=devnet`, and `assetlinks.json` carries its signing fingerprint `B8:85:85:F7…7C:52`, so it opens full screen with no browser bar. Phones with the older build must uninstall it first: the new build is signed with a new key |
-| The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
-| No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
+| MEME DASH on devnet | **Mirror mode, labelled.** — Devnet has no real market, so the free cart shows the live mainnet roster, prices and 1-minute candles. Pressing A is a real devnet swap into the test dollar ([buy `3CseWM2Y…`](https://explorer.solana.com/tx/3CseWM2YEaU5iqHRQ5HoGdR1hYx4eo5zG2m3ewxuo7oDr3UcDhDBmoyinWSiWoo3cxgibJjxTmX9NZc7vHns4JiX?cluster=devnet), [sell `46Hn6N8B…`](https://explorer.solana.com/tx/46Hn6N8BqCtHaLKfRb9PbkPEurhky5pMUPFrLhYLsGT2EuzLvhCYeqTj5mua8UrDgCS6TXDjXeJES8qsJDQFZGKJ?cluster=devnet)); the gain or loss and the auto-sell lines follow the coin's real price. The chart, the position line and the result screen all say "price mirrors mainnet" |
 | Phone wallets connect | **Yes, on the Convex host.** — Backpack and Jupiter on Android never connected while the site lived on a fresh `vercel.app` subdomain, with no warning shown; the same build on `combative-wren-430.convex.site` connects. Wallet scanners judge shared hosting suffixes, not the page |
 | License | **MIT.** — See [LICENSE](LICENSE) |
 
@@ -344,7 +343,8 @@ needs rebuilding when the site changes.
 - The devnet faucet is dry, so a new player cannot get test SOL from inside the console right now.
 - DEEP NET depends on live devnet liquidity. When those pools are empty, there is nothing to cast,
   and the map says so instead of inventing a pin.
-- One coin exists on devnet. The interesting roster only exists on mainnet.
+- On devnet, MEME DASH's gain or loss is mirrored from the coin's mainnet price; the devnet swap itself
+  moves the test dollar, not the coin. Only mainnet MEME DASH holds the real coin.
 - No sound design pass yet: the console is muted on purpose rather than playing something unfinished.
 
 ## Security

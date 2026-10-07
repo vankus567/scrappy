@@ -186,13 +186,8 @@ export class MemeDash {
 
   private async loadCoins(): Promise<void> {
     this.scene = "loading";
-    if (this.devnet) {
-      // Devnet is one honest coin: devUSDC on the Orca devnet pool.
-      this.coins = [{ mint: DEV_USDC_MINT, symbol: "USDC", name: "devnet dollar", icon: null, decimals: 6, price: 1, change24h: 0 }];
-      this.scene = "pick";
-      this.idx = 0;
-      return;
-    }
+    // Devnet has no real market, so it shows the same live mainnet roster: the coin, its price and
+    // its candles are real mainnet data, and the trade itself is a real swap on the devnet pool.
     try {
       type Tok = { id: string; symbol: string; name: string; icon?: string; decimals: number; isVerified?: boolean; liquidity?: number; organicScoreLabel?: string };
       // Two live feeds: Jupiter's most-traded today + GeckoTerminal's trending
@@ -261,12 +256,6 @@ export class MemeDash {
   }
 
   private async loadCandles(c: Coin): Promise<void> {
-    // Devnet has no candle feed, and its only coin is a test dollar. The chart draws its live
-    // price instead of a history; nothing is invented to fill the gap.
-    if (this.devnet) {
-      this.candles = [];
-      return;
-    }
     if (!c.pool) {
       const pools = await json<{ data: { attributes: { address: string } }[] }>(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${c.mint}/pools?page=1`);
       c.pool = pools.data[0]?.attributes.address;
@@ -337,8 +326,10 @@ export class MemeDash {
       }
       if (this.devnet) {
         if (!this.wallet.devSwap) throw new Error("devnet swaps are not wired on this build");
+        // Mirror mode: the swap is a real devnet trade into the test dollar; the position is priced
+        // off the coin's live mainnet price, which the screen and the log both say.
         const { sig, out } = await this.wallet.devSwap(SOL_MINT, lamports);
-        this.wallet.onTx?.(`buy USDC ($${stake.usd} devnet)`, sig);
+        this.wallet.onTx?.(`buy ${c.symbol} mirror ($${stake.usd} devnet swap)`, sig);
         this.pos = { coin: c, entry, usd: stake.usd!, tokens: out };
         this.coinBal = null;
         return;
@@ -378,13 +369,25 @@ export class MemeDash {
     if (!p) return;
     this.run("SELLING", async () => {
       // Sell the balance the wallet actually holds, not the quote estimate.
-      const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(p.coin.mint) : p.tokens;
+      // On devnet the purse holds the test dollar the mirror buy swapped into, not the coin itself.
+      const purseMint = this.devnet ? DEV_USDC_MINT : p.coin.mint;
+      const held = this.wallet.tokenBalance ? await this.wallet.tokenBalance(purseMint) : p.tokens;
       if (held <= BigInt(0)) throw new Error(`no ${p.coin.symbol} in the coin purse yet - wait a few seconds and press A again`);
       const before = this.wallet.solBalance ? await this.wallet.solBalance() : null;
       const { sig } = this.devnet
         ? await this.wallet.devSwap!(DEV_USDC_MINT, held)
         : await this.jupSwap(p.coin.mint, SOL_MINT, held);
-      this.wallet.onTx?.(`sell ${p.coin.symbol}`, sig);
+      this.wallet.onTx?.(this.devnet ? `sell ${p.coin.symbol} mirror (devnet swap)` : `sell ${p.coin.symbol}`, sig);
+      if (this.devnet) {
+        // The score of a mirror trade is the coin's real price move over the hold, not the devnet
+        // pool's (it barely moves); the result screen labels it as mirrored.
+        const pct = this.live(p.coin) / p.entry - 1;
+        this.result = { text: pct >= 0 ? "NICE CATCH!" : "OUCH!", pnl: p.usd * pct, pct, why: `${why} · mirrored price` };
+        this.pos = null;
+        this.scene = "result";
+        this.coinBal = null;
+        return;
+      }
       // The result is the SOL that really landed (minus fees), priced in USD - not an estimate.
       let usdOut: number | null = null;
       if (before !== null && this.wallet.solBalance && this.sol) {
@@ -732,9 +735,9 @@ export class MemeDash {
         this.text(`${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(1)}% on your ${fmtUsd(pos.usd)}`, 152, 494, 24, C.dim, "left", 600);
         this.pill(MEME_W - 258, 428, 238, 84, C.down);
         this.text("A / B  SELL", MEME_W - 139, 470, 34, C.ink, "center");
-        this.text("Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 20, C.dim, "center", 600);
+        this.text(this.devnet ? "Mainnet price, devnet swap. Safety -8%, treasure +15%." : "Safety net sells at -8%. Treasure sells at +15%.", MEME_W / 2, 546, 20, C.dim, "center", 600);
       } else if (this.scene === "chart") {
-        if (this.devnet && this.candles.length === 0) this.text("test dollar - no candle feed on devnet", MEME_W / 2, 404, 18, C.dim, "center", 600);
+        if (this.devnet) this.text("devnet swap · price mirrors mainnet", MEME_W / 2, 404, 18, C.dim, "center", 600);
         this.text("How much?", 24, 434, 24, C.dim, "left", 600);
         this.stakes.forEach((s, i) => {
           const sel = i === this.stakeIdx;
