@@ -259,7 +259,10 @@ holds still with no input, and a jellyfish 14 px away does no damage while one o
 it could not pay for, or on a network it was not set to, and sat on a spinner. The console now
 checks the wallet's balance first and says how much it needs, asks the wallet only to sign, and
 sends the transaction itself on the network the console is playing on. No USDC is ever needed: the
-top-up is SOL.
+top-up is SOL. On Android phones the wallet connects through Mobile Wallet Adapter, which was offered
+both clusters and picked mainnet by default, so a devnet game held a mainnet session. It is now
+offered only the cluster the page plays on (verified: the registered wallet advertises
+`solana:devnet` on `?net=devnet`), and whatever the wallet refuses is printed under the console.
 
 **The cast size was larger than the devnet pools could absorb.** The net was cast at 0.2 SOL, which
 splits to 0.1 a side. On a devnet pool holding a few tens of dollars, that swap runs past the
