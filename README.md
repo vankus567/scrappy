@@ -307,6 +307,7 @@ would hold it in the device keystore instead.
 | The installed APK opens this site | **Yes.** — Rebuilt as version 0.2.0: the APK's launch URL is `https://combative-wren-430.convex.site/scrappyboy?net=devnet`, and `assetlinks.json` carries its signing fingerprint `B8:85:85:F7…7C:52`, so it opens full screen with no browser bar. Phones with the older build must uninstall it first: the new build is signed with a new key |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
+| Phone wallets connect | **Yes, on the Convex host.** — Backpack and Jupiter on Android never connected while the site lived on a fresh `vercel.app` subdomain, with no warning shown; the same build on `combative-wren-430.convex.site` connects. Wallet scanners judge shared hosting suffixes, not the page |
 | License | **MIT.** — See [LICENSE](LICENSE) |
 
 ## Attack → test
