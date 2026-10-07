@@ -8,8 +8,8 @@ import { SPRITES } from "./sprites";
 import { MemeDash, type MemeWallet } from "./meme";
 
 /**
- * SCRAPPY BOY. An endless arcade round on the REAL live SOL price: your creature rides the price line,
- * you steer the net to keep it inside, catch pearls, dodge jellyfish, build combos. Points are points,
+ * SCRAPPY BOY. An endless arcade round on the REAL live SOL price: the net rides the price line,
+ * you steer your creature to stay inside it, catch pearls, dodge jellyfish, build combos. Points are points,
  * never money. After a good run you can put a real net (an Orca liquidity position on devnet, signed by
  * your own wallet) into the sea: the same skill, now earning real fees.
  */
@@ -21,6 +21,8 @@ const HATCH_SOL = 0.02;
 const FED = BigInt(50_000_000);
 const PX_PER_FRAME = 0.5; // the price line scrolls ~15 px/s: about 9 s of real price on screen
 const CREATURE_X = 100;
+/** Half-height of the creature's body for pearls and jellyfish: they hit the creature, not the net. */
+const BODY = 5;
 const LEVEL_FRAMES = FPS * 20;
 
 type Scene = "boot" | "insert" | "card" | "pick" | "round" | "results" | "map" | "range" | "disk";
@@ -173,8 +175,8 @@ export class ScrappyBoy {
       t: this.t,
       creature: this.pick,
       creatureX: CREATURE_X,
-      creatureY: cy,
-      netY: this.netY,
+      creatureY: this.netY,
+      netY: cy,
       netHalf: h,
       inside: Math.abs(cy - this.netY) <= h,
       whale: this.whaleF > 0,
@@ -410,7 +412,7 @@ export class ScrappyBoy {
     this.sparks = [];
     this.pops = [];
     this.whaleF = 0;
-    this.banner = { text: "KEEP ME IN THE NET!", life: 60, col: WHITE };
+    this.banner = { text: "SWIM INTO THE NET!", life: 60, col: WHITE };
     this.scene = "round";
     this.con.playm(1, true);
   }
@@ -483,7 +485,7 @@ export class ScrappyBoy {
       this.hi += shift;
     }
 
-    // steer the net
+    // steer the creature (netY is the creature's height; the net itself is centred on the price)
     const speed = inp.btn(BTN_A) ? 3.2 : 1.9; // hold A to swim faster
     if (inp.btn(BTN_UP)) this.netY -= speed;
     if (inp.btn(BTN_DOWN)) this.netY += speed;
@@ -523,7 +525,7 @@ export class ScrappyBoy {
     if (this.roundF > FPS * 4 && this.roundF % jellyEvery === 0) {
       // Jellyfish belong in the water the net has to cover. Spawning them anywhere on the screen
       // meant most drifted harmlessly past and the round played itself.
-      const spread = h + 34;
+      const spread = h + 12;
       this.things.push({ x: SCREEN_W + 4, y: Math.max(20, Math.min(SCREEN_H - 20, cy + (Math.random() - 0.5) * spread * 2)), kind: "jelly", phase: Math.random() * 6 });
     }
 
@@ -533,7 +535,8 @@ export class ScrappyBoy {
       th.phase += 0.1;
       const ty = th.y + (th.kind === "jelly" ? Math.sin(th.phase) * 6 : Math.sin(th.phase) * 1.5);
       if (th.x <= CREATURE_X + 6 && th.x >= CREATURE_X - 2) {
-        const inNet = Math.abs(ty - this.netY) <= h + (th.kind === "jelly" ? 0 : magnet);
+        // Pearls and jellyfish meet the creature's body, so dodging a jellyfish is a real move.
+        const inNet = Math.abs(ty - this.netY) <= BODY + (th.kind === "jelly" ? 0 : magnet);
         if (inNet && th.kind !== "jelly") {
           const worth = (th.kind === "gold" ? 25 : 5) * this.mult;
           this.score += worth;
@@ -884,9 +887,9 @@ export class ScrappyBoy {
     const inside = Math.abs(cy - this.netY) <= h;
     const whale = this.whaleF > 0;
 
-    // the net: a lit band across the whole sea
-    const top = Math.round(this.netY - h);
-    const bot = Math.round(this.netY + h);
+    // the net: a lit band across the whole sea, riding the live price
+    const top = Math.round(cy - h);
+    const bot = Math.round(cy + h);
     for (let y = top; y <= bot; y += 3) for (let x = ((y / 3) % 2) * 2; x < SCREEN_W; x += 4) s.pset(x, y, inside ? TEAL : BLUE);
     s.line(0, top, SCREEN_W, top, inside ? (whale ? GOLD : MINT) : PINK);
     s.line(0, bot, SCREEN_W, bot, inside ? (whale ? GOLD : MINT) : PINK);
@@ -897,7 +900,9 @@ export class ScrappyBoy {
     for (let i = 1; i < n; i++) {
       const x0 = CREATURE_X + 5 - (n - i);
       if (x0 < -2) continue;
-      s.line(x0, this.py(this.trail[i - 1]!), x0 + 1, this.py(this.trail[i]!), i > n - 40 ? WHITE : GREY);
+      // The sea is pale, so the live end of the price line is drawn dark: in white it vanished
+      // and the net looked as if it floated free of any price.
+      s.line(x0, this.py(this.trail[i - 1]!), x0 + 1, this.py(this.trail[i]!), i > n - 40 ? INK : GREY);
     }
 
     // pearls and jellyfish
@@ -911,16 +916,17 @@ export class ScrappyBoy {
         if (this.t % 10 < 5) s.pset(Math.round(th.x) + 4, ty - 4, WHITE);
       } else {
         s.circ(Math.round(th.x), ty, 2, WHITE);
+        s.circb(Math.round(th.x), ty, 2, BLUE);
         s.pset(Math.round(th.x) - 1, ty - 1, SKY);
       }
     }
 
-    // creature rides the price
+    // the creature is the player: it goes where the d-pad sends it, nowhere else
     const flash = this.shake > 0 && this.t % 2 === 0;
-    if (!flash) this.sprite(CREATURE_X - 6, cy - 4, c.sx);
+    if (!flash) this.sprite(CREATURE_X - 6, Math.round(this.netY) - 4, c.sx);
     for (const sp of this.sparks) s.pset(Math.round(sp.x), Math.round(sp.y), sp.col);
     }
-    if (Math.abs(this.py(this.shown) - this.netY) > this.netHalf() && this.t % 16 < 10) this.outlined(CREATURE_X - 14, this.py(this.shown) - 13, "HELP!", PINK);
+    if (Math.abs(this.py(this.shown) - this.netY) > this.netHalf() && this.t % 16 < 10) this.outlined(CREATURE_X - 14, Math.round(this.netY) - 13, "HELP!", PINK);
 
     for (const p of this.pops) this.outlined(Math.round(p.x - p.text.length * 2), Math.round(p.y), p.text, p.col);
 
@@ -931,10 +937,11 @@ export class ScrappyBoy {
     s.text2(3, 0, `${this.score}`, WHITE, 9);
     const m = `X${this.mult}`;
     s.text2(44, 0, m, this.whaleF > 0 ? GOLD : this.combo >= 10 ? MINT : GREY, 9);
-    s.rect(64, 3, 40, 4, PLUM);
-    s.rect(64, 3, Math.round(Math.max(0, this.hp) * 0.4), 4, this.hp > 35 ? MINT : PINK);
-    s.text2(108, 0, this.beat && !this.beatDone ? `>${this.beat}` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN, 9);
-    s.text2(SCREEN_W - 3, 0, `$${this.live.toFixed(2)}`, GOLD, 9, "right");
+    // Narrower health bar and no "$" so the level and the live price never overprint each other.
+    s.rect(60, 3, 32, 4, PLUM);
+    s.rect(60, 3, Math.round(Math.max(0, this.hp) * 0.32), 4, this.hp > 35 ? MINT : PINK);
+    s.text2(95, 0, this.beat && !this.beatDone ? `>${this.beat}` : `LV${this.level}`, this.beat && !this.beatDone ? ORANGE : CORN, 9);
+    s.text2(SCREEN_W - 3, 0, this.live.toFixed(2), GOLD, 9, "right");
 
     if (this.banner) {
       const w = this.banner.text.length * 5 + 10;
@@ -959,7 +966,7 @@ export class ScrappyBoy {
       case "boot": {
         this.sea();
         this.bigCenter(26, "SCRAPPY BOY", GOLD, 3);
-        this.center(50, "KEEP THE PRICE IN YOUR NET", WHITE);
+        this.center(50, "SWIM INSIDE THE GREEN NET", WHITE);
         CREATURES.forEach((c, i) => this.sprite(26 + i * 40, 70 + Math.round(Math.sin((this.t + i * 20) / 10) * 3), c.sx, 2, i === 2));
         if (this.t % 30 < 20) this.center(104, "PRESS A", WHITE);
         if (this.beat) this.center(116, `BEAT ${this.vsName || "A FRIEND"}'S ${this.beat}!`, this.t % 30 < 20 ? GOLD : ORANGE);
@@ -1047,7 +1054,7 @@ export class ScrappyBoy {
         s.text2(88, 54, `LEVEL ${this.level}`, WHITE, 8);
         s.text2(16, 66, `MAX COMBO ${this.maxCombo}`, MINT, 8);
         s.text2(88, 66, `PEARLS ${this.pearls}`, WHITE, 8);
-        s.text2(16, 78, `PRICE IN NET ${pct}%`, pct >= 70 ? MINT : PINK, 8);
+        s.text2(16, 78, `TIME IN NET ${pct}%`, pct >= 70 ? MINT : PINK, 8);
         s.line(16, 88, 144, 88, PLUM);
         s.text2(16, 92, "THAT WAS LIQUIDITY PROVIDING:", GREY, 7);
         s.text2(16, 101, "KEEP PRICE IN RANGE, EARN FEES.", GREY, 7);

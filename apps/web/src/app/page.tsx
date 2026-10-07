@@ -51,8 +51,8 @@ export default function Home() {
           </div>
           <figure className="mt-10 w-full max-w-md rounded-2xl bg-ground-deep px-5 py-4 text-left shadow-[0_6px_16px_-8px_rgba(29,29,31,0.5)]">
             <figcaption className="text-[12px] text-ink-faint">How a round goes</figcaption>
-            <p className="mt-1.5 text-[15px] leading-snug">Your creature rides the live SOL price</p>
-            <p className="mt-2 text-[17px] leading-snug text-ink">Steer the net. Catch pearls. Dodge jellyfish.</p>
+            <p className="mt-1.5 text-[15px] leading-snug">The net rides the live SOL price</p>
+            <p className="mt-2 text-[17px] leading-snug text-ink">Swim to stay in it. Catch pearls. Dodge jellyfish.</p>
             <p className="mt-3 text-[13px] text-ink-soft">Combos up to x8 · levels speed up · WHALE WAVE on big moves</p>
           </figure>
           <div className="mt-3 flex w-full max-w-md items-end gap-3 text-left">
@@ -123,7 +123,7 @@ export default function Home() {
           </p>
           <div className="mt-16 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {[
-              { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless round riding the live SOL price. Keep your creature in the net, stack combos, chase the day's best." },
+              { who: "finn" as const, bg: "bg-white", t: "Play", d: "An endless round riding the live SOL price. Swim your creature inside the net, stack combos, chase the day's best." },
               { who: "shelly" as const, bg: "bg-white", t: "Cast a net", d: "Pick a spot on the sea map and press A. The net is your money, parked where other people trade." },
               { who: "zip" as const, bg: "bg-white", t: "Collect", d: "Every trade that swims through your net pays you a little. Press A and it drops into your purse." },
             ].map((s) => (
@@ -155,7 +155,7 @@ export default function Home() {
             <figcaption className="text-[12px] text-on-night-soft">After a run</figcaption>
             <Critter who="shelly" frame={1} className="hero-pet mx-auto mt-2 w-36" title="Shelly the turtle" />
             <p className="mt-3 text-center font-display tracking-[-0.005em] text-2xl">1,240 points · combo x8</p>
-            <p className="mt-1 text-center text-[14px] text-on-night-soft">Price in the net 86% · then one tap to cast it for money</p>
+            <p className="mt-1 text-center text-[14px] text-on-night-soft">Time in the net 86% · then one tap to cast it for money</p>
           </figure>
         </div>
       </section>
