@@ -3,6 +3,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, SystemProgram, Transaction } from "@solana/web3.js";
 import { useEffect, useRef, useState } from "react";
+import { WALLET_ERROR_EVENT } from "@/components/wallet/ScrappyWalletProvider";
 import { useWalletPicker } from "@/components/wallet/WalletPicker";
 import { Console, type Input } from "@/lib/console";
 import type { ScrappyBoy } from "@/lib/scrappyboy/game";
@@ -65,7 +66,14 @@ export function Handheld() {
   const [isDevnet, setIsDevnet] = useState(
     () => typeof window === "undefined" || new URLSearchParams(window.location.search).get("net") === "devnet",
   );
-  const { publicKey, sendTransaction, signTransaction, disconnect } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, disconnect, connecting, wallet } = useWallet();
+  // The last thing the wallet refused, shown under the console instead of vanishing into devtools.
+  const [walletErr, setWalletErr] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setWalletErr(String((e as CustomEvent).detail ?? ""));
+    window.addEventListener(WALLET_ERROR_EVENT, on);
+    return () => window.removeEventListener(WALLET_ERROR_EVENT, on);
+  }, []);
   const picker = useWalletPicker();
   const pickerRef = useRef(picker);
   const disconnectRef = useRef(disconnect);
@@ -226,8 +234,11 @@ export function Handheld() {
                 Eject
               </button>
             </>
+          ) : connecting ? (
+            <>Opening {wallet?.adapter.name ?? "your wallet"}… approve the connection there.</>
           ) : (
             <>
+              {walletErr ? <>Wallet said: “{walletErr.slice(0, 140)}”. </> : null}
               No wallet connected.{" "}
               <button type="button" className={styles.linkish} onClick={() => picker.open()}>
                 Connect a wallet
