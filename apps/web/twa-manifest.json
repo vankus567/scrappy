@@ -1,6 +1,6 @@
 {
   "packageId": "app.scrappypet",
-  "host": "scrappy-plum-gamma.vercel.app",
+  "host": "combative-wren-430.convex.site",
   "name": "SCRAPPY BOY",
   "launcherName": "SCRAPPY BOY",
   "display": "standalone",
@@ -14,18 +14,18 @@
   "backgroundColor": "#f5f5f7",
   "enableNotifications": false,
   "startUrl": "/scrappyboy?net=devnet",
-  "iconUrl": "https://scrappy-plum-gamma.vercel.app/icon-512.png",
-  "maskableIconUrl": "https://scrappy-plum-gamma.vercel.app/icon-512.png",
+  "iconUrl": "https://combative-wren-430.convex.site/icon-512.png",
+  "maskableIconUrl": "https://combative-wren-430.convex.site/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android.keystore",
     "alias": "scrappy"
   },
-  "appVersionName": "0.2.0",
-  "appVersionCode": 2,
+  "appVersionName": "0.3.0",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://scrappy-plum-gamma.vercel.app/manifest.webmanifest",
+  "webManifestUrl": "https://combative-wren-430.convex.site/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -34,9 +34,9 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://scrappy-plum-gamma.vercel.app/",
+  "fullScopeUrl": "https://combative-wren-430.convex.site/",
   "minSdkVersion": 21,
   "orientationLock": false,
   "retainedBundles": [],
-  "appVersion": "0.2.0"
+  "appVersion": "0.3.0"
 }

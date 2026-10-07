@@ -5,11 +5,11 @@
 ### Trading apps have 47 buttons and a textbook of words. This one has four.
 
 [![tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)](https://github.com/vankus567/scrappy)
-[![live](https://img.shields.io/badge/live-scrappy--plum--gamma.vercel.app-blue)](https://scrappy-plum-gamma.vercel.app/scrappyboy)
+[![live](https://img.shields.io/badge/live-combative--wren--430.convex.site-blue)](https://combative-wren-430.convex.site/scrappyboy)
 [![stack](https://img.shields.io/badge/stack-Next.js%2016%20%C2%B7%20React%2019%20%C2%B7%20Bun-black)](https://github.com/vankus567/scrappy)
 [![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/vankus567/scrappy/blob/main/LICENSE)
 
-[Play it](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) · [Download the APK](https://scrappy-plum-gamma.vercel.app/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
+[Play it](https://combative-wren-430.convex.site/scrappyboy?net=devnet) · [Download the APK](https://combative-wren-430.convex.site/scrappy.apk) · [Run it](#-see-it-in-one-command) · [Honesty table](#whats-real-vs-pending--the-honesty-table)
 
 </div>
 
@@ -31,8 +31,8 @@ ONE WALLET SIGNATURE  →  EVERY MOVE AFTER IT SIGNED ON DEVICE
 
 | Surface | Status | The evidence |
 |---|---|---|
-| The console | **live** — | [scrappy-plum-gamma.vercel.app/scrappyboy](https://scrappy-plum-gamma.vercel.app/scrappyboy) returns 200 |
-| Free devnet demo | **live** — | [?net=devnet](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) ; the landing's Play button points here |
+| The console | **live** — | [combative-wren-430.convex.site/scrappyboy](https://combative-wren-430.convex.site/scrappyboy) returns 200 |
+| Free devnet demo | **live** — | [?net=devnet](https://combative-wren-430.convex.site/scrappyboy?net=devnet) ; the landing's Play button points here |
 | Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,106,092 bytes, package `app.scrappypet` v0.2.0, opens the devnet console |
 | App-link handshake | **live** — | `/.well-known/assetlinks.json` returns 200 with the APK's SHA-256 fingerprint |
 | Chain moves | **verified** — | Eleven devnet transactions read back from the chain, all `err: null`, play key as fee payer |
@@ -51,7 +51,7 @@ Solana either way.
 ## ▶ See it in one command
 
 The free path, with nothing to install and no wallet. Open
-[scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet),
+[combative-wren-430.convex.site/scrappyboy?net=devnet](https://combative-wren-430.convex.site/scrappyboy?net=devnet),
 press START, pick MEME DASH, pick $1, press A. That is a real Orca swap on devnet:
 
 ```
@@ -304,7 +304,7 @@ would hold it in the device keystore instead.
 | Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
 | TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
 | The site linked here runs this repo's latest commit | **Yes.** — The deployment is built from the branch head |
-| The installed APK opens this site | **Yes.** — Rebuilt as version 0.2.0: the APK's launch URL is `https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet`, and `assetlinks.json` carries its signing fingerprint `B8:85:85:F7…7C:52`, so it opens full screen with no browser bar. Phones with the older build must uninstall it first: the new build is signed with a new key |
+| The installed APK opens this site | **Yes.** — Rebuilt as version 0.2.0: the APK's launch URL is `https://combative-wren-430.convex.site/scrappyboy?net=devnet`, and `assetlinks.json` carries its signing fingerprint `B8:85:85:F7…7C:52`, so it opens full screen with no browser bar. Phones with the older build must uninstall it first: the new build is signed with a new key |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
 | License | **MIT.** — See [LICENSE](LICENSE) |
@@ -387,7 +387,7 @@ cd apps/web && bun scripts/savecard-e2e.ts                           # live devn
 
 ## How I'd deploy it
 
-The site is a Next.js app deployed to Vercel, aliased to the public domain. The Android artifact is
+The site is a Next.js static export hosted on Convex (`cd apps/web && bun run build:static && bun run deploy:convex`). `convex/http.ts` serves what a static export cannot: the mainnet RPC proxy at `/api/rpc`, the coin-icon proxy at `/api/icon`, the clean `/scrappyboy` URL, the APK with its Android content type, and `/_next/*` so the Orca SDK's WebAssembly is served as `application/wasm` (served as a generic binary, the browser refuses to compile it and the console never boots). The Android artifact is
 built with Bubblewrap as a Trusted Web Activity and the signed APK is copied into the web app's
 public folder so the landing can serve it; `assetlinks.json` ties that signature to the domain, and
 must match the keystore used for the build or the app opens with a browser bar instead of full

@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:static": "bash scripts/build-static.sh",
+    "deploy:convex": "npx convex deploy --yes && npx @convex-dev/static-hosting upload --dist ./dist --prod --no-spa"
   },
   "dependencies": {
+    "@convex-dev/static-hosting": "^0.2.1",
     "@orca-so/whirlpools": "^8.0.1",
     "@orca-so/whirlpools-client": "^7.0.0",
     "@phosphor-icons/react": "^2.1.10",
@@ -22,6 +25,7 @@
     "@solana/web3.js": "^1.99.0",
     "@wallet-standard/app": "^1.1.1",
     "@wallet-standard/base": "^1.1.1",
+    "convex": "^1.46.0",
     "motion": "^13.4.3",
     "next": "16.3.6",
     "react": "19.2.8",
