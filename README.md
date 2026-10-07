@@ -33,7 +33,7 @@ ONE WALLET SIGNATURE  →  EVERY MOVE AFTER IT SIGNED ON DEVICE
 |---|---|---|
 | The console | **live** — | [scrappy-plum-gamma.vercel.app/scrappyboy](https://scrappy-plum-gamma.vercel.app/scrappyboy) returns 200 |
 | Free devnet demo | **live** — | [?net=devnet](https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet) ; the landing's Play button points here |
-| Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,101,555 bytes, package `app.scrappypet` |
+| Android build | **served** — | `GET /scrappy.apk` → 200, `application/vnd.android.package-archive`, 1,106,092 bytes, package `app.scrappypet` v0.2.0, opens the devnet console |
 | App-link handshake | **live** — | `/.well-known/assetlinks.json` returns 200 with the APK's SHA-256 fingerprint |
 | Chain moves | **verified** — | Eleven devnet transactions read back from the chain, all `err: null`, play key as fee payer |
 | Test suite | **39 pass, 0 fail** — | `bun run verify` (typecheck, lint, tests) |
@@ -304,7 +304,7 @@ would hold it in the device keystore instead.
 | Mainnet MEME DASH | **Wired, not verified here.** — It needs real funds to exercise, so this audit did not touch it |
 | TEST SOL faucet | **Broken by the network.** — The public devnet faucet answered 429 for every request; until it refills, that button cannot work for anyone, and the console now says exactly that instead of showing the raw error |
 | The site linked here runs this repo's latest commit | **Yes.** — The deployment is built from the branch head |
-| The installed APK opens this site | **No.** — The APK's start URL is baked into the signed binary and points at the older domain; changing it needs a rebuild with the same signing key |
+| The installed APK opens this site | **Yes.** — Rebuilt as version 0.2.0: the APK's launch URL is `https://scrappy-plum-gamma.vercel.app/scrappyboy?net=devnet`, and `assetlinks.json` carries its signing fingerprint `B8:85:85:F7…7C:52`, so it opens full screen with no browser bar. Phones with the older build must uninstall it first: the new build is signed with a new key |
 | The devnet coin's price | **A fixed $1**, because it is a test dollar. It is not a market read |
 | No candle history on devnet | **Cut, not faked.** — The chart draws the live price and labels the gap |
 | License | **MIT.** — See [LICENSE](LICENSE) |

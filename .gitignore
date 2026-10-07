@@ -20,3 +20,5 @@ New Text Document.*
 ideas/
 .vercel
 target/
+*.keystore
+*.jks
